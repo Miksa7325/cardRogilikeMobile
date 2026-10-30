@@ -17,7 +17,9 @@ export function renderRewardScreen(root) {
   const reward = run.pendingReward;
 
   const screen = el("main", "center-screen center-screen--with-bar");
-  screen.append(createRunBar(run), el("h1", "center-screen__title", getTitle(run)));
+  // Награда сундука ещё не сохранена, а награда за бой уже сохранена
+  const allSaved = getCurrentNode(run).type !== "chest";
+  screen.append(createRunBar(run, { allSaved }), el("h1", "center-screen__title", getTitle(run)));
 
   if (reward.gold > 0) screen.append(el("p", "reward__line", TEXTS.reward.gold(reward.gold)));
   if (reward.relicId) {

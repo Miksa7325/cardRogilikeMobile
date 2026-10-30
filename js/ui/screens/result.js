@@ -5,6 +5,7 @@ import { applyRunToMeta, getNextUnlock } from "../../engine/meta.js";
 import { getCurrentFloor } from "../../engine/run.js";
 import { clearRun, loadMeta, saveMeta } from "../../save.js";
 import { state } from "../../state.js";
+import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
@@ -27,6 +28,7 @@ export function renderResultScreen(root) {
     const meta = loadMeta();
     run.metaResult = applyRunToMeta(meta, run, getCurrentFloor(run));
     saveMeta(meta);
+    playSound(run.status === "won" ? "victory" : "defeat");
   }
 
   const title = run.status === "won" ? TEXTS.victoryTitle : TEXTS.defeatTitle;

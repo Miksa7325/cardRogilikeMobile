@@ -12,7 +12,8 @@ import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, sh
 
 // difficulty — уровень сложности (0 — без усложнений).
 // lockedCardIds и lockedRelicIds — что ещё не открыто за опыт: это не выпадет в забеге
-export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lockedRelicIds = [] }) {
+// tutorialFight: первый бой забега — лёгкий и один на один, для обучения
+export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lockedRelicIds = [], tutorialFight = false }) {
   const hero = HEROES[heroId];
   const maxHp = hero.maxHp - (difficulty >= 7 ? CONFIG.difficulty.maxHpLoss : 0);
   const run = {
@@ -33,6 +34,8 @@ export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lo
     map: generateActMap(seed, 1),
     stats: { combats: [], playMs: 0 }, // статистика забега для проверки баланса
     seen: { cards: [], enemies: [], relics: [] }, // что игрок встретил: это пойдёт в коллекцию
+    tutorialFight,
+    savedCombat: null, // бой на начало текущего хода: так игра продолжается посреди боя
     currentNodeId: null,
     visitedNodeIds: [],
     pendingReward: null,
@@ -95,6 +98,10 @@ export function createNodeCombat(run) {
   let enemyIds = act.boss;
   if (type === "battle") enemyIds = pickRandom(rng, act.encounters);
   if (type === "elite") enemyIds = pickRandom(rng, act.elites);
+  if (run.tutorialFight && type === "battle") {
+    enemyIds = act.encounters[0];
+    run.tutorialFight = false;
+  }
   for (const enemyId of enemyIds) markSeen(run, "enemies", enemyId);
 
   return createCombat({
@@ -125,6 +132,7 @@ function getEnemyModifiers(run, nodeType) {
 
 // Переносит итог боя в забег: HP, зелья, реликвии конца боя и награду
 export function finishCombat(run, combat) {
+  run.savedCombat = null;
   recordCombat(run, combat);
   run.hp = combat.hero.hp;
   run.potions = combat.potions;

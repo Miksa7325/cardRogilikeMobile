@@ -11,6 +11,9 @@ export function createMeta() {
     bestFloor: 0, // самый дальний этаж за все забеги, считая этажи всех актов
     heroStats: {}, // { warrior: { runs: 3, wins: 1 } }
     seen: { cards: [], enemies: [], relics: [] }, // коллекция: всё, что игрок встретил
+    tutorialDone: false, // пройдено ли обучение в первом бою
+    // Настройки лежат здесь же: они живут между забегами и остаются после сброса прогресса
+    settings: { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true },
   };
 }
 

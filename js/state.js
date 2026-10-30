@@ -4,6 +4,7 @@ export const state = {
   combat: null, // текущий бой, его создаёт createCombat из engine/combat.js
   selectedCardUid: null, // какую карту игрок выбрал в руке
   selectedPotionIndex: null, // какое зелье игрок выбрал
+  tutorialStep: null, // номер шага обучения; null — обучения сейчас нет
   test: {
     enabled: false, // идёт ли сейчас бой в тестовом режиме
     heroId: "warrior", // каким героем идёт тестовый бой

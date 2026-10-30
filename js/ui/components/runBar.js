@@ -24,7 +24,7 @@ function createIconButton(icon, onTap) {
 
 // Кнопка выхода в главное меню. needsConfirm: прогресс текущего узла не сохранён,
 // поэтому первое нажатие только предупреждает, а через несколько секунд предупреждение сбрасывается
-export function createMenuButton({ needsConfirm = false } = {}) {
+export function createMenuButton({ needsConfirm = false, confirmText = TEXTS.menuConfirm } = {}) {
   let confirmed = !needsConfirm;
   return createIconButton("🏠", () => {
     if (confirmed) {
@@ -33,7 +33,7 @@ export function createMenuButton({ needsConfirm = false } = {}) {
       return;
     }
     confirmed = true;
-    showTooltip(TEXTS.menuConfirm);
+    showTooltip(confirmText);
     setTimeout(() => {
       confirmed = false;
     }, MENU_CONFIRM_MS);
@@ -79,7 +79,7 @@ export function createRunBar(run, { combat = null, onPotionTap = null, selectedP
   }
   bar.append(
     createItemsRow(run.relics, potions, { onPotionTap, selectedPotionIndex }),
-    createMenuButton({ needsConfirm: !allSaved }),
+    createMenuButton({ needsConfirm: !allSaved, confirmText: combat ? TEXTS.menuConfirmCombat : TEXTS.menuConfirm }),
   );
   return bar;
 }

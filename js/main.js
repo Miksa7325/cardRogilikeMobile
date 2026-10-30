@@ -1,6 +1,7 @@
 // Точка входа: отсюда запускается вся игра.
 import { TEXTS } from "./data/texts.ru.js";
 import { requestPersistentStorage } from "./save.js";
+import { playSound, unlockAudio } from "./ui/audio.js";
 import { registerScreen, showScreen } from "./ui/router.js";
 import { renderCollectionScreen } from "./ui/screens/collection.js";
 import { renderCombatScreen } from "./ui/screens/combat.js";
@@ -11,9 +12,11 @@ import { renderRestScreen, renderRestUpgradeScreen } from "./ui/screens/rest.js"
 import { renderResultScreen } from "./ui/screens/result.js";
 import { renderRewardScreen } from "./ui/screens/reward.js";
 import { renderSaveTransferScreen } from "./ui/screens/saveTransfer.js";
+import { renderSettingsScreen } from "./ui/screens/settings.js";
 import { renderShopScreen } from "./ui/screens/shop.js";
 import { renderStartScreen } from "./ui/screens/start.js";
 import { renderTestSetupScreen } from "./ui/screens/testSetup.js";
+import { applySettings } from "./ui/settings.js";
 
 document.title = TEXTS.gameTitle;
 
@@ -30,11 +33,19 @@ registerScreen("shop", renderShopScreen);
 registerScreen("event", renderEventScreen);
 registerScreen("result", renderResultScreen);
 registerScreen("saveTransfer", renderSaveTransferScreen);
+registerScreen("settings", renderSettingsScreen);
 registerScreen("testSetup", renderTestSetupScreen);
 
+applySettings();
 showScreen("start");
 
 requestPersistentStorage();
+
+// Браузер разрешает звук только после нажатия. Каждая кнопка заодно тихо щёлкает
+document.addEventListener("pointerdown", unlockAudio);
+document.addEventListener("click", (event) => {
+  if (event.target.closest("button")) playSound("click");
+});
 
 // Service worker даёт игру без интернета. Работает только по HTTPS или на localhost
 if ("serviceWorker" in navigator) {

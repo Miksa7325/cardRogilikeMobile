@@ -1,6 +1,7 @@
 // Сохранение и загрузка. Два ключа в localStorage: текущий забег и мета-прогресс.
 // Смерть стирает только забег. Браузер может запретить хранилище, поэтому всё обёрнуто в try.
 import { CARDS } from "./data/cards.js";
+import { ENEMIES } from "./data/enemies.js";
 import { POTIONS } from "./data/potions.js";
 import { RELICS } from "./data/relics.js";
 import { createMeta } from "./engine/meta.js";
@@ -10,7 +11,7 @@ const META_KEY = "cardRpg.meta";
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const MIGRATIONS = {
   // Версия 2: появились акты и статистика забега. Старый забег продолжается в акте 1
   1: (save) => (save.run ? { ...save, run: { ...save.run, act: 1, stats: { combats: [], playMs: 0 } } } : save),
@@ -25,6 +26,8 @@ const MIGRATIONS = {
       seen: { cards: save.run.deck.map((card) => card.cardId), enemies: [], relics: [...save.run.relics] },
     },
   } : save),
+  // Версия 4: появились сохранение посреди боя и обучающий бой
+  3: (save) => (save.run ? { ...save, run: { ...save.run, savedCombat: null, tutorialFight: false } } : save),
 };
 
 // Просит браузер не удалять данные сайта при нехватке места. Браузер может отказать, это не ошибка
@@ -80,10 +83,22 @@ function isValidRun(run) {
   if (!Number.isInteger(run.difficulty) || !Array.isArray(run.lockedCardIds) || !Array.isArray(run.lockedRelicIds)) return false;
   if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
+  if (run.savedCombat && !isValidCombat(run.savedCombat)) return false;
 
   return run.deck.every((card) => CARDS[card.cardId])
     && run.relics.every((relicId) => RELICS[relicId])
     && run.potions.every((potionId) => POTIONS[potionId]);
+}
+
+// Проверяет бой из сохранения: те же причины, что и у забега
+function isValidCombat(combat) {
+  if (combat.status !== "playerTurn" || !combat.rng || !combat.hero || !Array.isArray(combat.enemies)) return false;
+  const { draw, hand, discard, exhaust } = combat.piles ?? {};
+  if (![draw, hand, discard, exhaust].every(Array.isArray)) return false;
+  return [...draw, ...hand, ...discard, ...exhaust].every((card) => CARDS[card.cardId])
+    && combat.enemies.every((enemy) => ENEMIES[enemy.enemyId])
+    && combat.relics.every((relicId) => RELICS[relicId])
+    && combat.potions.every((potionId) => POTIONS[potionId]);
 }
 
 function isValidMeta(meta) {
@@ -113,7 +128,21 @@ export function clearRun() {
 export function loadMeta() {
   const save = migrateSave(parseJson(readKey(META_KEY)));
   const defaults = createMeta();
-  return { ...defaults, ...save, seen: { ...defaults.seen, ...save?.seen } };
+  return {
+    ...defaults,
+    ...save,
+    seen: { ...defaults.seen, ...save?.seen },
+    settings: { ...defaults.settings, ...save?.settings },
+    // Кто уже играл до появления обучения, тому оно не нужно
+    tutorialDone: save?.tutorialDone ?? (save?.runsPlayed ?? 0) > 0,
+  };
+}
+
+// Сброс прогресса: стирает забег, опыт и коллекцию, но оставляет настройки звука и анимаций
+export function resetProgress() {
+  const { settings } = loadMeta();
+  clearRun();
+  saveMeta({ ...createMeta(), settings });
 }
 
 export function saveMeta(meta) {

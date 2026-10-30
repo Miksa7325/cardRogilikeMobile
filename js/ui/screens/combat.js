@@ -7,15 +7,21 @@ import { TEXTS } from "../../data/texts.ru.js";
 import { canPlayCard, createCombat, endTurn, getEnemyIntent, playCard, usePotion } from "../../engine/combat.js";
 import { getCardData } from "../../engine/deck.js";
 import { createNodeCombat, finishCombat } from "../../engine/run.js";
+import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
+import { captureCombatView, flyCardAway, playCombatFeedback } from "../animations.js";
+import { ENEMY_ART, HERO_ART } from "../art.js";
 import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
 import { createCardPicker } from "../components/cardPicker.js";
 import { createHpBar } from "../components/hpBar.js";
 import { createItemsRow, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
+import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
+import { animationMs } from "../settings.js";
+import { createTutorialBanner, finishTutorial, isTutorialTarget, notifyTutorial } from "../tutorial.js";
 
 const INTENT_ICONS = {
   attack: "⚔️",
@@ -29,6 +35,15 @@ export function startNodeCombat() {
   state.combat = createNodeCombat(state.run);
   state.test.enabled = false;
   clearSelection();
+  saveTurnStart();
+  showScreen("combat");
+}
+
+// Продолжает бой из сохранения: с начала того хода, на котором игрок вышел
+export function resumeCombat() {
+  state.combat = state.run.savedCombat;
+  state.test.enabled = false;
+  clearSelection();
   showScreen("combat");
 }
 
@@ -38,6 +53,12 @@ export function startTestCombat() {
   state.test.enabled = true;
   clearSelection();
   showScreen("combat");
+}
+
+// Сохраняет бой в начале хода, чтобы закрытая игра продолжилась с этого места
+function saveTurnStart() {
+  state.run.savedCombat = state.combat;
+  saveRun(state.run);
 }
 
 function clearSelection() {
@@ -58,6 +79,8 @@ export function renderCombatScreen(root) {
     createBottomBar(combat),
   );
   if (state.test.pickerOpen) screen.append(createCardPicker());
+  const banner = state.test.enabled ? null : createTutorialBanner("combat", combat);
+  if (banner) screen.append(banner);
   root.append(screen);
 }
 
@@ -81,6 +104,12 @@ function createTopBar(combat) {
   return bar;
 }
 
+function createPortrait(art) {
+  const portrait = el("div", "unit__portrait");
+  portrait.innerHTML = art;
+  return portrait;
+}
+
 function createEnemies(combat) {
   const list = el("div", "combat__enemies");
   const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
@@ -92,15 +121,18 @@ function createEnemies(combat) {
 
 function createEnemy(combat, enemy, compact) {
   const element = el("div", "unit");
+  element.dataset.unitId = enemy.instanceId;
   if (getSelectedTargetType() === "enemy") element.classList.add("unit--targetable");
+  if (isTutorialTarget("enemy")) element.classList.add("tutorial-target");
 
   element.append(
     el("div", "unit__intent", formatIntent(combat, enemy)),
+    createPortrait(ENEMY_ART[enemy.enemyId]),
     el("div", "unit__name", ENEMIES[enemy.enemyId].name),
     createHpBar(enemy),
     createStatusIcons(enemy, { compact }),
   );
-  element.addEventListener("click", () => onEnemyTap(enemy));
+  element.addEventListener("click", () => onEnemyTap(combat, enemy));
   return element;
 }
 
@@ -115,16 +147,36 @@ function formatIntent(combat, enemy) {
   return INTENT_ICONS[intent];
 }
 
+// Текст подсказки при нажатии на бойца: что он сделает и что значат его статусы
+function describeStatuses(unit) {
+  const lines = Object.entries(unit.statuses).map(([status, amount]) => (
+    `${TEXTS.statuses[status]} ${amount}: ${TEXTS.statusDescriptions[status]}.`
+  ));
+  return lines.length > 0 ? lines.join(" ") : TEXTS.inspect.noStatuses;
+}
+
+function describeEnemy(combat, enemy) {
+  const { intent, damage, hits, block } = getEnemyIntent(combat, enemy);
+  const texts = TEXTS.inspect.intents;
+  const intentText = { attack: texts.attack(damage, hits), defend: texts.defend(block), buff: texts.buff, debuff: texts.debuff }[intent];
+  return `${ENEMIES[enemy.enemyId].name}. ${intentText} ${describeStatuses(enemy)}`;
+}
+
 function createHero(combat) {
   const wrapper = el("div", "combat__hero");
-  const unit = el("div", "unit");
+  const unit = el("div", "unit unit--hero");
+  unit.dataset.unitId = "hero";
   // Когда значков много, сокращаем их, чтобы герой не занял место врагов
   const iconCount = Object.keys(combat.hero.statuses).length + combat.hero.powers.length;
-  unit.append(
+
+  const details = el("div", "unit__details");
+  details.append(
     el("div", "unit__name", HEROES[combat.hero.heroId].name),
     createHpBar(combat.hero),
     createStatusIcons(combat.hero, { compact: iconCount > 2 }),
   );
+  unit.append(createPortrait(HERO_ART[combat.hero.heroId]), details);
+  unit.addEventListener("click", () => showTooltip(describeStatuses(combat.hero)));
   wrapper.append(unit);
   return wrapper;
 }
@@ -143,6 +195,7 @@ function createHand(combat) {
       selected: instance.uid === state.selectedCardUid,
       onTap: (cardElement) => onCardTap(instance, cardElement),
     });
+    if (canPlayCard(combat, instance) && isTutorialTarget("card", instance)) element.classList.add("tutorial-target");
     // Чем дальше карта от центра, тем сильнее наклон и ниже положение: получается веер
     const offset = (index - middle) * spread;
     element.style.setProperty("--fan-angle", `${offset * 3}deg`);
@@ -157,6 +210,7 @@ function createBottomBar(combat) {
   const endTurnButton = el("button", "button", TEXTS.endTurn);
   endTurnButton.type = "button";
   endTurnButton.addEventListener("click", onEndTurnTap);
+  if (isTutorialTarget("endTurn")) endTurnButton.classList.add("tutorial-target");
 
   const piles = el("button", "combat__piles");
   piles.type = "button";
@@ -166,11 +220,10 @@ function createBottomBar(combat) {
   );
   piles.addEventListener("click", () => openPiles(combat));
 
-  bar.append(
-    el("div", "combat__energy", `⚡ ${combat.energy}/${CONFIG.energyPerTurn}`),
-    piles,
-    endTurnButton,
-  );
+  const energy = el("div", "combat__energy", `⚡ ${combat.energy}/${CONFIG.energyPerTurn}`);
+  if (isTutorialTarget("energy")) energy.classList.add("tutorial-target");
+
+  bar.append(energy, piles, endTurnButton);
   return bar;
 }
 
@@ -221,6 +274,7 @@ function onCardTap(instance, element) {
   // Повторный тап по карте с целью снимает выбор, тап по другой карте выбирает её
   clearSelection();
   state.selectedCardUid = alreadySelected ? null : instance.uid;
+  if (!alreadySelected && getCardData(instance).target === "enemy") notifyTutorial("cardSelected");
   showScreen("combat");
 }
 
@@ -236,8 +290,12 @@ function onPotionTap(index) {
   showScreen("combat");
 }
 
-function onEnemyTap(enemy) {
-  if (getSelectedTargetType() !== "enemy") return;
+// С выбранной картой нажатие на врага — удар, а без неё — описание врага
+function onEnemyTap(combat, enemy) {
+  if (getSelectedTargetType() !== "enemy") {
+    showTooltip(describeEnemy(combat, enemy));
+    return;
+  }
   if (getSelectedCard()) {
     playSelectedCard(enemy.instanceId);
   } else {
@@ -246,33 +304,60 @@ function onEnemyTap(enemy) {
 }
 
 function playSelectedCard(targetId) {
+  const before = captureCombatView(state.combat);
+  const blockBefore = state.combat.hero.block;
+  flyCardAway(document.querySelector(".card--selected"));
+
   playCard(state.combat, state.selectedCardUid, targetId);
   clearSelection();
-  showCurrentScreen();
+
+  notifyTutorial("cardPlayed");
+  if (state.combat.hero.block > blockBefore) notifyTutorial("blockGained");
+  showCurrentScreen(before);
 }
 
 function useSelectedPotion(targetId) {
+  const before = captureCombatView(state.combat);
   usePotion(state.combat, state.selectedPotionIndex, targetId);
   clearSelection();
-  showCurrentScreen();
+  showCurrentScreen(before);
 }
 
 function onEndTurnTap() {
+  const before = captureCombatView(state.combat);
   clearSelection();
   endTurn(state.combat);
-  showCurrentScreen();
+  notifyTutorial("turnEnded");
+
+  // Новый ход начался: это точка сохранения посреди боя
+  if (!state.test.enabled && state.combat.status === "playerTurn") saveTurnStart();
+  showCurrentScreen(before, { enemyTurn: true });
 }
 
-// Бой продолжается — рисуем его заново. Тестовый бой заканчивается результатом,
-// а в забеге победа ведёт к награде и только поражение — к экрану результата
-function showCurrentScreen() {
-  const combat = state.combat;
-  if (combat.status === "playerTurn") {
-    showScreen("combat");
-  } else if (state.test.enabled) {
+// Рисует итог действия. Если бой закончился, сначала даём увидеть последний удар
+function showCurrentScreen(before, feedbackOptions = {}) {
+  showScreen("combat");
+  playCombatFeedback(before, state.combat, feedbackOptions);
+  if (state.combat.status === "playerTurn") return;
+
+  // Пока идёт пауза, нажатия не должны доходить до экрана
+  document.getElementById("app").append(el("div", "input-blocker"));
+  setTimeout(showCombatEnd, animationMs(2));
+}
+
+// Тестовый бой заканчивается результатом, а в забеге победа ведёт к награде и только поражение — к результату
+function showCombatEnd() {
+  if (state.tutorialStep !== null) finishTutorial();
+  if (state.test.enabled) {
     showScreen("result");
-  } else {
-    finishCombat(state.run, combat);
-    showScreen(state.run.status === "lost" ? "result" : "reward");
+    return;
   }
+  finishCombat(state.run, state.combat);
+  if (state.run.status === "lost") {
+    showScreen("result");
+    return;
+  }
+  // Награда сохраняется сразу: закрытая игра вернётся на этот же экран
+  saveRun(state.run);
+  showScreen("reward");
 }

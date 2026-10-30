@@ -12,6 +12,7 @@ import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
+import { createTutorialBanner, notifyTutorial, startTutorial } from "../tutorial.js";
 import { startNodeCombat } from "./combat.js";
 import { openRunStats } from "./runStats.js";
 
@@ -30,8 +31,16 @@ const NODE_ICONS = {
 
 // Запускает новый забег. Время как seed задаём здесь: в логике случайность только через rng.js
 export function startNewRun(heroId, difficulty) {
-  state.run = createRun({ heroId, seed: Date.now(), difficulty, ...getLockedContent(loadMeta()) });
+  const meta = loadMeta();
+  state.run = createRun({
+    heroId,
+    seed: Date.now(),
+    difficulty,
+    tutorialFight: !meta.tutorialDone,
+    ...getLockedContent(meta),
+  });
   state.test.enabled = false;
+  if (!meta.tutorialDone) startTutorial();
   resetPlayTimer();
   showScreen("map");
 }
@@ -45,10 +54,13 @@ export function renderMapScreen(root) {
   statsButton.type = "button";
   statsButton.addEventListener("click", () => openRunStats(run));
   screen.append(createRunBar(run, { allSaved: true }), el("p", "map__legend", TEXTS.mapLegend), statsButton, scroller);
+  const banner = createTutorialBanner("map");
+  if (banner) screen.append(banner);
   root.append(screen);
 
   // На карту игрок попадает только между узлами, поэтому здесь и сохраняем забег
   trackPlayTime(run);
+  run.savedCombat = null;
   const meta = loadMeta();
   mergeSeen(meta, run);
   if (!saveRun(run) || !saveMeta(meta)) showTooltip(TEXTS.saveFailed);
@@ -116,6 +128,7 @@ function createNode(run, node, isAvailable) {
 
 function onNodeTap(run, nodeId) {
   if (!enterNode(run, nodeId)) return;
+  notifyTutorial("nodeEntered");
 
   const type = getCurrentNode(run).type;
   if (type === "rest") {

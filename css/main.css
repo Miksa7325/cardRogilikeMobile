@@ -13,7 +13,10 @@
   --color-skill: #26405e;
   --color-power: #4a2f66;
   --color-status: #3a3a3a;
+  --anim-speed: 1; /* 0.5 при ускорении ×2 в настройках */
 }
+
+/* Анимации 200–400 мс: все длительности умножаются на --anim-speed, его задаёт ui/settings.js */
 
 /* Размеры считаем вместе с отступами, так вёрстка предсказуемее */
 * {
@@ -29,7 +32,8 @@ body {
 
 body {
   margin: 0;
-  background: var(--color-bg);
+  /* Свет сверху делает фон подземелья глубже, чем сплошной цвет */
+  background: radial-gradient(ellipse at 50% 0, #2a2233, var(--color-bg) 70%) fixed;
   color: var(--color-text);
   font-family: system-ui, sans-serif;
 }

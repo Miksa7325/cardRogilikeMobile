@@ -4,6 +4,7 @@ import { RELICS } from "../../data/relics.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { buyShopItem, canRemoveCardAtShop, removeCardAtShop } from "../../engine/shop.js";
 import { state } from "../../state.js";
+import { playSound } from "../audio.js";
 import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
 import { createRunBar } from "../components/runBar.js";
@@ -68,6 +69,7 @@ function createItemGoods(shop, section, catalog) {
 function tryBuy(section, index, element) {
   const result = buyShopItem(state.run, section, index);
   if (result.ok) {
+    playSound("buy");
     showScreen("shop");
     return;
   }

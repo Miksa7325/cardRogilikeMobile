@@ -94,6 +94,204 @@
   pointer-events: none;
 }
 
+/* Логотип на стартовом экране */
+.start-logo {
+  width: 96px;
+  height: 96px;
+}
+
+.start-logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Портрет бойца. Размер задан рамкой, а рисунок сам подстраивается под неё */
+.unit__portrait {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 2px;
+}
+
+.unit__portrait svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Герой: портрет слева, остальное справа */
+.unit--hero {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit--hero .unit__portrait {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.unit__details {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Плавное изменение полоски HP */
+.hp-bar__fill {
+  transition: width calc(300ms * var(--anim-speed));
+}
+
+/* Анимации боя */
+.unit--hit {
+  animation: unit-hit calc(300ms * var(--anim-speed));
+}
+
+@keyframes unit-hit {
+  20% { translate: -6px 0; filter: brightness(1.8); }
+  50% { translate: 5px 0; }
+  80% { translate: -3px 0; }
+}
+
+.unit--attacking {
+  animation: unit-attack calc(300ms * var(--anim-speed));
+}
+
+@keyframes unit-attack {
+  40% { translate: 0 10px; scale: 1.05; }
+}
+
+.unit--dying {
+  position: fixed;
+  z-index: 15;
+  flex: none;
+  margin: 0;
+  pointer-events: none;
+  animation: unit-die calc(400ms * var(--anim-speed)) forwards;
+}
+
+@keyframes unit-die {
+  to { opacity: 0; scale: 0.8; translate: 0 12px; filter: brightness(0.3); }
+}
+
+.float-text {
+  position: fixed;
+  z-index: 16;
+  font-size: 22px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px #000;
+  pointer-events: none;
+  translate: -50% 0;
+  animation: float-up calc(400ms * var(--anim-speed)) ease-out forwards;
+}
+
+.float-text--damage {
+  color: #ff6b6b;
+}
+
+.float-text--heal {
+  color: #7be07b;
+}
+
+.float-text--block {
+  color: #8cc4ff;
+  font-size: 16px;
+}
+
+@keyframes float-up {
+  to { opacity: 0; translate: -50% -32px; }
+}
+
+/* Закрывает экран на время паузы в конце боя */
+.input-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+}
+
+/* Обучение */
+.tutorial {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(216px + env(safe-area-inset-bottom));
+  z-index: 12;
+  padding: 8px 12px;
+  border: 2px solid var(--color-highlight);
+  border-radius: 8px;
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+/* На карте нижний ряд узлов — самый важный, поэтому подсказка стоит сверху */
+.map .tutorial {
+  top: calc(52px + env(safe-area-inset-top));
+  bottom: auto;
+}
+
+.tutorial__text {
+  margin: 0 0 4px;
+}
+
+.tutorial__controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.tutorial__button {
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-muted);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tutorial__button--main {
+  padding: 0 20px;
+  background: var(--color-accent);
+  color: var(--color-text);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.tutorial-target {
+  animation: tutorial-pulse calc(800ms * var(--anim-speed)) infinite alternate;
+}
+
+@keyframes tutorial-pulse {
+  to { box-shadow: 0 0 14px 4px var(--color-highlight); }
+}
+
+/* Настройки */
+.settings {
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.settings__slider {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 4px;
+  width: 100%;
+}
+
+.settings__slider input {
+  width: 100%;
+  height: 44px;
+  accent-color: var(--color-highlight);
+}
+
+.settings__toggle {
+  width: 100%;
+}
+
 /* Выбор героя */
 .hero-select {
   gap: 12px;
@@ -447,6 +645,11 @@
 .unit--targetable {
   border-color: var(--color-highlight);
   cursor: pointer;
+}
+
+.combat__enemies .unit__name {
+  font-size: 13px;
+  line-height: 1.15;
 }
 
 .unit__intent {
