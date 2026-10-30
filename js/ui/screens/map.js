@@ -1,7 +1,9 @@
 // Экран карты акта: узлы, линии между ними и выбор следующего узла.
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
+import { startEvent } from "../../engine/events.js";
 import { createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
+import { createShop } from "../../engine/shop.js";
 import { state } from "../../state.js";
 import { createRunBar } from "../components/runBar.js";
 import { el } from "../dom.js";
@@ -14,6 +16,8 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const NODE_ICONS = {
   battle: "⚔️",
   elite: "👹",
+  event: "❓",
+  shop: "🛒",
   rest: "🔥",
   chest: "🎁",
   boss: "💀",
@@ -104,6 +108,12 @@ function onNodeTap(run, nodeId) {
   } else if (type === "chest") {
     openChest(run);
     showScreen("reward");
+  } else if (type === "event") {
+    startEvent(run);
+    showScreen("event");
+  } else if (type === "shop") {
+    createShop(run);
+    showScreen("shop");
   } else {
     startNodeCombat();
   }

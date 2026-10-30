@@ -1,0 +1,68 @@
+// Все зелья игры. Зелье пьётся только в бою, target работает как у карт.
+// fixed: true у урона — число не меняется от Силы, Слабости и Уязвимости.
+export const POTIONS = {
+  fire_potion: {
+    id: "fire_potion",
+    name: "Зелье огня",
+    icon: "🧨",
+    target: "enemy",
+    description: "Нанести 20 урона.",
+    effects: [{ type: "damage", amount: 20, fixed: true }],
+  },
+  poison_potion: {
+    id: "poison_potion",
+    name: "Зелье яда",
+    icon: "🧪",
+    target: "enemy",
+    description: "Наложить 7 Яда.",
+    effects: [{ type: "applyStatus", status: "poison", amount: 7 }],
+  },
+  block_potion: {
+    id: "block_potion",
+    name: "Зелье защиты",
+    icon: "🧱",
+    target: "self",
+    description: "Получить 12 блока.",
+    effects: [{ type: "block", amount: 12, target: "self" }],
+  },
+  strength_potion: {
+    id: "strength_potion",
+    name: "Зелье силы",
+    icon: "💪",
+    target: "self",
+    description: "Получить 2 Силы.",
+    effects: [{ type: "applyStatus", status: "strength", amount: 2, target: "self" }],
+  },
+  dexterity_potion: {
+    id: "dexterity_potion",
+    name: "Зелье ловкости",
+    icon: "🤸",
+    target: "self",
+    description: "Получить 2 Ловкости.",
+    effects: [{ type: "applyStatus", status: "dexterity", amount: 2, target: "self" }],
+  },
+  health_potion: {
+    id: "health_potion",
+    name: "Зелье лечения",
+    icon: "❤️‍🩹",
+    target: "self",
+    description: "Вылечить 20 HP.",
+    effects: [{ type: "heal", amount: 20 }],
+  },
+  energy_potion: {
+    id: "energy_potion",
+    name: "Зелье энергии",
+    icon: "⚡",
+    target: "self",
+    description: "Получить 2 энергии.",
+    effects: [{ type: "gainEnergy", amount: 2 }],
+  },
+  swift_potion: {
+    id: "swift_potion",
+    name: "Зелье быстроты",
+    icon: "💨",
+    target: "self",
+    description: "Взять 3 карты.",
+    effects: [{ type: "draw", amount: 3 }],
+  },
+};

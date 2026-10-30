@@ -2,6 +2,8 @@
 import { CONFIG } from "../config.js";
 import { ENEMIES } from "../data/enemies.js";
 import { HEROES } from "../data/heroes.js";
+import { POTIONS } from "../data/potions.js";
+import { RELICS } from "../data/relics.js";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
 import { applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, reduceStatus } from "./effects.js";
 import { createRng, nextInt } from "./rng.js";
@@ -9,8 +11,9 @@ import { createRng, nextInt } from "./rng.js";
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
 const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];
 
-// Создаёт бой. hp, maxHp и deck приходят из забега; в тестовом режиме их нет, тогда берём стартовые
-export function createCombat({ heroId, enemyIds, seed, hp, maxHp, deck }) {
+// Создаёт бой. hp, maxHp, deck, relics и potions приходят из забега; в тестовом режиме их нет,
+// тогда берём стартовые значения героя, а реликвий и зелий у него нет
+export function createCombat({ heroId, enemyIds, seed, hp, maxHp, deck, relics = [], potions = [] }) {
   const rng = createRng(seed);
   const heroData = HEROES[heroId];
   const startingDeck = heroData.deck.map((cardId) => ({ cardId, upgraded: false }));
@@ -30,9 +33,14 @@ export function createCombat({ heroId, enemyIds, seed, hp, maxHp, deck }) {
     },
     enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng)),
     piles: createPiles(deck ?? startingDeck, rng),
+    relics: [...relics],
+    relicCounters: {}, // счётчики реликвий «каждый N-й раз»
+    potions: [...potions],
   };
 
   startPlayerTurn(combat);
+  // Начало боя идёт после первого хода: блок и энергия от реликвий не обнулятся
+  fireTrigger(combat, "onCombatStart");
   return combat;
 }
 
@@ -81,7 +89,7 @@ export function playCard(combat, uid, targetId) {
   if (!canPlayCard(combat, instance)) return { ok: false, reason: "cannotPlay" };
 
   const card = getCardData(instance);
-  const targets = findCardTargets(combat, card, targetId);
+  const targets = findTargets(combat, card.target, targetId);
   if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
 
   combat.energy -= card.cost;
@@ -92,12 +100,28 @@ export function playCard(combat, uid, targetId) {
 
   const context = { source: combat.hero, targets, fromCard: true, exhausted: false };
   executeEffects(combat, card.effects, context);
+  fireTrigger(combat, "onCardPlayed", { cardType: card.type });
 
   if (context.exhausted) {
     combat.piles.exhaust.push(instance);
   } else if (card.type !== "power") {
     combat.piles.discard.push(instance);
   }
+  return { ok: true };
+}
+
+// Выпивает зелье. Возвращает { ok: true } или { ok: false, reason: "..." }
+export function usePotion(combat, index, targetId) {
+  if (combat.status !== "playerTurn") return { ok: false, reason: "notPlayerTurn" };
+
+  const potion = POTIONS[combat.potions[index]];
+  if (!potion) return { ok: false, reason: "noPotion" };
+
+  const targets = findTargets(combat, potion.target, targetId);
+  if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
+
+  combat.potions.splice(index, 1);
+  executeEffects(combat, potion.effects, { source: combat.hero, targets, fromCard: false });
   return { ok: true };
 }
 
@@ -117,6 +141,20 @@ export function endTurn(combat) {
 export function addCardToHand(combat, cardId, upgraded) {
   if (combat.piles.hand.length >= CONFIG.maxHandSize) return false;
   combat.piles.hand.push(createCardInstance(combat.piles, cardId, upgraded));
+  return true;
+}
+
+// Для тестового режима: даёт реликвию посреди боя. Эффект начала боя срабатывает сразу
+export function addRelicToCombat(combat, relicId) {
+  combat.relics.push(relicId);
+  if (RELICS[relicId].trigger !== "onCombatStart") return;
+  executeEffects(combat, RELICS[relicId].effects, { source: combat.hero, targets: [], fromCard: false });
+}
+
+// Для тестового режима: даёт зелье. Возвращает false, если места нет
+export function addPotionToCombat(combat, potionId) {
+  if (combat.potions.length >= CONFIG.maxPotions) return false;
+  combat.potions.push(potionId);
   return true;
 }
 
@@ -161,10 +199,11 @@ function chooseNextIntent(enemy) {
   enemy.patternIndex = (enemy.patternIndex + 1) % pattern.length;
 }
 
-function findCardTargets(combat, card, targetId) {
+// Кого затронет карта или зелье: одного врага, всех врагов или самого героя
+function findTargets(combat, targetType, targetId) {
   const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
-  if (card.target === "enemy") return alive.filter((enemy) => enemy.instanceId === targetId);
-  if (card.target === "allEnemies") return alive;
+  if (targetType === "enemy") return alive.filter((enemy) => enemy.instanceId === targetId);
+  if (targetType === "allEnemies") return alive;
   return [combat.hero];
 }
 

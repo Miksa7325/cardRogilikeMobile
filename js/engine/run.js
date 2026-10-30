@@ -3,33 +3,41 @@ import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
 import { BOSS_ENCOUNTER, ELITE_ENCOUNTERS, ENCOUNTERS } from "../data/enemies.js";
 import { HEROES } from "../data/heroes.js";
+import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
 import { createCombat } from "./combat.js";
 import { canUpgradeCard, upgradeCard } from "./deck.js";
 import { generateMap } from "./map.js";
-import { createRng, deriveSeed, nextInt, pickRandom, pickWeighted } from "./rng.js";
+import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.js";
 
 export function createRun({ heroId, seed }) {
   const hero = HEROES[heroId];
-  return {
+  const run = {
     seed,
     heroId,
     status: "active", // active | won | lost
     hp: hero.maxHp,
     maxHp: hero.maxHp,
     gold: 0,
-    deck: hero.deck.map((cardId, index) => ({ uid: index, cardId, upgraded: false })),
-    nextCardUid: hero.deck.length,
-    relics: [...hero.relics],
+    deck: [],
+    nextCardUid: 0,
+    relics: [],
+    potions: [],
     map: generateMap(createRng(deriveSeed(seed, "map"))),
     currentNodeId: null,
     visitedNodeIds: [],
     pendingReward: null,
+    shop: null, // магазин на текущем узле, его создаёт engine/shop.js
+    activeEvent: null, // событие на текущем узле, его создаёт engine/events.js
+    seenEventIds: [], // какие события уже были в этом забеге
   };
+  for (const cardId of hero.deck) addCardToDeck(run, cardId);
+  for (const relicId of hero.relics) addRelic(run, relicId);
+  return run;
 }
 
-// У каждого узла свой генератор: награда зависит только от seed забега и самого узла
-function nodeRng(run, purpose) {
+// У каждого узла свой генератор: результат зависит только от seed забега и самого узла
+export function nodeRng(run, purpose) {
   return createRng(deriveSeed(run.seed, `${purpose}:${run.currentNodeId}`));
 }
 
@@ -55,7 +63,7 @@ export function enterNode(run, nodeId) {
   return true;
 }
 
-// Создаёт бой для текущего узла с HP и колодой забега
+// Создаёт бой для текущего узла с HP, колодой, реликвиями и зельями забега
 export function createNodeCombat(run) {
   const rng = nodeRng(run, "encounter");
   const type = getCurrentNode(run).type;
@@ -70,18 +78,21 @@ export function createNodeCombat(run) {
     hp: run.hp,
     maxHp: run.maxHp,
     deck: run.deck,
+    relics: run.relics,
+    potions: run.potions,
   });
 }
 
-// Переносит итог боя в забег: HP, срабатывание реликвий и награду
+// Переносит итог боя в забег: HP, зелья, реликвии конца боя и награду
 export function finishCombat(run, combat) {
   run.hp = combat.hero.hp;
+  run.potions = combat.potions;
   if (combat.status === "lost") {
     run.status = "lost";
     return;
   }
 
-  applyCombatEndRelics(run);
+  applyRelicTrigger(run, "onCombatEnd");
   const type = getCurrentNode(run).type;
   if (type === "boss") {
     run.hp = run.maxHp; // после босса полное лечение
@@ -93,66 +104,177 @@ export function finishCombat(run, combat) {
   }
 }
 
-// Реликвии с триггером конца боя. Полная система триггеров появится вместе с новыми реликвиями
-function applyCombatEndRelics(run) {
+// Реликвии, которые срабатывают вне боя
+function applyRelicTrigger(run, trigger) {
   for (const relicId of run.relics) {
     const relic = RELICS[relicId];
-    if (relic.trigger !== "onCombatEnd") continue;
-    for (const effect of relic.effects) {
-      if (effect.type === "heal") run.hp = Math.min(run.maxHp, run.hp + effect.amount);
-    }
+    if (relic.trigger === trigger) applyRunEffects(run, relic.effects, nodeRng(run, `relic:${relicId}`));
   }
+}
+
+// Эффекты вне боя: от событий и реликвий. Возвращает список того, что игрок получил,
+// чтобы интерфейс мог это показать: [{ kind: "card", id: "strike" }, ...]
+export function applyRunEffects(run, effects, rng) {
+  const gains = [];
+  for (const effect of effects) {
+    const gain = RUN_EFFECT_HANDLERS[effect.type](run, effect, rng);
+    if (gain) gains.push(...gain);
+  }
+  return gains;
+}
+
+const RUN_EFFECT_HANDLERS = {
+  heal(run, effect) {
+    run.hp = Math.min(run.maxHp, run.hp + effect.amount);
+  },
+  // Вне боя потеря HP не убивает: смерть — только в бою
+  loseHp(run, effect) {
+    run.hp = Math.max(1, run.hp - effect.amount);
+  },
+  gainGold(run, effect) {
+    run.gold += effect.amount;
+  },
+  loseGold(run, effect) {
+    run.gold = Math.max(0, run.gold - effect.amount);
+  },
+  gainMaxHp(run, effect) {
+    run.maxHp += effect.amount;
+    run.hp += effect.amount;
+  },
+  loseMaxHp(run, effect) {
+    run.maxHp -= effect.amount;
+    run.hp = Math.max(1, Math.min(run.hp, run.maxHp));
+  },
+  // Конкретная карта (cardId) или случайная заданной редкости (rarity)
+  addCard(run, effect, rng) {
+    const cardId = effect.cardId ?? pickRandom(rng, getCardPool().filter((card) => card.rarity === effect.rarity)).id;
+    addCardToDeck(run, cardId);
+    return [{ kind: "card", id: cardId }];
+  },
+  removeRandomCard(run, effect, rng) {
+    const candidates = run.deck.filter((card) => CARDS[card.cardId].rarity === effect.rarity);
+    if (candidates.length === 0) return [];
+    const card = pickRandom(rng, candidates);
+    removeCardFromDeck(run, card.uid);
+    return [{ kind: "cardRemoved", id: card.cardId }];
+  },
+  upgradeRandomCards(run, effect, rng) {
+    const candidates = getUpgradableCards(run);
+    shuffle(rng, candidates);
+    return candidates.slice(0, effect.count).map((card) => {
+      upgradeCard(card);
+      return { kind: "cardUpgraded", id: card.cardId };
+    });
+  },
+  gainRelic(run, effect, rng) {
+    const relic = grantRandomRelic(run, rng);
+    return [relic.relicId ? { kind: "relic", id: relic.relicId } : { kind: "gold", amount: relic.relicFallbackGold }];
+  },
+  gainPotion(run, effect, rng) {
+    const potionId = grantRandomPotion(run, rng);
+    return [potionId ? { kind: "potion", id: potionId } : { kind: "potionsFull" }];
+  },
+};
+
+export function addCardToDeck(run, cardId) {
+  run.deck.push({ uid: run.nextCardUid, cardId, upgraded: false });
+  run.nextCardUid += 1;
+}
+
+export function removeCardFromDeck(run, uid) {
+  run.deck = run.deck.filter((card) => card.uid !== uid);
+}
+
+// Добавляет реликвию и сразу применяет её эффект получения, если он есть
+export function addRelic(run, relicId) {
+  run.relics.push(relicId);
+  const relic = RELICS[relicId];
+  if (relic.trigger === "onPickup") applyRunEffects(run, relic.effects, nodeRng(run, `relic:${relicId}`));
+}
+
+// Новые реликвии заданных редкостей, которых у игрока ещё нет
+export function getRelicPool(run, rarities) {
+  return Object.values(RELICS).filter((relic) => rarities.includes(relic.rarity) && !run.relics.includes(relic.id));
+}
+
+// Даёт случайную новую реликвию. Если новых нет, вместо неё золото
+function grantRandomRelic(run, rng, rarities = ["common", "uncommon"]) {
+  const pool = getRelicPool(run, rarities);
+  if (pool.length === 0) {
+    run.gold += CONFIG.rewards.relicFallbackGold;
+    return { relicId: null, relicFallbackGold: CONFIG.rewards.relicFallbackGold };
+  }
+  const relic = pickRandom(rng, pool);
+  addRelic(run, relic.id);
+  return { relicId: relic.id, relicFallbackGold: 0 };
+}
+
+export function canCarryPotion(run) {
+  return run.potions.length < CONFIG.maxPotions;
+}
+
+// Даёт случайное зелье и возвращает его id; если места нет, возвращает null
+function grantRandomPotion(run, rng) {
+  if (!canCarryPotion(run)) return null;
+  const potionId = pickRandom(rng, Object.keys(POTIONS));
+  run.potions.push(potionId);
+  return potionId;
+}
+
+// Зелье в награду за бой выпадает с шансом; если места нет, игрок об этом узнает
+function rollPotionReward(run, rng) {
+  if (nextFloat(rng) >= CONFIG.rewards.potionChance) return { potionId: null, potionsFull: false };
+  const potionId = grantRandomPotion(run, rng);
+  return { potionId, potionsFull: potionId === null };
 }
 
 function createBattleReward(run) {
   const rng = nodeRng(run, "reward");
   const gold = nextInt(rng, ...CONFIG.rewards.battleGold);
   run.gold += gold;
-  return { gold, relicId: null, relicFallbackGold: 0, cardIds: rollCardChoices(rng) };
+  return { gold, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(rng) };
 }
 
 function createEliteReward(run) {
   const rng = nodeRng(run, "reward");
   const gold = nextInt(rng, ...CONFIG.rewards.eliteGold);
   run.gold += gold;
-  return { gold, ...grantRelic(run, rng), cardIds: rollCardChoices(rng) };
+  return { gold, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(rng) };
 }
 
-// После босса — только редкие карты: их на выбор столько, сколько есть, но не больше cardChoices
+// После босса: реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
 function createBossReward(run) {
   const rng = nodeRng(run, "reward");
-  return { gold: 0, ...grantRelic(run, rng), cardIds: rollCardChoices(rng, "rare") };
+  return {
+    gold: 0,
+    ...grantRandomRelic(run, rng, ["boss"]),
+    potionId: null,
+    potionsFull: false,
+    cardIds: rollCardChoices(rng, "rare"),
+  };
 }
 
 // Открывает сундук на текущем узле: внутри реликвия
 export function openChest(run) {
   const rng = nodeRng(run, "chest");
-  run.pendingReward = { gold: 0, ...grantRelic(run, rng), cardIds: [] };
+  run.pendingReward = { gold: 0, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
 }
 
-// Даёт случайную новую реликвию. Если новых нет, вместо неё золото
-function grantRelic(run, rng) {
-  const pool = Object.values(RELICS).filter(
-    (relic) => relic.rarity !== "starter" && !run.relics.includes(relic.id),
-  );
-  if (pool.length === 0) {
-    run.gold += CONFIG.rewards.relicFallbackGold;
-    return { relicId: null, relicFallbackGold: CONFIG.rewards.relicFallbackGold };
-  }
-  const relic = pickRandom(rng, pool);
-  run.relics.push(relic.id);
-  return { relicId: relic.id, relicFallbackGold: 0 };
-}
-
-// Выбирает разные карты для награды. Статусы и проклятия сюда не попадают
-function rollCardChoices(rng, onlyRarity = null) {
-  const pool = Object.values(CARDS).filter(
+// Карты, которые можно получить в награду и купить. Статусы, проклятия и стартовые сюда не попадают
+function getCardPool() {
+  return Object.values(CARDS).filter(
     (card) => card.rarity !== "starter" && card.type !== "status" && card.type !== "curse",
   );
+}
+
+// Выбирает разные карты с учётом редкости. onlyRarity оставляет только одну редкость
+export function rollCardChoices(rng, onlyRarity = null, count = CONFIG.rewards.cardChoices) {
+  const pool = getCardPool();
   const choices = [];
 
-  while (choices.length < CONFIG.rewards.cardChoices) {
+  while (choices.length < count) {
     const free = pool.filter((card) => !choices.includes(card.id));
+    if (free.length === 0) break;
     const rarity = onlyRarity ?? pickWeighted(rng, CONFIG.rewards.rarityWeights);
     const sameRarity = free.filter((card) => card.rarity === rarity);
     if (onlyRarity && sameRarity.length === 0) break;
@@ -163,10 +285,7 @@ function rollCardChoices(rng, onlyRarity = null) {
 
 // Завершает награду: cardId — выбранная карта или null, если игрок пропустил
 export function completeReward(run, cardId) {
-  if (cardId) {
-    run.deck.push({ uid: run.nextCardUid, cardId, upgraded: false });
-    run.nextCardUid += 1;
-  }
+  if (cardId) addCardToDeck(run, cardId);
   run.pendingReward = null;
   if (getCurrentNode(run).type === "boss") run.status = "won";
 }

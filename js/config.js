@@ -17,8 +17,7 @@ export const CONFIG = {
     chestFloor: 8, // этаж, где всегда сундук
     restFloor: 15, // этаж перед боссом, где всегда отдых
     eliteMinFloor: 6, // раньше этого этажа элиты нет
-    // Доли узлов. Событие и магазин появятся на этапе 4: тогда поставить 22 и 5
-    nodeWeights: { battle: 45, event: 0, rest: 12, elite: 8, shop: 0 },
+    nodeWeights: { battle: 45, event: 22, rest: 12, elite: 8, shop: 5 }, // доли узлов
   },
 
   rewards: {
@@ -27,6 +26,19 @@ export const CONFIG = {
     relicFallbackGold: 25, // золото вместо реликвии, если новых реликвий не осталось
     cardChoices: 3, // сколько карт предлагается на выбор
     rarityWeights: { common: 60, uncommon: 30, rare: 10 }, // шансы редкости карт в награде
+    potionChance: 0.4, // шанс зелья после боя
+  },
+
+  maxPotions: 3, // сколько зелий можно носить с собой
+
+  shop: {
+    cardCount: 5, // сколько карт в продаже
+    relicCount: 2, // сколько реликвий в продаже
+    potionCount: 2, // сколько зелий в продаже
+    cardPrices: { common: 15, uncommon: 25, rare: 45 },
+    relicPrices: { common: 50, uncommon: 75 },
+    potionPrice: 15,
+    removePrice: 25, // цена удаления карты из колоды
   },
 
   restHealShare: 0.3, // какую долю максимального HP лечит отдых

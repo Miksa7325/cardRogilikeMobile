@@ -1,5 +1,7 @@
-// Исполнение эффектов карт, врагов и сил. Новый тип эффекта — новая запись в EFFECT_HANDLERS.
+// Исполнение эффектов в бою: от карт, врагов, сил, реликвий и зелий.
+// Новый тип эффекта — новая запись в EFFECT_HANDLERS.
 import { CONFIG } from "../config.js";
+import { RELICS } from "../data/relics.js";
 import { createCardInstance, drawCards } from "./deck.js";
 
 // Формула урона: (база + Сила) × 0.75 при Слабости × 1.5 при Уязвимости цели, округление вниз.
@@ -28,12 +30,30 @@ export function executeEffects(combat, effects, context) {
   }
 }
 
-// Запускает силы героя с этим триггером: например, onTurnStart у Ярости
-export function fireTrigger(combat, trigger) {
+// Запускает силы и реликвии героя с этим триггером. details.cardType — тип разыгранной карты
+export function fireTrigger(combat, trigger, details = {}) {
   for (const power of combat.hero.powers) {
-    if (power.trigger !== trigger) continue;
-    executeEffects(combat, power.effects, { source: combat.hero, targets: [], fromCard: false });
+    if (power.trigger === trigger) runTriggerEffects(combat, power.effects);
   }
+  for (const relicId of combat.relics) {
+    const relic = RELICS[relicId];
+    if (relic.trigger === trigger && relicConditionMet(combat, relic, details)) {
+      runTriggerEffects(combat, relic.effects);
+    }
+  }
+}
+
+function runTriggerEffects(combat, effects) {
+  executeEffects(combat, effects, { source: combat.hero, targets: [], fromCard: false });
+}
+
+// Проверяет условия реликвии: нужный тип карты и «каждый N-й раз»
+function relicConditionMet(combat, relic, details) {
+  if (relic.cardType && relic.cardType !== details.cardType) return false;
+  if (!relic.everyN) return true;
+  const count = (combat.relicCounters[relic.id] ?? 0) + 1;
+  combat.relicCounters[relic.id] = count;
+  return count % relic.everyN === 0;
 }
 
 // Яд: урон равен числу стаков, игнорирует блок, потом стаков становится на 1 меньше
@@ -42,6 +62,7 @@ export function applyPoison(combat, unit) {
   if (!stacks) return;
   unit.hp = Math.max(0, unit.hp - stacks);
   reduceStatus(unit, "poison");
+  notifyIfEnemyDied(combat, unit);
   checkCombatEnd(combat);
 }
 
@@ -59,9 +80,14 @@ function checkCombatEnd(combat) {
   }
 }
 
-// target: "self" в эффекте означает самого действующего, иначе берём живые цели из контекста
-function getTargets(effect, context) {
+function notifyIfEnemyDied(combat, unit) {
+  if (unit !== combat.hero && unit.hp === 0) fireTrigger(combat, "onEnemyDeath");
+}
+
+// target в эффекте главнее целей карты: "self" — сам действующий, "allEnemies" — все живые враги
+function getTargets(combat, effect, context) {
   if (effect.target === "self") return [context.source];
+  if (effect.target === "allEnemies") return combat.enemies.filter((enemy) => enemy.hp > 0);
   return context.targets.filter((target) => target.hp > 0);
 }
 
@@ -72,21 +98,23 @@ function dealDamage(combat, target, damage) {
   target.block -= absorbed;
   target.hp = Math.max(0, target.hp - hpLost);
   if (target === combat.hero && hpLost > 0) fireTrigger(combat, "onDamageTaken");
+  notifyIfEnemyDied(combat, target);
 }
 
 const EFFECT_HANDLERS = {
   damage(combat, effect, context) {
-    for (const target of getTargets(effect, context)) {
-      dealDamage(combat, target, calculateDamage(effect.amount, context.source, target));
+    for (const target of getTargets(combat, effect, context)) {
+      const amount = effect.fixed ? effect.amount : calculateDamage(effect.amount, context.source, target);
+      dealDamage(combat, target, amount);
     }
   },
   block(combat, effect, context) {
-    for (const target of getTargets(effect, context)) {
+    for (const target of getTargets(combat, effect, context)) {
       target.block += calculateBlock(effect.amount, target, context.fromCard);
     }
   },
   applyStatus(combat, effect, context) {
-    for (const target of getTargets(effect, context)) {
+    for (const target of getTargets(combat, effect, context)) {
       target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + effect.amount;
     }
   },

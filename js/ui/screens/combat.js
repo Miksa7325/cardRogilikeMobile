@@ -2,15 +2,17 @@
 import { CONFIG } from "../../config.js";
 import { ENEMIES } from "../../data/enemies.js";
 import { HEROES } from "../../data/heroes.js";
+import { POTIONS } from "../../data/potions.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { canPlayCard, createCombat, endTurn, getEnemyIntent, playCard } from "../../engine/combat.js";
+import { canPlayCard, createCombat, endTurn, getEnemyIntent, playCard, usePotion } from "../../engine/combat.js";
 import { getCardData } from "../../engine/deck.js";
 import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { state } from "../../state.js";
 import { createCardElement, shakeCard } from "../components/card.js";
+import { openCardList } from "../components/cardList.js";
 import { createCardPicker } from "../components/cardPicker.js";
 import { createHpBar } from "../components/hpBar.js";
-import { createRunBar } from "../components/runBar.js";
+import { createItemsRow, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -26,7 +28,7 @@ const INTENT_ICONS = {
 export function startNodeCombat() {
   state.combat = createNodeCombat(state.run);
   state.test.enabled = false;
-  state.selectedCardUid = null;
+  clearSelection();
   showScreen("combat");
 }
 
@@ -34,8 +36,13 @@ export function startNodeCombat() {
 export function startTestCombat() {
   state.combat = createCombat({ heroId: "warrior", enemyIds: state.test.enemyIds, seed: Date.now() });
   state.test.enabled = true;
-  state.selectedCardUid = null;
+  clearSelection();
   showScreen("combat");
+}
+
+function clearSelection() {
+  state.selectedCardUid = null;
+  state.selectedPotionIndex = null;
 }
 
 // Рисует экран заново: так картинка всегда совпадает с состоянием боя
@@ -55,12 +62,14 @@ export function renderCombatScreen(root) {
 }
 
 function createTopBar(combat) {
-  if (!state.test.enabled) return createRunBar(state.run, combat.hero.hp);
+  const potionOptions = { onPotionTap: onPotionTap, selectedPotionIndex: state.selectedPotionIndex };
+  if (!state.test.enabled) return createRunBar(state.run, { combat, ...potionOptions });
 
   const bar = el("div", "combat__top-bar");
   bar.append(
     el("span", "", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${combat.turn}`),
+    createItemsRow(combat.relics, combat.potions, potionOptions),
   );
   const testButton = el("button", "button button--secondary", "🧪");
   testButton.type = "button";
@@ -83,7 +92,7 @@ function createEnemies(combat) {
 
 function createEnemy(combat, enemy, compact) {
   const element = el("div", "unit");
-  if (getSelectedCard()?.target === "enemy") element.classList.add("unit--targetable");
+  if (getSelectedTargetType() === "enemy") element.classList.add("unit--targetable");
 
   element.append(
     el("div", "unit__intent", formatIntent(combat, enemy)),
@@ -149,11 +158,13 @@ function createBottomBar(combat) {
   endTurnButton.type = "button";
   endTurnButton.addEventListener("click", onEndTurnTap);
 
-  const piles = el("div", "combat__piles");
+  const piles = el("button", "combat__piles");
+  piles.type = "button";
   piles.append(
     el("div", "", `${TEXTS.drawPile}: ${combat.piles.draw.length} · ${TEXTS.discardPile}: ${combat.piles.discard.length}`),
     el("div", "", `${TEXTS.exhaustPile}: ${combat.piles.exhaust.length}`),
   );
+  piles.addEventListener("click", () => openPiles(combat));
 
   bar.append(
     el("div", "combat__energy", `⚡ ${combat.energy}/${CONFIG.energyPerTurn}`),
@@ -163,15 +174,36 @@ function createBottomBar(combat) {
   return bar;
 }
 
+// Добор показываем по порядку id, иначе игрок узнает, какая карта придёт следующей
+function openPiles(combat) {
+  const sortedDraw = [...combat.piles.draw].sort((a, b) => a.cardId.localeCompare(b.cardId));
+  openCardList([
+    { title: TEXTS.drawPile, cards: sortedDraw },
+    { title: TEXTS.discardPile, cards: combat.piles.discard },
+    { title: TEXTS.exhaustPile, cards: combat.piles.exhaust },
+  ]);
+}
+
 function getSelectedCard() {
   if (state.selectedCardUid === null) return null;
   return getCardData(state.combat.piles.hand.find((card) => card.uid === state.selectedCardUid));
 }
 
+function getSelectedPotion() {
+  if (state.selectedPotionIndex === null) return null;
+  return POTIONS[state.combat.potions[state.selectedPotionIndex]];
+}
+
+// На кого нацелено выбранное: карта или зелье
+function getSelectedTargetType() {
+  return (getSelectedCard() ?? getSelectedPotion())?.target ?? null;
+}
+
 function getHint() {
-  const card = getSelectedCard();
-  if (!card) return "";
-  return card.target === "enemy" ? TEXTS.hintPickTarget : TEXTS.hintTapAgain;
+  const targetType = getSelectedTargetType();
+  if (!targetType) return "";
+  if (targetType === "enemy") return TEXTS.hintPickTarget;
+  return getSelectedPotion() ? TEXTS.hintPotionTapAgain : TEXTS.hintTapAgain;
 }
 
 function onCardTap(instance, element) {
@@ -187,22 +219,46 @@ function onCardTap(instance, element) {
   }
 
   // Повторный тап по карте с целью снимает выбор, тап по другой карте выбирает её
+  clearSelection();
   state.selectedCardUid = alreadySelected ? null : instance.uid;
   showScreen("combat");
 }
 
+function onPotionTap(index) {
+  const alreadySelected = state.selectedPotionIndex === index;
+  if (alreadySelected && POTIONS[state.combat.potions[index]].target !== "enemy") {
+    useSelectedPotion(null);
+    return;
+  }
+
+  clearSelection();
+  state.selectedPotionIndex = alreadySelected ? null : index;
+  showScreen("combat");
+}
+
 function onEnemyTap(enemy) {
-  if (getSelectedCard()?.target === "enemy") playSelectedCard(enemy.instanceId);
+  if (getSelectedTargetType() !== "enemy") return;
+  if (getSelectedCard()) {
+    playSelectedCard(enemy.instanceId);
+  } else {
+    useSelectedPotion(enemy.instanceId);
+  }
 }
 
 function playSelectedCard(targetId) {
   playCard(state.combat, state.selectedCardUid, targetId);
-  state.selectedCardUid = null;
+  clearSelection();
+  showCurrentScreen();
+}
+
+function useSelectedPotion(targetId) {
+  usePotion(state.combat, state.selectedPotionIndex, targetId);
+  clearSelection();
   showCurrentScreen();
 }
 
 function onEndTurnTap() {
-  state.selectedCardUid = null;
+  clearSelection();
   endTurn(state.combat);
   showCurrentScreen();
 }

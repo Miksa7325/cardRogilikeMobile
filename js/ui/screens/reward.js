@@ -1,4 +1,5 @@
 // Экран награды после боя, сундука и босса.
+import { POTIONS } from "../../data/potions.js";
 import { RELICS } from "../../data/relics.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { completeReward, getCurrentNode } from "../../engine/run.js";
@@ -21,11 +22,16 @@ export function renderRewardScreen(root) {
   if (reward.gold > 0) screen.append(el("p", "reward__line", TEXTS.reward.gold(reward.gold)));
   if (reward.relicId) {
     const relic = RELICS[reward.relicId];
-    screen.append(el("p", "reward__line", TEXTS.reward.relic(relic.name, relic.icon)));
+    screen.append(el("p", "reward__line", TEXTS.reward.relic(relic.name, relic.icon, relic.description)));
   }
   if (reward.relicFallbackGold > 0) {
     screen.append(el("p", "reward__line", TEXTS.reward.noRelic(reward.relicFallbackGold)));
   }
+  if (reward.potionId) {
+    const potion = POTIONS[reward.potionId];
+    screen.append(el("p", "reward__line", TEXTS.reward.potion(potion.name, potion.icon, potion.description)));
+  }
+  if (reward.potionsFull) screen.append(el("p", "reward__line", TEXTS.reward.potionsFull));
 
   if (reward.cardIds.length > 0) {
     screen.append(el("p", "reward__line", TEXTS.reward.chooseCard), createCardChoices(reward.cardIds));
