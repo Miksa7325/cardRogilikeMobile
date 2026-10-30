@@ -1,6 +1,7 @@
 // Экран победы или поражения: в забеге и в тестовом бою.
 import { TEXTS } from "../../data/texts.ru.js";
 import { getCurrentFloor } from "../../engine/run.js";
+import { clearRun } from "../../save.js";
 import { state } from "../../state.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -12,6 +13,9 @@ export function renderResultScreen(root) {
     renderResult(root, title, null, TEXTS.newCombat, () => showScreen("testSetup"));
     return;
   }
+
+  // Забег закончен: сохранение больше не нужно. Мета-прогресс при этом остаётся
+  clearRun();
 
   const run = state.run;
   const title = run.status === "won" ? TEXTS.victoryTitle : TEXTS.defeatTitle;

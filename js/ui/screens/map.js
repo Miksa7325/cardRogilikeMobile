@@ -4,8 +4,10 @@ import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
 import { createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
 import { createShop } from "../../engine/shop.js";
+import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { createRunBar } from "../components/runBar.js";
+import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { startNodeCombat } from "./combat.js";
@@ -37,6 +39,9 @@ export function renderMapScreen(root) {
   scroller.append(createMapContent(run));
   screen.append(createRunBar(run), el("p", "map__legend", TEXTS.mapLegend), scroller);
   root.append(screen);
+
+  // На карту игрок попадает только между узлами, поэтому здесь и сохраняем забег
+  if (!saveRun(run)) showTooltip(TEXTS.saveFailed);
 
   // Показываем ряд, куда можно идти: прокрутка работает, только когда карта уже на странице
   const firstAvailable = scroller.querySelector(".map-node--available");
