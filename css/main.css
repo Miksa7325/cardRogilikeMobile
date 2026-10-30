@@ -1,0 +1,65 @@
+/* Общие цвета игры: меняем здесь, и они меняются везде */
+:root {
+  --color-bg: #15121a;
+  --color-text: #efe6d5;
+  --color-muted: #a89f91;
+  --color-accent: #8e2b2b;
+  --color-accent-active: #6f2020;
+}
+
+/* Размеры считаем вместе с отступами, так вёрстка предсказуемее */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, sans-serif;
+}
+
+/* Стартовый экран: всё по центру, с отступами от выреза и закруглений экрана */
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 100dvh;
+  padding:
+    calc(16px + env(safe-area-inset-top))
+    calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
+  text-align: center;
+}
+
+.start-screen__title {
+  margin: 0;
+  font-size: 36px;
+}
+
+/* Кнопка не меньше 44×44 px, чтобы по ней легко попасть пальцем */
+.start-screen__button {
+  min-width: 200px;
+  min-height: 56px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--color-text);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.start-screen__button:active {
+  background: var(--color-accent-active);
+}
+
+/* min-height держит место под сообщение, чтобы кнопка не прыгала при его появлении */
+.start-screen__message {
+  min-height: 24px;
+  margin: 0;
+  color: var(--color-muted);
+}

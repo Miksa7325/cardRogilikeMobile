@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover разрешает занять весь экран, включая область выреза -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Запасной заголовок вкладки; основной подставляет main.js из texts.ru.js -->
+  <title>Карточная RPG</title>
+  <!-- Пустая иконка, чтобы браузер не писал в консоль ошибку про favicon -->
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <!-- Текст в эти элементы подставляет main.js: все строки живут в texts.ru.js -->
+  <main class="start-screen">
+    <h1 id="game-title" class="start-screen__title"></h1>
+    <button id="start-button" class="start-screen__button" type="button"></button>
+    <p id="start-message" class="start-screen__message"></p>
+  </main>
+
+  <!-- type="module" включает ES-модули; они работают только через локальный сервер -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
