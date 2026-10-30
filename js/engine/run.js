@@ -11,9 +11,11 @@ import { generateMap } from "./map.js";
 import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.js";
 
 // difficulty — уровень сложности (0 — без усложнений).
-// lockedCardIds и lockedRelicIds — что ещё не открыто за опыт: это не выпадет в забеге
+// locked...Ids — что ещё не открыто за опыт и постройки: это не выпадет в забеге
 // tutorialFight: первый бой забега — лёгкий и один на один, для обучения
-export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lockedRelicIds = [], tutorialFight = false }) {
+export function createRun({
+  heroId, seed, difficulty = 0, lockedCardIds = [], lockedRelicIds = [], lockedEventIds = [], lockedPotionIds = [], tutorialFight = false,
+}) {
   const hero = HEROES[heroId];
   const maxHp = hero.maxHp - (difficulty >= 7 ? CONFIG.difficulty.maxHpLoss : 0);
   const run = {
@@ -22,6 +24,8 @@ export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lo
     difficulty,
     lockedCardIds,
     lockedRelicIds,
+    lockedEventIds,
+    lockedPotionIds,
     status: "active", // active | won | lost
     act: 1,
     hp: maxHp,
@@ -32,7 +36,7 @@ export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lo
     relics: [],
     potions: [],
     map: generateActMap(seed, 1),
-    stats: { combats: [], playMs: 0 }, // статистика забега для проверки баланса
+    stats: { combats: [], playMs: 0, totals: {} }, // статистика забега и счётчики для заданий
     seen: { cards: [], enemies: [], relics: [] }, // что игрок встретил: это пойдёт в коллекцию
     tutorialFight,
     savedCombat: null, // бой на начало текущего хода: так игра продолжается посреди боя
@@ -153,9 +157,17 @@ export function finishCombat(run, combat) {
   }
 }
 
-// Записывает бой в статистику: сколько длился и сколько HP стоил
+// Записывает бой в статистику: сколько длился и сколько HP стоил. Счётчики идут в задания
 function recordCombat(run, combat) {
   const node = getCurrentNode(run);
+  const totals = (run.stats.totals ??= {});
+  const add = (key, amount) => {
+    totals[key] = (totals[key] ?? 0) + amount;
+  };
+  for (const [key, amount] of Object.entries(combat.tally ?? {})) add(key, amount);
+  add("kills", combat.enemies.filter((enemy) => enemy.hp <= 0).length);
+  if (combat.status === "won" && node.type === "elite") add("elites", 1);
+  if (combat.status === "won" && node.type === "boss") add("bosses", 1);
   run.stats.combats.push({
     act: run.act,
     floor: node.floor,
@@ -288,6 +300,11 @@ function grantRandomRelic(run, rng, rarities = ["common", "uncommon"]) {
   return { relicId: relic.id, relicFallbackGold: 0 };
 }
 
+// Зелья, которые могут выпасть: без тех, что ещё не открыты постройками
+export function getPotionPool(run) {
+  return Object.keys(POTIONS).filter((potionId) => !run.lockedPotionIds.includes(potionId));
+}
+
 export function canCarryPotion(run) {
   return run.potions.length < CONFIG.maxPotions;
 }
@@ -295,7 +312,7 @@ export function canCarryPotion(run) {
 // Даёт случайное зелье и возвращает его id; если места нет, возвращает null
 function grantRandomPotion(run, rng) {
   if (!canCarryPotion(run)) return null;
-  const potionId = pickRandom(rng, Object.keys(POTIONS));
+  const potionId = pickRandom(rng, getPotionPool(run));
   run.potions.push(potionId);
   return potionId;
 }

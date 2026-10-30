@@ -5,7 +5,7 @@ import { applyRunEffects, nodeRng } from "./run.js";
 
 // Выбирает событие, которого ещё не было в этом забеге; если были все, берём из всех
 export function startEvent(run) {
-  const allIds = Object.keys(EVENTS);
+  const allIds = Object.keys(EVENTS).filter((id) => !run.lockedEventIds.includes(id));
   const unseen = allIds.filter((id) => !run.seenEventIds.includes(id));
   const eventId = pickRandom(nodeRng(run, "event"), unseen.length > 0 ? unseen : allIds);
   run.seenEventIds.push(eventId);

@@ -54,6 +54,14 @@ export const CONFIG = {
     perBoss: 25,
   },
 
+  // Кроны за забег: на них покупаются здания в городе
+  crowns: {
+    perFloor: 1,
+    perElite: 5,
+    perBoss: 15,
+    goldPerCrown: 10, // сколько оставшегося золота даёт одну крону
+  },
+
   // Числа уровней сложности. Описание уровней — в data/difficulty.js
   difficulty: {
     maxLevel: 10,

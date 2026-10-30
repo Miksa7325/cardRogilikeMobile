@@ -43,7 +43,8 @@ export function renderResultScreen(root) {
 
 // Опыт, новые открытия и следующая цель
 function formatMetaResult(result) {
-  const lines = [TEXTS.meta.xpGained(result.xpGained, result.xpTotal)];
+  const lines = [TEXTS.meta.xpGained(result.xpGained, result.xpTotal), TEXTS.meta.crownsGained(result.crownsGained)];
+  for (const title of result.questsReady) lines.push(TEXTS.meta.questReady(title));
   for (const unlock of result.newUnlocks) {
     if (unlock.hero) lines.push(TEXTS.meta.newHero(HEROES[unlock.hero].name));
     if (unlock.cards) lines.push(TEXTS.meta.newCards(unlock.cards.length));

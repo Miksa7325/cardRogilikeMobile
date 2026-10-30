@@ -64,6 +64,12 @@ export function recordEvent(combat, event) {
   (combat.events ??= []).push(event);
 }
 
+// Счётчики боя для заданий: сколько карт разыграно, урона нанесено и зелий выпито
+export function addTally(combat, key, amount = 1) {
+  combat.tally ??= {};
+  combat.tally[key] = (combat.tally[key] ?? 0) + amount;
+}
+
 function unitId(combat, unit) {
   return unit === combat.hero ? "hero" : unit.instanceId;
 }
@@ -72,6 +78,8 @@ function unitId(combat, unit) {
 export function applyPoison(combat, unit) {
   const stacks = unit.statuses.poison;
   if (!stacks) return;
+  // В задания идут только реально снятые HP: удар сильнее, чем осталось у врага, не накручивает счётчик
+  if (unit !== combat.hero) addTally(combat, "damageDealt", Math.min(unit.hp, stacks));
   unit.hp = Math.max(0, unit.hp - stacks);
   recordEvent(combat, { type: "poison", targetId: unitId(combat, unit), amount: stacks, hp: unit.hp, block: unit.block });
   reduceStatus(unit, "poison");
@@ -109,6 +117,7 @@ function dealDamage(combat, source, target, damage) {
   const absorbed = Math.min(target.block, damage);
   const hpLost = damage - absorbed;
   target.block -= absorbed;
+  if (target !== combat.hero) addTally(combat, "damageDealt", Math.min(target.hp, hpLost));
   target.hp = Math.max(0, target.hp - hpLost);
   recordEvent(combat, {
     type: "hit",

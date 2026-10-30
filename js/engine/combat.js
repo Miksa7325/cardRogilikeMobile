@@ -5,7 +5,7 @@ import { HEROES } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
-import { applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.js";
+import { addTally, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.js";
 import { createRng, nextInt } from "./rng.js";
 
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
@@ -97,6 +97,7 @@ export function playCard(combat, uid, targetId) {
   if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
 
   combat.events = [];
+  addTally(combat, "cardsPlayed");
   combat.energy -= card.cost;
   takeFromHand(combat.piles, uid);
 
@@ -127,6 +128,7 @@ export function usePotion(combat, index, targetId) {
   if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
 
   combat.events = [];
+  addTally(combat, "potionsUsed");
   combat.potions.splice(index, 1);
   executeEffects(combat, potion.effects, { source: combat.hero, targets, fromCard: false });
   return { ok: true };

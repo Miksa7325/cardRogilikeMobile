@@ -24,6 +24,10 @@
   image-rendering: pixelated;
 }
 
+#scene[data-act="city"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-city.png");
+}
+
 #scene[data-act="1"] .scene__texture {
   background-image: url("../assets/images/textures/scene-act1.png");
 }
@@ -551,4 +555,237 @@
   min-height: 44px;
   color: #ffe08a;
   font-size: 14px;
+}
+
+/* Важная кнопка: есть что забрать */
+.button--attention {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(224, 184, 76, 0.65);
+}
+
+/* Город */
+.city {
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.city__balance {
+  margin: 0;
+  color: #ffe08a;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px #000;
+}
+
+.city__hint {
+  margin: 0;
+  color: #d8cdb6;
+  font-size: 13px;
+  text-shadow: 0 1px 2px #000;
+}
+
+.city__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+/* Здание: рисунок на каменном основании */
+.building {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 128px;
+  padding: 10px 6px 8px;
+  border: 2px solid #5e5240;
+  border-radius: 10px;
+  background: var(--panel-glass);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.building--built {
+  border-color: var(--gold);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6), 0 0 10px rgba(224, 184, 76, 0.4);
+}
+
+.building__art {
+  width: 64px;
+  height: 64px;
+  color: var(--gold);
+  filter: drop-shadow(0 2px 2px #000);
+}
+
+.building__art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Ещё не построено: тёмный силуэт */
+.building--locked .building__art {
+  color: #5a5262;
+}
+
+.building--affordable {
+  border-color: #9cf0a0;
+}
+
+.building--affordable .building__art {
+  color: #cfc7b8;
+}
+
+.building__name {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.building__price {
+  color: #ffe08a;
+  font-size: 13px;
+}
+
+.building--built .building__price {
+  color: #9cf0a0;
+}
+
+/* Окно здания */
+.building-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+
+.building-details .building__art {
+  width: 96px;
+  height: 96px;
+}
+
+.building-details__text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.building-details__note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.building-details__hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.building-details__hero img {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+}
+
+.building-details__hero--locked img {
+  filter: brightness(0.15);
+}
+
+/* Задания */
+.quests {
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.quest {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #4a3f58;
+  border-radius: 8px;
+  background: var(--panel-glass);
+  text-align: left;
+}
+
+.quest--ready {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
+}
+
+.quest--claimed {
+  opacity: 0.55;
+}
+
+.quest__title {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.quest__description {
+  margin: 2px 0 6px;
+  color: #d8cdb6;
+  font-size: 13px;
+}
+
+.quest__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.quest__bar {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  border-radius: 4px;
+  background: #000;
+  overflow: hidden;
+}
+
+.quest__fill {
+  height: 100%;
+  background: linear-gradient(180deg, #e0b84c, #8a6d2c);
+}
+
+.quest__count {
+  position: absolute;
+  inset: 0;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  text-shadow: 0 1px 1px #000;
+}
+
+.quest__reward {
+  color: #ffe08a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Кнопки в один ряд: если не помещаются, переносятся на следующую строку */
+.button-row {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.city__grid {
+  flex-shrink: 0;
+}
+
+.building-details__hero .building__name {
+  text-align: left;
 }

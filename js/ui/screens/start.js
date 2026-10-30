@@ -1,6 +1,6 @@
-// Стартовый экран: продолжение забега, новый забег, коллекция, перенос сохранения и тест-режим.
+// Стартовый экран: продолжение забега, новый забег, город, задания, коллекция, перенос сохранения и тест-режим.
 import { TEXTS } from "../../data/texts.ru.js";
-import { getNextUnlock } from "../../engine/meta.js";
+import { countReadyQuests, getNextUnlock } from "../../engine/meta.js";
 import { loadMeta, loadRun } from "../../save.js";
 import { state } from "../../state.js";
 import { LOGO_ART } from "../art.js";
@@ -41,15 +41,38 @@ export function renderStartScreen(root) {
       else showScreen("map");
     }));
   }
+  // Кнопки стоят парами, чтобы всё меню помещалось на экран телефона без прокрутки
   screen.append(
     createNewRunButton(savedRun !== null),
-    createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
-    createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
+    createButtonRow(
+      createButton(TEXTS.city.button, "button--secondary", () => showScreen("city")),
+      createQuestsButton(meta),
+    ),
+    createButtonRow(
+      createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
+      createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
+    ),
     createButton(TEXTS.saveTransferButton, "button--secondary", () => showScreen("saveTransfer")),
-    createButton(TEXTS.testModeButton, "button--secondary", () => showScreen("testSetup")),
-    createButton(TEXTS.credits.button, "button--secondary", () => showScreen("credits")),
+    createButtonRow(
+      createButton(TEXTS.testModeButton, "button--secondary", () => showScreen("testSetup")),
+      createButton(TEXTS.credits.button, "button--secondary", () => showScreen("credits")),
+    ),
   );
   root.append(screen);
+}
+
+function createButtonRow(...buttons) {
+  const row = el("div", "button-row");
+  row.append(...buttons);
+  return row;
+}
+
+// Кнопка заданий подсказывает, что есть награды, которые можно забрать
+function createQuestsButton(meta) {
+  const ready = countReadyQuests(meta);
+  const button = createButton(ready > 0 ? TEXTS.quests.buttonReady(ready) : TEXTS.quests.button, "button--secondary", () => showScreen("quests"));
+  if (ready > 0) button.classList.add("button--attention");
+  return button;
 }
 
 // Новый забег сотрёт сохранённый, поэтому при наличии сохранения просим нажать дважды

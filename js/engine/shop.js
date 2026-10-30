@@ -1,10 +1,9 @@
 // Логика магазина: товары, покупка, удаление карты. Этот файл не трогает HTML.
 import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
-import { POTIONS } from "../data/potions.js";
 import { shuffle } from "./rng.js";
 import {
-  addCardToDeck, addRelic, canCarryPotion, getRelicPool, hasDifficulty, markRelicSeen, nodeRng, removeCardFromDeck, rollCardChoices,
+  addCardToDeck, addRelic, canCarryPotion, getPotionPool, getRelicPool, hasDifficulty, markRelicSeen, nodeRng, removeCardFromDeck, rollCardChoices,
 } from "./run.js";
 
 // Заполняет магазин на текущем узле. Товары зависят только от seed забега и узла
@@ -16,7 +15,7 @@ export function createShop(run) {
 
   const relicPool = getRelicPool(run, ["common", "uncommon"]);
   shuffle(rng, relicPool);
-  const potionPool = Object.keys(POTIONS);
+  const potionPool = getPotionPool(run);
   shuffle(rng, potionPool);
 
   const relics = relicPool.slice(0, relicCount);

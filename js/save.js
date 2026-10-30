@@ -1,5 +1,6 @@
 // Сохранение и загрузка. Два ключа в localStorage: текущий забег и мета-прогресс.
 // Смерть стирает только забег. Браузер может запретить хранилище, поэтому всё обёрнуто в try.
+import { BUILDINGS } from "./data/buildings.js";
 import { CARDS } from "./data/cards.js";
 import { ENEMIES } from "./data/enemies.js";
 import { POTIONS } from "./data/potions.js";
@@ -11,7 +12,7 @@ const META_KEY = "cardRpg.meta";
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const MIGRATIONS = {
   // Версия 2: появились акты и статистика забега. Старый забег продолжается в акте 1
   1: (save) => (save.run ? { ...save, run: { ...save.run, act: 1, stats: { combats: [], playMs: 0 } } } : save),
@@ -28,6 +29,17 @@ const MIGRATIONS = {
   } : save),
   // Версия 4: появились сохранение посреди боя и обучающий бой
   3: (save) => (save.run ? { ...save, run: { ...save.run, savedCombat: null, tutorialFight: false } } : save),
+  // Версия 5: появились город и задания. Содержимое зданий в старый забег не попадает: город ещё пуст
+  4: (save) => (save.run ? {
+    ...save,
+    run: {
+      ...save.run,
+      lockedEventIds: Object.values(BUILDINGS).flatMap((building) => building.unlocks.events ?? []),
+      lockedPotionIds: Object.values(BUILDINGS).flatMap((building) => building.unlocks.potions ?? []),
+      lockedRelicIds: [...save.run.lockedRelicIds, ...Object.values(BUILDINGS).flatMap((building) => building.unlocks.relics ?? [])],
+      stats: { ...save.run.stats, totals: {} },
+    },
+  } : save),
 };
 
 // Просит браузер не удалять данные сайта при нехватке места. Браузер может отказать, это не ошибка
@@ -81,6 +93,7 @@ function isValidRun(run) {
   if (!run.map?.nodes || !Array.isArray(run.map.rows) || !Array.isArray(run.visitedNodeIds)) return false;
   if (!Number.isInteger(run.act) || !Array.isArray(run.stats?.combats)) return false;
   if (!Number.isInteger(run.difficulty) || !Array.isArray(run.lockedCardIds) || !Array.isArray(run.lockedRelicIds)) return false;
+  if (!Array.isArray(run.lockedEventIds) || !Array.isArray(run.lockedPotionIds)) return false;
   if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
   if (run.savedCombat && !isValidCombat(run.savedCombat)) return false;
@@ -133,6 +146,8 @@ export function loadMeta() {
     ...save,
     seen: { ...defaults.seen, ...save?.seen },
     settings: { ...defaults.settings, ...save?.settings },
+    // Дом есть всегда, даже если сохранение испорчено
+    buildings: [...new Set(["home", ...(save?.buildings ?? [])])],
     // Кто уже играл до появления обучения, тому оно не нужно
     tutorialDone: save?.tutorialDone ?? (save?.runsPlayed ?? 0) > 0,
   };

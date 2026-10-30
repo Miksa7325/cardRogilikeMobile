@@ -28,7 +28,7 @@ export function createScene() {
   }
 }
 
-// У каждого акта свои текстуры, а у меню своя: 0 означает меню
+// У каждого акта свои текстуры, а у меню и города свои: 0 означает меню, "city" — город
 export function setSceneAct(act) {
   document.getElementById("scene").dataset.act = String(act);
 }

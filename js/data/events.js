@@ -138,4 +138,114 @@ export const EVENTS = {
       },
     ],
   },
+
+  // Открываются Таверной
+  card_sharp: {
+    id: "card_sharp",
+    title: "Шулер",
+    text: "За столом ухмыляется игрок с колодой в рукаве. Ставка — твоё золото.",
+    choices: [
+      {
+        text: "Заплатить 20 золота (необычная карта)",
+        result: "Ты проиграл монеты, зато подсмотрел его лучший приём.",
+        requiresGold: 20,
+        effects: [{ type: "loseGold", amount: 20 }, { type: "addCard", rarity: "uncommon" }],
+      },
+      { text: "Пройти мимо", result: "Шулер пожимает плечами и ищет другого простака.", effects: [] },
+    ],
+  },
+  drunk_veteran: {
+    id: "drunk_veteran",
+    title: "Пьяный ветеран",
+    text: "Старый солдат хватает тебя за рукав и обещает показать настоящий удар.",
+    choices: [
+      {
+        text: "Потренироваться с ним (−5 HP, улучшить карту)",
+        result: "Синяки пройдут, а приём останется.",
+        effects: [{ type: "loseHp", amount: 5 }, { type: "upgradeRandomCards", count: 1 }],
+      },
+      { text: "Угостить и выслушать (+10 золота)", result: "Он дарит тебе горсть трофейных монет.", effects: [{ type: "gainGold", amount: 10 }] },
+    ],
+  },
+  lost_pilgrim: {
+    id: "lost_pilgrim",
+    title: "Заблудший паломник",
+    text: "Паломник просит проводить его к выходу. В благодарность он предлагает снадобье.",
+    choices: [
+      {
+        text: "Проводить (−4 HP, зелье)",
+        result: "Дорога была опасной, но паломник держит слово.",
+        effects: [{ type: "loseHp", amount: 4 }, { type: "gainPotion" }],
+      },
+      { text: "Указать дорогу (+6 HP)", result: "Он благословляет тебя, и становится легче.", effects: [{ type: "heal", amount: 6 }] },
+    ],
+  },
+  smuggler: {
+    id: "smuggler",
+    title: "Контрабандист",
+    text: "В тёмном углу открывается сундук. Всё по цене, и никаких вопросов.",
+    choices: [
+      {
+        text: "Купить за 45 золота (реликвия)",
+        result: "Контрабандист исчезает раньше, чем ты рассмотрел покупку.",
+        requiresGold: 45,
+        effects: [{ type: "loseGold", amount: 45 }, { type: "gainRelic" }],
+      },
+      { text: "Уйти", result: "Сундук захлопывается за твоей спиной.", effects: [] },
+    ],
+  },
+
+  // Открываются Библиотекой
+  forbidden_tome: {
+    id: "forbidden_tome",
+    title: "Запретный том",
+    text: "Страницы шевелятся сами. Прочитаешь — узнаешь многое, но что-то потеряешь.",
+    choices: [
+      {
+        text: "Читать (−5 к максимуму HP, редкая карта)",
+        result: "Знание жжёт изнутри.",
+        effects: [{ type: "loseMaxHp", amount: 5 }, { type: "addCard", rarity: "rare" }],
+      },
+      { text: "Закрыть книгу", result: "Шёпот со страниц стихает.", effects: [] },
+    ],
+  },
+  mad_scholar: {
+    id: "mad_scholar",
+    title: "Безумный учёный",
+    text: "Он не замечает тебя и спорит сам с собой. На столе лежат его заметки.",
+    choices: [
+      {
+        text: "Изучить заметки (улучшить 2 карты, Рана в колоду)",
+        result: "Ты понял больше, чем хотел бы.",
+        effects: [{ type: "upgradeRandomCards", count: 2 }, { type: "addCard", cardId: "wound" }],
+      },
+      { text: "Забрать чернила (+15 золота)", result: "Редкие чернила стоят немало.", effects: [{ type: "gainGold", amount: 15 }] },
+    ],
+  },
+  mirror_hall: {
+    id: "mirror_hall",
+    title: "Зал зеркал",
+    text: "Твоё отражение улыбается и предлагает обмен: привычка на знание.",
+    choices: [
+      {
+        text: "Согласиться (убрать стартовую карту, −6 HP)",
+        result: "В зеркале теперь кто-то другой.",
+        effects: [{ type: "removeRandomCard", rarity: "starter" }, { type: "loseHp", amount: 6 }],
+      },
+      { text: "Разбить зеркало (+8 золота)", result: "Осколки серебра звенят под ногами.", effects: [{ type: "gainGold", amount: 8 }] },
+    ],
+  },
+  old_map: {
+    id: "old_map",
+    title: "Старая карта",
+    text: "На карте отмечен тайник. Пометка рядом предупреждает о ловушке.",
+    choices: [
+      {
+        text: "Найти тайник (−7 HP, необычная карта и 15 золота)",
+        result: "Ловушка сработала, но тайник того стоил.",
+        effects: [{ type: "loseHp", amount: 7 }, { type: "addCard", rarity: "uncommon" }, { type: "gainGold", amount: 15 }],
+      },
+      { text: "Сжечь карту (+5 HP)", result: "Ты греешься у огня и отдыхаешь.", effects: [{ type: "heal", amount: 5 }] },
+    ],
+  },
 };
