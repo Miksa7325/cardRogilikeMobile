@@ -92,6 +92,7 @@ export const TEXTS = {
   close: "Закрыть",
   emptyPile: "Пусто",
   hintPickTarget: "Нажми на врага",
+  enemyTurn: "Ход врагов. Нажми на экран, чтобы ускорить",
   hintDragCard: "Перетащи карту, чтобы разыграть",
   hintDropOnEnemy: "Отпусти на враге",
   hintDropAbove: "Отпусти выше руки",

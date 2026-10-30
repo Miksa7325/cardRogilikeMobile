@@ -70,7 +70,7 @@ export function createRunBar(run, { combat = null, onPotionTap = null, selectedP
   const potions = combat ? combat.potions : run.potions;
 
   bar.append(
-    el("span", "", `❤️ ${hp}/${run.maxHp}`),
+    el("span", "bar-hp", `❤️ ${hp}/${run.maxHp}`),
     el("span", "", `💰 ${run.gold}`),
     el("span", "", TEXTS.floorLabel(run.act, getCurrentFloor(run))),
   );

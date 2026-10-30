@@ -48,6 +48,26 @@ export const ENEMY_ART = {
   lich_king: svg(`${hood("#172033")}${skull(26)}<path d="M18 14L24 4L29 12L32 2L35 12L40 4L46 14Z" fill="#7dd3ff"/>${orb(27, 26, 2, "#7dd3ff")}${orb(37, 26, 2, "#7dd3ff")}<g class="art-weapon"><rect x="7" y="52" width="4" height="10" fill="#5c4630"/>${orb(9, 48, 6, "#7dd3ff")}</g>`),
 };
 
+// Как враг бьёт. Кого нет в таблице, тот рубит оружием.
+// claw — бросается и рвёт когтями или зубами, magic — стреляет снарядом этого цвета
+export const ATTACK_STYLES = {
+  spider: { kind: "claw" },
+  grave_hound: { kind: "claw" },
+  ghoul: { kind: "claw" },
+  rat_swarm: { kind: "claw" },
+  gargoyle: { kind: "claw" },
+  vampire_lord: { kind: "claw" },
+  hellhound: { kind: "claw" },
+  demon: { kind: "claw" },
+  banshee: { kind: "magic", color: "#a9d8ff" },
+  warlock: { kind: "magic", color: "#7de0ff" },
+  witch_queen: { kind: "magic", color: "#c77dff" },
+  wraith: { kind: "magic", color: "#9fe8ff" },
+  blood_priest: { kind: "magic", color: "#ff5a5a" },
+  acolyte: { kind: "magic", color: "#8ce0c4" },
+  lich_king: { kind: "magic", color: "#7dd3ff" },
+};
+
 // Как двигается модель в покое. Кого нет в таблице, тот просто дышит
 export const IDLE_STYLES = {
   spider: "scuttle",

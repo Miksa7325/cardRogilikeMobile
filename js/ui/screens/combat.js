@@ -9,7 +9,7 @@ import { getCardData } from "../../engine/deck.js";
 import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
-import { captureCombatView, flyCardAway, playCombatFeedback } from "../animations.js";
+import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
 import { ENEMY_ART, HERO_ART, IDLE_STYLES } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
 import { createCardElement, describeCard, shakeCard } from "../components/card.js";
@@ -90,7 +90,7 @@ function createTopBar(combat) {
 
   const bar = el("div", "combat__top-bar");
   bar.append(
-    el("span", "", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
+    el("span", "bar-hp", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${combat.turn}`),
     createItemsRow(combat.relics, combat.potions, potionOptions),
   );
@@ -320,7 +320,8 @@ function useSelectedPotion(targetId) {
   showCurrentScreen(before);
 }
 
-function onEndTurnTap() {
+// Логика считает ход врагов мгновенно, а экран показывает его по шагам и только потом рисует новый ход
+async function onEndTurnTap() {
   const before = captureCombatView(state.combat);
   clearSelection();
   endTurn(state.combat);
@@ -328,13 +329,21 @@ function onEndTurnTap() {
 
   // Новый ход начался: это точка сохранения посреди боя
   if (!state.test.enabled && state.combat.status === "playerTurn") saveTurnStart();
-  showCurrentScreen(before, { enemyTurn: true });
+
+  await playEnemyTurn(before, state.combat);
+  showScreen("combat");
+  showDrawnCards(before.handUids, state.combat);
+  finishCombatIfOver();
 }
 
 // Рисует итог действия. Если бой закончился, сначала даём увидеть последний удар
 function showCurrentScreen(before, feedbackOptions = {}) {
   showScreen("combat");
   playCombatFeedback(before, state.combat, feedbackOptions);
+  finishCombatIfOver();
+}
+
+function finishCombatIfOver() {
   if (state.combat.status === "playerTurn") return;
 
   // Пока идёт пауза, нажатия не должны доходить до экрана

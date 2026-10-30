@@ -3,7 +3,7 @@ import { CARDS } from "../../data/cards.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { el } from "../dom.js";
 
-const STATUS_ICONS = {
+export const STATUS_ICONS = {
   vulnerable: "💔",
   strength: "💪",
   dexterity: "🤸",

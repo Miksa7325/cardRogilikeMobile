@@ -5,7 +5,7 @@ import { HEROES } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
-import { applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, reduceStatus } from "./effects.js";
+import { applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.js";
 import { createRng, nextInt } from "./rng.js";
 
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
@@ -39,6 +39,7 @@ export function createCombat({
     relics: [...relics],
     relicCounters: {}, // счётчики реликвий «каждый N-й раз»
     potions: [...potions],
+    events: [], // что произошло за последнее действие игрока: интерфейс проигрывает это как анимацию
   };
 
   startPlayerTurn(combat);
@@ -95,6 +96,7 @@ export function playCard(combat, uid, targetId) {
   const targets = findTargets(combat, card.target, targetId);
   if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
 
+  combat.events = [];
   combat.energy -= card.cost;
   takeFromHand(combat.piles, uid);
 
@@ -124,6 +126,7 @@ export function usePotion(combat, index, targetId) {
   const targets = findTargets(combat, potion.target, targetId);
   if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
 
+  combat.events = [];
   combat.potions.splice(index, 1);
   executeEffects(combat, potion.effects, { source: combat.hero, targets, fromCard: false });
   return { ok: true };
@@ -133,6 +136,7 @@ export function usePotion(combat, index, targetId) {
 export function endTurn(combat) {
   if (combat.status !== "playerTurn") return;
 
+  combat.events = [];
   fireTrigger(combat, "onTurnEnd");
   discardHand(combat.piles);
   decayStatuses(combat.hero);
@@ -183,8 +187,10 @@ function runEnemyTurn(combat) {
     if (combat.status !== "playerTurn") return;
     if (enemy.hp <= 0) continue;
 
+    const move = getCurrentMove(enemy);
+    recordEvent(combat, { type: "enemyAction", enemyId: enemy.instanceId, intent: move.intent });
     const context = { source: enemy, targets: [combat.hero], fromCard: false };
-    executeEffects(combat, getCurrentMove(enemy).effects, context);
+    executeEffects(combat, move.effects, context);
     if (combat.status !== "playerTurn") return;
 
     decayStatuses(enemy);

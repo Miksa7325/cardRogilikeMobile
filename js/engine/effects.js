@@ -58,11 +58,22 @@ function relicConditionMet(combat, relic, details) {
   return count % relic.everyN === 0;
 }
 
+// Записывает, что произошло в бою. Логика считается мгновенно, а интерфейс потом
+// проигрывает эти события по очереди: удары, числа урона, изменение HP
+export function recordEvent(combat, event) {
+  (combat.events ??= []).push(event);
+}
+
+function unitId(combat, unit) {
+  return unit === combat.hero ? "hero" : unit.instanceId;
+}
+
 // Яд: урон равен числу стаков, игнорирует блок, потом стаков становится на 1 меньше
 export function applyPoison(combat, unit) {
   const stacks = unit.statuses.poison;
   if (!stacks) return;
   unit.hp = Math.max(0, unit.hp - stacks);
+  recordEvent(combat, { type: "poison", targetId: unitId(combat, unit), amount: stacks, hp: unit.hp, block: unit.block });
   reduceStatus(unit, "poison");
   notifyIfEnemyDied(combat, unit);
   checkCombatEnd(combat);
@@ -94,11 +105,20 @@ function getTargets(combat, effect, context) {
 }
 
 // Урон сначала снимает блок, остаток — HP
-function dealDamage(combat, target, damage) {
+function dealDamage(combat, source, target, damage) {
   const absorbed = Math.min(target.block, damage);
   const hpLost = damage - absorbed;
   target.block -= absorbed;
   target.hp = Math.max(0, target.hp - hpLost);
+  recordEvent(combat, {
+    type: "hit",
+    sourceId: unitId(combat, source),
+    targetId: unitId(combat, target),
+    hpLost,
+    blocked: absorbed,
+    hp: target.hp,
+    block: target.block,
+  });
   if (target === combat.hero && hpLost > 0) fireTrigger(combat, "onDamageTaken");
   notifyIfEnemyDied(combat, target);
 }
@@ -107,27 +127,33 @@ const EFFECT_HANDLERS = {
   damage(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
       const amount = effect.fixed ? effect.amount : calculateDamage(effect.amount, context.source, target);
-      dealDamage(combat, target, amount);
+      dealDamage(combat, context.source, target, amount);
     }
   },
   block(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
-      target.block += calculateBlock(effect.amount, target, context.fromCard);
+      const amount = calculateBlock(effect.amount, target, context.fromCard);
+      target.block += amount;
+      recordEvent(combat, { type: "block", targetId: unitId(combat, target), amount, hp: target.hp, block: target.block });
     }
   },
   applyStatus(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
       target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + effect.amount;
+      recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: effect.status, amount: effect.amount });
     }
   },
   heal(combat, effect, context) {
     const unit = context.source;
+    const before = unit.hp;
     unit.hp = Math.min(unit.maxHp, unit.hp + effect.amount);
+    recordEvent(combat, { type: "heal", targetId: unitId(combat, unit), amount: unit.hp - before, hp: unit.hp, block: unit.block });
   },
   // Плата своим HP за сильную карту: блок не помогает, силы «при потере HP от атаки» не срабатывают
   loseHp(combat, effect, context) {
     const unit = context.source;
     unit.hp = Math.max(0, unit.hp - effect.amount);
+    recordEvent(combat, { type: "hpLoss", targetId: unitId(combat, unit), amount: effect.amount, hp: unit.hp, block: unit.block });
   },
   draw(combat, effect) {
     drawCards(combat.piles, effect.amount, combat.rng);
