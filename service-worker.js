@@ -55,6 +55,7 @@ const FILES = [
   "./js/ui/components/card.js",
   "./js/ui/components/cardList.js",
   "./js/ui/components/cardPicker.js",
+  "./js/ui/components/cardPreview.js",
   "./js/ui/components/hpBar.js",
   "./js/ui/components/runBar.js",
   "./js/ui/components/statusIcons.js",

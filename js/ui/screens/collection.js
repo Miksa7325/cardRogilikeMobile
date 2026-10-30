@@ -6,6 +6,7 @@ import { RELICS } from "../../data/relics.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { loadMeta } from "../../save.js";
 import { createCardElement } from "../components/card.js";
+import { openCardPreview } from "../components/cardPreview.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 
@@ -71,10 +72,11 @@ function createCardsTab(meta) {
 
     const row = el("div", "card-row");
     seen.forEach((card, index) => {
-      row.append(createCardElement({ uid: index, cardId: card.id, upgraded: false }, HERO_OUTSIDE_COMBAT, {
+      const instance = { uid: index, cardId: card.id, upgraded: false };
+      row.append(createCardElement(instance, HERO_OUTSIDE_COMBAT, {
         playable: true,
         selected: false,
-        onTap: () => {},
+        onTap: () => openCardPreview(instance, HERO_OUTSIDE_COMBAT),
       }));
     });
     tab.append(row);

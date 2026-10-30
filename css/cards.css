@@ -4,66 +4,269 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 136px;
-  padding: 20px 4px 8px;
+  min-height: 144px;
+  padding: 18px 4px 6px;
 }
 
-/* Карты вне боя: награда и улучшение на отдыхе */
+/* Карты вне боя: награда, магазин, колода, коллекция */
 .card-row {
-  --card-width: 96px;
+  --card-width: 100px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  gap: 14px 12px;
   padding: 8px 16px;
 }
 
-/* --fan-angle и --fan-drop задаёт код: так получается веер */
+/* Основа карты. Все размеры внутри — в em, поэтому карта любого размера выглядит одинаково.
+   --fan-angle и --fan-drop задаёт код: так получается веер */
 .card {
   position: relative;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   width: var(--card-width);
-  height: 108px;
-  padding: 16px 2px 4px;
-  border: 2px solid transparent;
-  border-radius: 6px;
+  height: 12em;
+  /* Сверху отступ под сферу цены: она не должна закрывать название */
+  padding: 1em 0.25em 0.25em;
+  border: 2px solid var(--card-frame, #6e5c3a);
+  border-radius: 0.7em;
   color: var(--color-text);
+  font-size: 10px;
   text-align: center;
   cursor: pointer;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  touch-action: none;
   transform: translateY(var(--fan-drop, 0)) rotate(var(--fan-angle, 0deg));
   transition: transform 150ms;
 }
 
+.card-row .card {
+  height: 156px;
+  font-size: 13px;
+}
+
 /* Обычно между картами 2 px; если все не помещаются, отступ становится отрицательным и карты наезжают друг на друга */
-.card + .card {
+.hand .card + .card {
   margin-left: min(2px, calc((100vw - 16px - var(--card-width) * var(--card-count)) / (var(--card-count) - 1)));
 }
 
+/* Цвет карты показывает её тип */
 .card--attack {
-  background: linear-gradient(160deg, #7a2f2f, var(--color-attack));
+  background: linear-gradient(165deg, #8c3633, #4d1c1c);
 }
 
 .card--skill {
-  background: linear-gradient(160deg, #33597f, var(--color-skill));
+  background: linear-gradient(165deg, #38648f, #1b3350);
 }
 
 .card--power {
-  background: linear-gradient(160deg, #65418c, var(--color-power));
+  background: linear-gradient(165deg, #6f47a0, #33205a);
 }
 
-.card--status {
-  background: linear-gradient(160deg, #4d4d4d, var(--color-status));
+.card--status,
+.card--curse {
+  background: linear-gradient(165deg, #55525a, #29272c);
 }
 
-/* Цвет названия показывает редкость */
+/* Рамка показывает редкость */
+.card--starter,
+.card--common {
+  --card-frame: #7d6a48;
+}
+
+.card--uncommon {
+  --card-frame: #9ec6e6;
+}
+
+.card--rare {
+  --card-frame: #f1cf6b;
+}
+
+/* Редкая карта переливается */
+.card--rare::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 240, 190, 0.28) 50%, transparent 65%) 0 0 / 300% 100%;
+  pointer-events: none;
+  animation: card-shine 4s linear infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes card-shine {
+  from { background-position: 150% 0; }
+  to { background-position: -150% 0; }
+}
+
+/* Можно разыграть: карта светится. Нельзя: тускнеет */
+.card--playable {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65), 0 0 8px 1px rgba(255, 214, 110, 0.55);
+}
+
+.card--unplayable {
+  filter: grayscale(0.7) brightness(0.6);
+}
+
+/* Цена — голубая сфера, как у счётчика энергии */
+.card__cost {
+  position: absolute;
+  top: -0.95em;
+  left: -0.75em;
+  z-index: 1;
+  width: 1.9em;
+  height: 1.9em;
+  border: 1px solid #cfe6ff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #a9d4ff, #3f77c4 55%, #16305e);
+  box-shadow: 0 1px 3px #000;
+  color: #fff;
+  font-size: 1.15em;
+  font-weight: bold;
+  line-height: 1.8em;
+  text-shadow: 0 1px 1px #000;
+}
+
+.card__name {
+  position: relative;
+  flex-shrink: 0;
+  font-size: 0.95em;
+  font-weight: bold;
+  line-height: 1.15;
+  text-shadow: 0 1px 1px #000;
+  /* Если шрифт на телефоне окажется шире, длинное слово перенесётся, а не вылезет за карту */
+  overflow-wrap: anywhere;
+}
+
+/* В руке карта узкая: размер названия подогнан под его самое длинное слово */
+.hand .card__name {
+  font-size: calc(0.95em * var(--name-fit, 1));
+}
+
 .card--uncommon .card__name {
-  color: #9fd0ff;
+  color: #bfe0ff;
 }
 
 .card--rare .card__name {
-  color: var(--color-highlight);
+  color: #ffe08a;
+}
+
+.card__name--upgraded {
+  color: #9cf0a0 !important;
+}
+
+/* Окно с рисунком забирает всё свободное место. Цвет рисунка зависит от действия карты */
+.card__art {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 1.2em;
+  margin: 0.2em 0;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 0.35em;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.45));
+  color: #f1e6cf;
+  overflow: hidden;
+}
+
+.card__art svg {
+  display: block;
+  height: 100%;
+  max-height: 100%;
+  padding: 0.15em;
+  filter: drop-shadow(0 1px 2px #000);
+}
+
+.card__art--poison {
+  color: #8fe35a;
+}
+
+.card__art--shield {
+  color: #a9d4ff;
+}
+
+.card__art--star {
+  color: #dcb8ff;
+}
+
+.card__art--heart {
+  color: #ff8e9c;
+}
+
+.card__art--bolt {
+  color: #ffe58a;
+}
+
+.card__art--hex {
+  color: #d58cff;
+}
+
+.card__art--flame {
+  color: #ffa24d;
+}
+
+.card__art--skull {
+  color: #b9b4ad;
+}
+
+/* Значки с числами: главное, что сразу видно на карте */
+.card__effects {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.15em 0;
+  border-radius: 0.3em;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.card__line {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.2em;
+  max-width: 100%;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.card__icon {
+  font-size: 1em;
+}
+
+.card__value {
+  font-size: 1.25em;
+  font-weight: bold;
+  text-shadow: 0 1px 1px #000;
+}
+
+.card__value--up {
+  color: #9cf0a0;
+}
+
+.card__value--down {
+  color: #ff8a80;
+}
+
+.card__suffix {
+  color: #e8dcc2;
+  font-size: 0.8em;
+}
+
+.card__trigger {
+  color: #e8dcc2;
+  font-size: 0.78em;
+  line-height: 1.1;
+}
+
+.card__burn {
+  color: #ffb26b;
+  font-size: 0.78em;
+  line-height: 1.15;
 }
 
 /* Новая карта появляется в руке снизу */
@@ -75,50 +278,6 @@
   from { opacity: 0; translate: 0 40px; }
 }
 
-
-/* Подсветка карт, которые можно разыграть */
-.card--playable {
-  border-color: var(--color-highlight);
-}
-
-.card--unplayable {
-  opacity: 0.55;
-}
-
-/* Выбранная карта приподнимается и выпрямляется */
-.card--selected {
-  z-index: 1;
-  transform: translateY(-16px);
-  box-shadow: 0 0 12px var(--color-highlight);
-}
-
-.card__cost {
-  position: absolute;
-  top: -8px;
-  left: -6px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--color-highlight);
-  color: #000;
-  font-size: 13px;
-  font-weight: bold;
-  line-height: 22px;
-}
-
-.card__name {
-  margin-bottom: 4px;
-  font-size: 9.5px;
-  font-weight: bold;
-  /* Если шрифт на телефоне окажется шире, длинное слово перенесётся, а не вылезет за карту */
-  overflow-wrap: anywhere;
-}
-
-.card__description {
-  font-size: 10px;
-  line-height: 1.25;
-}
-
 /* Тряска, когда карту нельзя разыграть */
 .card--shake {
   animation: card-shake 300ms;
@@ -128,4 +287,122 @@
   25% { translate: -5px 0; }
   50% { translate: 5px 0; }
   75% { translate: -5px 0; }
+}
+
+/* Перетаскивание */
+.card--lifted {
+  opacity: 0.25;
+}
+
+.card--ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  margin: 0 !important;
+  pointer-events: none;
+  transition: none;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.75), 0 0 10px rgba(224, 184, 76, 0.5);
+}
+
+.card--ghost-ready {
+  border-color: #fff2b8;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.75), 0 0 22px 5px rgba(255, 220, 120, 0.85);
+}
+
+.card--played {
+  animation: card-played calc(260ms * var(--anim-speed)) ease-out forwards;
+}
+
+@keyframes card-played {
+  40% { filter: brightness(2.2); opacity: 1; }
+  100% { filter: brightness(3); opacity: 0; scale: 1.25; }
+}
+
+/* Большая карта поверх экрана */
+.card-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding:
+    calc(12px + env(safe-area-inset-top))
+    16px
+    calc(12px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background: rgba(8, 6, 11, 0.9);
+  touch-action: pan-y;
+  animation: preview-in calc(160ms * var(--anim-speed)) ease-out;
+}
+
+@keyframes preview-in {
+  from { opacity: 0; }
+}
+
+.card--large {
+  --card-width: 168px;
+  height: 244px;
+  font-size: 19px;
+  transform: none;
+  cursor: default;
+}
+
+.card--large .card__name {
+  font-family: var(--font-title);
+  font-size: 0.85em;
+}
+
+.preview__details {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+
+.preview__kind {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.preview__text {
+  margin: 0 0 8px;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.preview__number {
+  color: #ffe08a;
+}
+
+.preview__keyword {
+  color: #bfe0ff;
+}
+
+.preview__glossary {
+  margin-bottom: 8px;
+}
+
+.preview__term {
+  margin: 0 0 3px;
+  color: #cfc4ad;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.preview__upgrade {
+  margin: 0 0 8px;
+  color: #9cf0a0;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.preview__close {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
 }

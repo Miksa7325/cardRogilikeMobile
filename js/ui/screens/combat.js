@@ -12,9 +12,10 @@ import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
 import { ENEMY_ART, HERO_ART, IDLE_STYLES } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
-import { createCardElement, describeCard, shakeCard } from "../components/card.js";
+import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
 import { createCardPicker } from "../components/cardPicker.js";
+import { openCardPreview } from "../components/cardPreview.js";
 import { createHpBar } from "../components/hpBar.js";
 import { createItemsRow, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
@@ -195,6 +196,7 @@ function createHand(combat) {
       playable: canPlayCard(combat, instance),
       selected: false,
       onTap: (cardElement) => onCardTap(combat, instance, cardElement),
+      onHold: () => openCardPreview(instance, combat.hero),
     });
     enableCardDrag(element, {
       targetType: getCardData(instance).target,
@@ -270,10 +272,10 @@ function showDragHint(dragging, targetType) {
   else hint.textContent = targetType === "enemy" ? TEXTS.hintDropOnEnemy : TEXTS.hintDropAbove;
 }
 
-// Нажатие на карту показывает её описание. Разыграть её можно только перетаскиванием
+// Нажатие на карту открывает её большое описание. Разыграть её можно только перетаскиванием
 function onCardTap(combat, instance, element) {
   if (!canPlayCard(combat, instance)) shakeCard(element);
-  showTooltip(describeCard(instance, combat.hero));
+  openCardPreview(instance, combat.hero);
 }
 
 function onPotionTap(index) {

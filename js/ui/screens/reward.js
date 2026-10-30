@@ -5,6 +5,7 @@ import { TEXTS } from "../../data/texts.ru.js";
 import { completeReward, getCurrentNode } from "../../engine/run.js";
 import { state } from "../../state.js";
 import { createCardElement } from "../components/card.js";
+import { openCardPreview } from "../components/cardPreview.js";
 import { createRunBar } from "../components/runBar.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -36,7 +37,7 @@ export function renderRewardScreen(root) {
   if (reward.potionsFull) screen.append(el("p", "reward__line", TEXTS.reward.potionsFull));
 
   if (reward.cardIds.length > 0) {
-    screen.append(el("p", "reward__line", TEXTS.reward.chooseCard), createCardChoices(reward.cardIds));
+    screen.append(el("p", "reward__line", TEXTS.reward.chooseCard), createCardChoices(reward.cardIds), el("p", "picker__empty", TEXTS.holdHint));
   }
 
   // Когда есть карты, можно отказаться, а без карт кнопка просто ведёт дальше
@@ -64,6 +65,7 @@ function createCardChoices(cardIds) {
       playable: true,
       selected: false,
       onTap: () => finishReward(cardId),
+      onHold: () => openCardPreview(instance, HERO_OUTSIDE_COMBAT),
     }));
   });
   return row;

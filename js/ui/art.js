@@ -94,5 +94,7 @@ export const CARD_GLYPHS = {
   heart: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28C4 19 3 13 5 9C8 4 14 5 16 10C18 5 24 4 27 9C29 13 28 19 16 28Z" fill="currentColor"/></svg>`,
   bolt: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M19 2L6 18H14L12 30L26 12H17Z" fill="currentColor"/></svg>`,
   scroll: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 4H24V24C24 27 22 28 20 28H6C8 28 8 26 8 24ZM11 9V11H21V9ZM11 14V16H21V14ZM11 19V21H18V19Z" fill="currentColor" fill-rule="evenodd"/></svg>`,
+  hex: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3A13 13 0 1 1 3 16A10 10 0 1 0 16 6A7 7 0 1 1 9 13A4 4 0 1 0 16 9V3Z" fill="currentColor"/></svg>`,
+  flame: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2C18 9 25 12 25 20A9 9 0 0 1 7 20C7 15 10 13 11 9C13 11 14 13 14 15C16 12 16 7 16 2Z" fill="currentColor"/></svg>`,
   skull: `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3C9 3 5 8 5 14C5 18 7 20 10 22V27H22V22C25 20 27 18 27 14C27 8 23 3 16 3ZM11 12A3 3 0 1 1 11 18A3 3 0 0 1 11 12ZM21 12A3 3 0 1 1 21 18A3 3 0 0 1 21 12Z" fill="currentColor" fill-rule="evenodd"/></svg>`,
 };

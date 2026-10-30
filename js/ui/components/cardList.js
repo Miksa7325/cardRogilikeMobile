@@ -2,6 +2,7 @@
 import { TEXTS } from "../../data/texts.ru.js";
 import { el } from "../dom.js";
 import { createCardElement } from "./card.js";
+import { openCardPreview } from "./cardPreview.js";
 import { hideTooltip } from "./tooltip.js";
 
 // Вне боя статусов нет: числа на картах показываем без них
@@ -26,11 +27,16 @@ export function openCardList(sections, onPick = null) {
       row.append(createCardElement(card, HERO_OUTSIDE_COMBAT, {
         playable: true,
         selected: false,
+        // Без выбора нажатие показывает большую карту, а с выбором она открывается удержанием
         onTap: () => {
-          if (!onPick) return;
+          if (!onPick) {
+            openCardPreview(card, HERO_OUTSIDE_COMBAT);
+            return;
+          }
           overlay.remove();
           onPick(card);
         },
+        onHold: () => openCardPreview(card, HERO_OUTSIDE_COMBAT),
       }));
     }
     overlay.append(row);

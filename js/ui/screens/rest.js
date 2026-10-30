@@ -3,6 +3,7 @@ import { TEXTS } from "../../data/texts.ru.js";
 import { getRestHealAmount, getUpgradableCards, restHeal, restUpgrade } from "../../engine/run.js";
 import { state } from "../../state.js";
 import { createCardElement } from "../components/card.js";
+import { openCardPreview } from "../components/cardPreview.js";
 import { createRunBar } from "../components/runBar.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -40,13 +41,15 @@ export function renderRestUpgradeScreen(root) {
   const run = state.run;
   const row = el("div", "card-row");
   for (const card of getUpgradableCards(run)) {
-    row.append(createCardElement({ ...card, upgraded: true }, HERO_OUTSIDE_COMBAT, {
+    const upgraded = { ...card, upgraded: true };
+    row.append(createCardElement(upgraded, HERO_OUTSIDE_COMBAT, {
       playable: true,
       selected: false,
       onTap: () => {
         restUpgrade(run, card.uid);
         showScreen("map");
       },
+      onHold: () => openCardPreview(upgraded, HERO_OUTSIDE_COMBAT),
     }));
   }
 

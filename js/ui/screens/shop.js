@@ -6,6 +6,7 @@ import { buyShopItem, canRemoveCardAtShop, removeCardAtShop } from "../../engine
 import { state } from "../../state.js";
 import { playSound } from "../audio.js";
 import { createCardElement, shakeCard } from "../components/card.js";
+import { openCardPreview } from "../components/cardPreview.js";
 import { openCardList } from "../components/cardList.js";
 import { createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
@@ -44,6 +45,7 @@ function createCardGoods(shop) {
       playable: !item.sold,
       selected: false,
       onTap: (element) => tryBuy("cards", index, element),
+      onHold: () => openCardPreview(instance, HERO_OUTSIDE_COMBAT),
     });
     wrapper.append(card, el("div", "shop__price", item.sold ? TEXTS.shop.sold : TEXTS.shop.price(item.price)));
     row.append(wrapper);
