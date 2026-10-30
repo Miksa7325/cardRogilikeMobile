@@ -1,17 +1,27 @@
 // Логика боя. Этот файл не трогает HTML: только меняет данные боя.
 import { CONFIG } from "../config.js";
-import { CARDS } from "../data/cards.js";
-import { ENEMIES } from "../data/enemies.js";
+import { ENCOUNTERS, ENEMIES } from "../data/enemies.js";
 import { HEROES } from "../data/heroes.js";
-import { createPiles, discardHand, drawCards, takeFromHand } from "./deck.js";
+import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
+import { applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, reduceStatus } from "./effects.js";
 import { createRng, nextInt } from "./rng.js";
 
-// Статусы, которые убывают на 1 в конце хода владельца. Сила сюда не входит.
-const DECAYING_STATUSES = ["vulnerable"];
+// Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
+const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];
 
-// Создаёт новый бой и сразу начинает первый ход игрока
-export function createCombat({ heroId, enemyIds, seed }) {
+// Создаёт бой со случайной группой врагов из ENCOUNTERS
+export function createRandomCombat({ heroId, seed }) {
   const rng = createRng(seed);
+  const enemyIds = ENCOUNTERS[nextInt(rng, 0, ENCOUNTERS.length - 1)];
+  return buildCombat(heroId, enemyIds, rng);
+}
+
+// Создаёт бой с заданными врагами
+export function createCombat({ heroId, enemyIds, seed }) {
+  return buildCombat(heroId, enemyIds, createRng(seed));
+}
+
+function buildCombat(heroId, enemyIds, rng) {
   const heroData = HEROES[heroId];
 
   const combat = {
@@ -25,6 +35,7 @@ export function createCombat({ heroId, enemyIds, seed }) {
       maxHp: heroData.maxHp,
       block: 0,
       statuses: {},
+      powers: [], // разыгранные карты-силы с триггерами
     },
     enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng)),
     piles: createPiles(heroData.deck, rng),
@@ -48,29 +59,25 @@ function createEnemy(enemyId, index, rng) {
   };
 }
 
-// Формула урона: (база + Сила) × 1.5 при Уязвимости цели, округление вниз.
-// target может быть null: тогда это число для описания карты, без учёта цели.
-export function calculateDamage(base, attacker, target) {
-  let damage = base + (attacker.statuses.strength ?? 0);
-  if (target && target.statuses.vulnerable) {
-    damage *= CONFIG.vulnerableMultiplier;
-  }
-  return Math.floor(damage);
+// Можно ли разыграть карту: статусы и проклятия нельзя (у них cost: null), на остальные нужна энергия
+export function canPlayCard(combat, cardInstance) {
+  const { cost } = getCardData(cardInstance);
+  return cost !== null && cost <= combat.energy;
 }
 
-// Хватает ли энергии на эту карту
-export function canAffordCard(combat, cardInstance) {
-  return CARDS[cardInstance.cardId].cost <= combat.energy;
-}
-
-// Что показать над врагом: тип намерения, урон за удар и количество ударов
+// Что показать над врагом: тип намерения, урон за удар, количество ударов и блок
 export function getEnemyIntent(combat, enemy) {
   const move = getCurrentMove(enemy);
   const attacks = move.effects.filter((effect) => effect.type === "damage");
+  const blockEffect = move.effects.find((effect) => effect.type === "block");
+  // Статусы героя убывают в конце его хода, то есть раньше удара: считаем по тем, что останутся
+  const heroWhenHit = { statuses: { ...combat.hero.statuses } };
+  decayStatuses(heroWhenHit);
   return {
     intent: move.intent,
     hits: attacks.length,
-    damage: attacks.length > 0 ? calculateDamage(attacks[0].amount, enemy, combat.hero) : 0,
+    damage: attacks.length > 0 ? calculateDamage(attacks[0].amount, enemy, heroWhenHit) : 0,
+    block: blockEffect ? calculateBlock(blockEffect.amount, enemy, false) : 0,
   };
 }
 
@@ -80,23 +87,34 @@ export function playCard(combat, uid, targetId) {
 
   const instance = combat.piles.hand.find((card) => card.uid === uid);
   if (!instance) return { ok: false, reason: "cardNotInHand" };
-  if (!canAffordCard(combat, instance)) return { ok: false, reason: "notEnoughEnergy" };
+  if (!canPlayCard(combat, instance)) return { ok: false, reason: "cannotPlay" };
 
-  const card = CARDS[instance.cardId];
-  const target = findCardTarget(combat, card, targetId);
-  if (!target) return { ok: false, reason: "invalidTarget" };
+  const card = getCardData(instance);
+  const targets = findCardTargets(combat, card, targetId);
+  if (targets.length === 0) return { ok: false, reason: "invalidTarget" };
 
   combat.energy -= card.cost;
   takeFromHand(combat.piles, uid);
-  runEffects(combat, card.effects, combat.hero, target);
-  combat.piles.discard.push(instance);
+
+  // Сила остаётся до конца боя, поэтому её карта не попадает ни в одну стопку
+  if (card.power) combat.hero.powers.push({ cardId: card.id, ...card.power });
+
+  const context = { source: combat.hero, targets, fromCard: true, exhausted: false };
+  executeEffects(combat, card.effects, context);
+
+  if (context.exhausted) {
+    combat.piles.exhaust.push(instance);
+  } else if (card.type !== "power") {
+    combat.piles.discard.push(instance);
+  }
   return { ok: true };
 }
 
-// Игрок нажал «Конец хода»: рука уходит в сброс, ходят враги, начинается новый ход
+// Игрок нажал «Конец хода»: срабатывают эффекты конца хода, рука уходит в сброс, ходят враги
 export function endTurn(combat) {
   if (combat.status !== "playerTurn") return;
 
+  fireTrigger(combat, "onTurnEnd");
   discardHand(combat.piles);
   decayStatuses(combat.hero);
   runEnemyTurn(combat);
@@ -104,10 +122,22 @@ export function endTurn(combat) {
   if (combat.status === "playerTurn") startPlayerTurn(combat);
 }
 
+// Для тестового режима: кладёт любую карту в руку. Возвращает false, если рука полна
+export function addCardToHand(combat, cardId, upgraded) {
+  if (combat.piles.hand.length >= CONFIG.maxHandSize) return false;
+  combat.piles.hand.push(createCardInstance(combat.piles, cardId, upgraded));
+  return true;
+}
+
 function startPlayerTurn(combat) {
   combat.turn += 1;
   combat.hero.block = 0;
   combat.energy = CONFIG.energyPerTurn;
+
+  applyPoison(combat, combat.hero);
+  fireTrigger(combat, "onTurnStart");
+  if (combat.status !== "playerTurn") return;
+
   drawCards(combat.piles, CONFIG.cardsPerTurn, combat.rng);
 }
 
@@ -116,7 +146,12 @@ function runEnemyTurn(combat) {
     if (enemy.hp <= 0) continue;
 
     enemy.block = 0;
-    runEffects(combat, getCurrentMove(enemy).effects, enemy, combat.hero);
+    applyPoison(combat, enemy);
+    if (combat.status !== "playerTurn") return;
+    if (enemy.hp <= 0) continue;
+
+    const context = { source: enemy, targets: [combat.hero], fromCard: false };
+    executeEffects(combat, getCurrentMove(enemy).effects, context);
     if (combat.status !== "playerTurn") return;
 
     decayStatuses(enemy);
@@ -135,49 +170,13 @@ function chooseNextIntent(enemy) {
   enemy.patternIndex = (enemy.patternIndex + 1) % pattern.length;
 }
 
-function findCardTarget(combat, card, targetId) {
-  if (card.target === "self") return combat.hero;
-  return combat.enemies.find((enemy) => enemy.instanceId === targetId && enemy.hp > 0);
-}
-
-// Исполняет эффекты по очереди; после каждого проверяет победу и поражение
-function runEffects(combat, effects, source, target) {
-  for (const effect of effects) {
-    applyEffect(effect, source, effect.target === "self" ? source : target);
-    checkCombatEnd(combat);
-    if (combat.status !== "playerTurn") return;
-  }
-}
-
-function applyEffect(effect, source, target) {
-  if (effect.type === "damage") {
-    dealDamage(target, calculateDamage(effect.amount, source, target));
-  } else if (effect.type === "block") {
-    target.block += effect.amount;
-  } else if (effect.type === "applyStatus") {
-    target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + effect.amount;
-  }
-}
-
-// Урон сначала снимает блок, остаток — HP
-function dealDamage(target, damage) {
-  const absorbed = Math.min(target.block, damage);
-  target.block -= absorbed;
-  target.hp = Math.max(0, target.hp - (damage - absorbed));
+function findCardTargets(combat, card, targetId) {
+  const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
+  if (card.target === "enemy") return alive.filter((enemy) => enemy.instanceId === targetId);
+  if (card.target === "allEnemies") return alive;
+  return [combat.hero];
 }
 
 function decayStatuses(unit) {
-  for (const status of DECAYING_STATUSES) {
-    if (!unit.statuses[status]) continue;
-    unit.statuses[status] -= 1;
-    if (unit.statuses[status] === 0) delete unit.statuses[status];
-  }
-}
-
-function checkCombatEnd(combat) {
-  if (combat.hero.hp <= 0) {
-    combat.status = "lost";
-  } else if (combat.enemies.every((enemy) => enemy.hp <= 0)) {
-    combat.status = "won";
-  }
+  for (const status of DECAYING_STATUSES) reduceStatus(unit, status);
 }

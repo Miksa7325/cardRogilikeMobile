@@ -1,12 +1,13 @@
 // Экран боя: показывает состояние боя и передаёт действия игрока в логику.
 import { CONFIG } from "../../config.js";
-import { CARDS } from "../../data/cards.js";
 import { ENEMIES } from "../../data/enemies.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { canAffordCard, createCombat, endTurn, getEnemyIntent, playCard } from "../../engine/combat.js";
+import { canPlayCard, createCombat, createRandomCombat, endTurn, getEnemyIntent, playCard } from "../../engine/combat.js";
+import { getCardData } from "../../engine/deck.js";
 import { state } from "../../state.js";
 import { createCardElement, shakeCard } from "../components/card.js";
+import { createCardPicker } from "../components/cardPicker.js";
 import { createHpBar } from "../components/hpBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { el } from "../dom.js";
@@ -14,12 +15,23 @@ import { showScreen } from "../router.js";
 
 const INTENT_ICONS = {
   attack: "⚔️",
+  defend: "🛡️",
   buff: "💪",
+  debuff: "🌀",
 };
 
 // Запускает новый бой. Время как seed задаём здесь: в логике случайность только через rng.js
 export function startNewCombat() {
-  state.combat = createCombat({ heroId: "warrior", enemyIds: ["cultist"], seed: Date.now() });
+  state.combat = createRandomCombat({ heroId: "warrior", seed: Date.now() });
+  state.test.enabled = false;
+  state.selectedCardUid = null;
+  showScreen("combat");
+}
+
+// Запускает бой с врагами, выбранными в тестовом режиме
+export function startTestCombat() {
+  state.combat = createCombat({ heroId: "warrior", enemyIds: state.test.enemyIds, seed: Date.now() });
+  state.test.enabled = true;
   state.selectedCardUid = null;
   showScreen("combat");
 }
@@ -36,6 +48,7 @@ export function renderCombatScreen(root) {
     createHand(combat),
     createBottomBar(combat),
   );
+  if (state.test.pickerOpen) screen.append(createCardPicker());
   root.append(screen);
 }
 
@@ -45,18 +58,28 @@ function createTopBar(combat) {
     el("span", "", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${combat.turn}`),
   );
+  if (state.test.enabled) {
+    const testButton = el("button", "button button--secondary", "🧪");
+    testButton.type = "button";
+    testButton.addEventListener("click", () => {
+      state.test.pickerOpen = true;
+      showScreen("combat");
+    });
+    bar.append(testButton);
+  }
   return bar;
 }
 
 function createEnemies(combat) {
   const list = el("div", "combat__enemies");
-  for (const enemy of combat.enemies) {
-    if (enemy.hp > 0) list.append(createEnemy(combat, enemy));
+  const alive = combat.enemies.filter((enemy) => enemy.hp > 0);
+  for (const enemy of alive) {
+    list.append(createEnemy(combat, enemy, alive.length > 1));
   }
   return list;
 }
 
-function createEnemy(combat, enemy) {
+function createEnemy(combat, enemy, compact) {
   const element = el("div", "unit");
   if (getSelectedCard()?.target === "enemy") element.classList.add("unit--targetable");
 
@@ -64,27 +87,32 @@ function createEnemy(combat, enemy) {
     el("div", "unit__intent", formatIntent(combat, enemy)),
     el("div", "unit__name", ENEMIES[enemy.enemyId].name),
     createHpBar(enemy),
-    createStatusIcons(enemy),
+    createStatusIcons(enemy, { compact }),
   );
   element.addEventListener("click", () => onEnemyTap(enemy));
   return element;
 }
 
-// Например: «⚔️ 9» за один удар или «⚔️ 6×2» за два
+// Например: «⚔️ 9» за один удар, «⚔️ 6×2» за два, «🛡️ 9» за блок
 function formatIntent(combat, enemy) {
-  const { intent, damage, hits } = getEnemyIntent(combat, enemy);
-  if (intent !== "attack") return INTENT_ICONS[intent];
-  const hitsText = hits > 1 ? `×${hits}` : "";
-  return `${INTENT_ICONS.attack} ${damage}${hitsText}`;
+  const { intent, damage, hits, block } = getEnemyIntent(combat, enemy);
+  if (intent === "attack") {
+    const hitsText = hits > 1 ? `×${hits}` : "";
+    return `${INTENT_ICONS.attack} ${damage}${hitsText}`;
+  }
+  if (intent === "defend") return `${INTENT_ICONS.defend} ${block}`;
+  return INTENT_ICONS[intent];
 }
 
 function createHero(combat) {
   const wrapper = el("div", "combat__hero");
   const unit = el("div", "unit");
+  // Когда значков много, сокращаем их, чтобы герой не занял место врагов
+  const iconCount = Object.keys(combat.hero.statuses).length + combat.hero.powers.length;
   unit.append(
     el("div", "unit__name", HEROES[combat.hero.heroId].name),
     createHpBar(combat.hero),
-    createStatusIcons(combat.hero),
+    createStatusIcons(combat.hero, { compact: iconCount > 2 }),
   );
   wrapper.append(unit);
   return wrapper;
@@ -92,16 +120,20 @@ function createHero(combat) {
 
 function createHand(combat) {
   const hand = el("div", "hand");
-  const middle = (combat.piles.hand.length - 1) / 2;
+  const count = combat.piles.hand.length;
+  const middle = (count - 1) / 2;
+  // Чем больше карт в руке, тем меньше наклон, иначе крайние уйдут за экран
+  const spread = Math.min(1, CONFIG.cardsPerTurn / count);
+  hand.style.setProperty("--card-count", count);
 
   combat.piles.hand.forEach((instance, index) => {
     const element = createCardElement(instance, combat.hero, {
-      playable: canAffordCard(combat, instance),
+      playable: canPlayCard(combat, instance),
       selected: instance.uid === state.selectedCardUid,
       onTap: (cardElement) => onCardTap(instance, cardElement),
     });
     // Чем дальше карта от центра, тем сильнее наклон и ниже положение: получается веер
-    const offset = index - middle;
+    const offset = (index - middle) * spread;
     element.style.setProperty("--fan-angle", `${offset * 3}deg`);
     element.style.setProperty("--fan-drop", `${offset * offset * 2}px`);
     hand.append(element);
@@ -115,9 +147,15 @@ function createBottomBar(combat) {
   endTurnButton.type = "button";
   endTurnButton.addEventListener("click", onEndTurnTap);
 
+  const piles = el("div", "combat__piles");
+  piles.append(
+    el("div", "", `${TEXTS.drawPile}: ${combat.piles.draw.length} · ${TEXTS.discardPile}: ${combat.piles.discard.length}`),
+    el("div", "", `${TEXTS.exhaustPile}: ${combat.piles.exhaust.length}`),
+  );
+
   bar.append(
     el("div", "combat__energy", `⚡ ${combat.energy}/${CONFIG.energyPerTurn}`),
-    el("div", "combat__piles", `${TEXTS.drawPile}: ${combat.piles.draw.length} · ${TEXTS.discardPile}: ${combat.piles.discard.length}`),
+    piles,
     endTurnButton,
   );
   return bar;
@@ -125,8 +163,7 @@ function createBottomBar(combat) {
 
 function getSelectedCard() {
   if (state.selectedCardUid === null) return null;
-  const instance = state.combat.piles.hand.find((card) => card.uid === state.selectedCardUid);
-  return CARDS[instance.cardId];
+  return getCardData(state.combat.piles.hand.find((card) => card.uid === state.selectedCardUid));
 }
 
 function getHint() {
@@ -136,13 +173,13 @@ function getHint() {
 }
 
 function onCardTap(instance, element) {
-  if (!canAffordCard(state.combat, instance)) {
+  if (!canPlayCard(state.combat, instance)) {
     shakeCard(element);
     return;
   }
 
   const alreadySelected = state.selectedCardUid === instance.uid;
-  if (alreadySelected && CARDS[instance.cardId].target === "self") {
+  if (alreadySelected && getCardData(instance).target !== "enemy") {
     playSelectedCard(null);
     return;
   }

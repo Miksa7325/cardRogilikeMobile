@@ -2,10 +2,12 @@
 export const TEXTS = {
   gameTitle: "Карточная RPG", // временное название, окончательное ещё не выбрано
   startButton: "Начать",
+  testModeButton: "Тест-режим",
   turn: "Ход",
   endTurn: "Конец хода",
   drawPile: "Добор",
   discardPile: "Сброс",
+  exhaustPile: "Сожжено",
   hintPickTarget: "Нажми на врага",
   hintTapAgain: "Нажми на карту ещё раз",
   victoryTitle: "Победа!",
@@ -14,5 +16,21 @@ export const TEXTS = {
   statuses: {
     vulnerable: "Уязвимость",
     strength: "Сила",
+    dexterity: "Ловкость",
+    weak: "Слабость",
+    frail: "Хрупкость",
+    poison: "Яд",
+  },
+  test: {
+    title: "Тест-режим",
+    chooseEnemies: "Выбери от 1 до 3 врагов",
+    selectedEnemies: "В бою (нажми, чтобы убрать):",
+    start: "В бой",
+    back: "Назад",
+    pickerTitle: "Нажми на карту, чтобы взять её в руку",
+    upgradedOn: "Улучшенные: да",
+    upgradedOff: "Улучшенные: нет",
+    close: "Закрыть",
+    leave: "Выйти из боя",
   },
 };

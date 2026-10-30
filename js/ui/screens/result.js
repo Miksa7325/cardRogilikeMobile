@@ -2,6 +2,7 @@
 import { TEXTS } from "../../data/texts.ru.js";
 import { state } from "../../state.js";
 import { el } from "../dom.js";
+import { showScreen } from "../router.js";
 import { startNewCombat } from "./combat.js";
 
 export function renderResultScreen(root) {
@@ -10,7 +11,14 @@ export function renderResultScreen(root) {
   const screen = el("main", "center-screen");
   const button = el("button", "button button--large", TEXTS.newCombat);
   button.type = "button";
-  button.addEventListener("click", startNewCombat);
+  // Из тестового боя возвращаемся к выбору врагов
+  button.addEventListener("click", () => {
+    if (state.test.enabled) {
+      showScreen("testSetup");
+    } else {
+      startNewCombat();
+    }
+  });
 
   screen.append(el("h1", "center-screen__title", title), button);
   root.append(screen);

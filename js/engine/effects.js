@@ -1,0 +1,110 @@
+// Исполнение эффектов карт, врагов и сил. Новый тип эффекта — новая запись в EFFECT_HANDLERS.
+import { CONFIG } from "../config.js";
+import { createCardInstance, drawCards } from "./deck.js";
+
+// Формула урона: (база + Сила) × 0.75 при Слабости × 1.5 при Уязвимости цели, округление вниз.
+// target может быть null: тогда это число для описания карты, без учёта цели.
+export function calculateDamage(base, attacker, target) {
+  let damage = base + (attacker.statuses.strength ?? 0);
+  if (attacker.statuses.weak) damage *= CONFIG.weakMultiplier;
+  if (target && target.statuses.vulnerable) damage *= CONFIG.vulnerableMultiplier;
+  return Math.floor(damage);
+}
+
+// Ловкость прибавляется только к блоку от карт, Хрупкость уменьшает любой блок
+export function calculateBlock(base, unit, fromCard) {
+  let block = base + (fromCard ? unit.statuses.dexterity ?? 0 : 0);
+  if (unit.statuses.frail) block *= CONFIG.frailMultiplier;
+  return Math.floor(block);
+}
+
+// Исполняет эффекты по очереди; после каждого проверяет победу и поражение.
+// context: source — кто действует, targets — цели, fromCard — эффект идёт от разыгранной карты
+export function executeEffects(combat, effects, context) {
+  for (const effect of effects) {
+    if (combat.status !== "playerTurn") return;
+    EFFECT_HANDLERS[effect.type](combat, effect, context);
+    checkCombatEnd(combat);
+  }
+}
+
+// Запускает силы героя с этим триггером: например, onTurnStart у Ярости
+export function fireTrigger(combat, trigger) {
+  for (const power of combat.hero.powers) {
+    if (power.trigger !== trigger) continue;
+    executeEffects(combat, power.effects, { source: combat.hero, targets: [], fromCard: false });
+  }
+}
+
+// Яд: урон равен числу стаков, игнорирует блок, потом стаков становится на 1 меньше
+export function applyPoison(combat, unit) {
+  const stacks = unit.statuses.poison;
+  if (!stacks) return;
+  unit.hp = Math.max(0, unit.hp - stacks);
+  reduceStatus(unit, "poison");
+  checkCombatEnd(combat);
+}
+
+export function reduceStatus(unit, status) {
+  if (!unit.statuses[status]) return;
+  unit.statuses[status] -= 1;
+  if (unit.statuses[status] === 0) delete unit.statuses[status];
+}
+
+function checkCombatEnd(combat) {
+  if (combat.hero.hp <= 0) {
+    combat.status = "lost";
+  } else if (combat.enemies.every((enemy) => enemy.hp <= 0)) {
+    combat.status = "won";
+  }
+}
+
+// target: "self" в эффекте означает самого действующего, иначе берём живые цели из контекста
+function getTargets(effect, context) {
+  if (effect.target === "self") return [context.source];
+  return context.targets.filter((target) => target.hp > 0);
+}
+
+// Урон сначала снимает блок, остаток — HP
+function dealDamage(combat, target, damage) {
+  const absorbed = Math.min(target.block, damage);
+  const hpLost = damage - absorbed;
+  target.block -= absorbed;
+  target.hp = Math.max(0, target.hp - hpLost);
+  if (target === combat.hero && hpLost > 0) fireTrigger(combat, "onDamageTaken");
+}
+
+const EFFECT_HANDLERS = {
+  damage(combat, effect, context) {
+    for (const target of getTargets(effect, context)) {
+      dealDamage(combat, target, calculateDamage(effect.amount, context.source, target));
+    }
+  },
+  block(combat, effect, context) {
+    for (const target of getTargets(effect, context)) {
+      target.block += calculateBlock(effect.amount, target, context.fromCard);
+    }
+  },
+  applyStatus(combat, effect, context) {
+    for (const target of getTargets(effect, context)) {
+      target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + effect.amount;
+    }
+  },
+  heal(combat, effect, context) {
+    const unit = context.source;
+    unit.hp = Math.min(unit.maxHp, unit.hp + effect.amount);
+  },
+  draw(combat, effect) {
+    drawCards(combat.piles, effect.amount, combat.rng);
+  },
+  gainEnergy(combat, effect) {
+    combat.energy += effect.amount;
+  },
+  addCard(combat, effect) {
+    combat.piles[effect.pile].push(createCardInstance(combat.piles, effect.cardId));
+  },
+  // Сжигает разыгранную карту: куда её положить, решает playCard, когда эффекты закончатся
+  exhaust(combat, effect, context) {
+    context.exhausted = true;
+  },
+};

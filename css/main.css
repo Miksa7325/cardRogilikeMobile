@@ -11,6 +11,8 @@
   --color-highlight: #e0b84c;
   --color-attack: #5e2626;
   --color-skill: #26405e;
+  --color-power: #4a2f66;
+  --color-status: #3a3a3a;
 }
 
 /* Размеры считаем вместе с отступами, так вёрстка предсказуемее */
@@ -53,4 +55,12 @@ body {
   min-width: 200px;
   min-height: 56px;
   font-size: 20px;
+}
+
+.button--secondary {
+  background: var(--color-panel);
+}
+
+.button:disabled {
+  opacity: 0.5;
 }

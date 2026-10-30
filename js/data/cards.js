@@ -1,6 +1,9 @@
 // Все карты игры. Новая карта — новая запись здесь.
-// В описании {damage}, {block} и {имя статуса} заменяются на итоговые числа.
+// В описании {damage}, {block}, {draw}, {energy}, {heal} и {имя статуса} заменяются на итоговые числа.
+// upgraded — поля, которые заменяются у улучшенной карты.
+// power — постоянный эффект карты-силы: при каком триггере и какие эффекты срабатывают.
 export const CARDS = {
+  // Стартовые карты
   strike: {
     id: "strike",
     name: "Удар",
@@ -9,6 +12,7 @@ export const CARDS = {
     cost: 1,
     target: "enemy",
     effects: [{ type: "damage", amount: 6 }],
+    upgraded: { effects: [{ type: "damage", amount: 9 }] },
     description: "Нанести {damage} урона.",
   },
   defend: {
@@ -19,6 +23,7 @@ export const CARDS = {
     cost: 1,
     target: "self",
     effects: [{ type: "block", amount: 5 }],
+    upgraded: { effects: [{ type: "block", amount: 8 }] },
     description: "Получить {block} блока.",
   },
   bash: {
@@ -32,6 +37,276 @@ export const CARDS = {
       { type: "damage", amount: 8 },
       { type: "applyStatus", status: "vulnerable", amount: 2 },
     ],
+    upgraded: {
+      effects: [
+        { type: "damage", amount: 10 },
+        { type: "applyStatus", status: "vulnerable", amount: 3 },
+      ],
+    },
     description: "Нанести {damage} урона. {vulnerable} Уязвимости.",
+  },
+
+  // Атаки
+  cleave: {
+    id: "cleave",
+    name: "Рассечение",
+    type: "attack",
+    rarity: "common",
+    cost: 1,
+    target: "allEnemies",
+    effects: [{ type: "damage", amount: 8 }],
+    upgraded: { effects: [{ type: "damage", amount: 11 }] },
+    description: "Нанести {damage} урона всем врагам.",
+  },
+  twin_strike: {
+    id: "twin_strike",
+    name: "Двойной удар",
+    type: "attack",
+    rarity: "common",
+    cost: 1,
+    target: "enemy",
+    effects: [
+      { type: "damage", amount: 5 },
+      { type: "damage", amount: 5 },
+    ],
+    upgraded: {
+      effects: [
+        { type: "damage", amount: 7 },
+        { type: "damage", amount: 7 },
+      ],
+    },
+    description: "Нанести {damage} урона 2 раза.",
+  },
+  knee_strike: {
+    id: "knee_strike",
+    name: "Удар в колено",
+    type: "attack",
+    rarity: "common",
+    cost: 1,
+    target: "enemy",
+    effects: [
+      { type: "damage", amount: 6 },
+      { type: "applyStatus", status: "weak", amount: 2 },
+    ],
+    upgraded: {
+      effects: [
+        { type: "damage", amount: 8 },
+        { type: "applyStatus", status: "weak", amount: 3 },
+      ],
+    },
+    description: "Нанести {damage} урона. {weak} Слабости.",
+  },
+  poison_blade: {
+    id: "poison_blade",
+    name: "Отравленный клинок",
+    type: "attack",
+    rarity: "common",
+    cost: 1,
+    target: "enemy",
+    effects: [
+      { type: "damage", amount: 3 },
+      { type: "applyStatus", status: "poison", amount: 4 },
+    ],
+    upgraded: {
+      effects: [
+        { type: "damage", amount: 4 },
+        { type: "applyStatus", status: "poison", amount: 6 },
+      ],
+    },
+    description: "Нанести {damage} урона. {poison} Яда.",
+  },
+  quick_slash: {
+    id: "quick_slash",
+    name: "Быстрый выпад",
+    type: "attack",
+    rarity: "common",
+    cost: 1,
+    target: "enemy",
+    effects: [
+      { type: "damage", amount: 5 },
+      { type: "draw", amount: 1 },
+    ],
+    upgraded: {
+      effects: [
+        { type: "damage", amount: 7 },
+        { type: "draw", amount: 1 },
+      ],
+    },
+    description: "Нанести {damage} урона. Взять {draw} карту.",
+  },
+  shield_bash: {
+    id: "shield_bash",
+    name: "Удар щитом",
+    type: "attack",
+    rarity: "common",
+    cost: 1,
+    target: "enemy",
+    effects: [
+      { type: "damage", amount: 5 },
+      { type: "block", amount: 5, target: "self" },
+    ],
+    upgraded: {
+      effects: [
+        { type: "damage", amount: 7 },
+        { type: "block", amount: 7, target: "self" },
+      ],
+    },
+    description: "Нанести {damage} урона. Получить {block} блока.",
+  },
+  heavy_blow: {
+    id: "heavy_blow",
+    name: "Тяжёлый удар",
+    type: "attack",
+    rarity: "uncommon",
+    cost: 2,
+    target: "enemy",
+    effects: [{ type: "damage", amount: 14 }],
+    upgraded: { effects: [{ type: "damage", amount: 18 }] },
+    description: "Нанести {damage} урона.",
+  },
+
+  // Навыки
+  second_wind: {
+    id: "second_wind",
+    name: "Второе дыхание",
+    type: "skill",
+    rarity: "common",
+    cost: 1,
+    target: "self",
+    effects: [
+      { type: "block", amount: 4 },
+      { type: "draw", amount: 1 },
+    ],
+    upgraded: {
+      effects: [
+        { type: "block", amount: 6 },
+        { type: "draw", amount: 1 },
+      ],
+    },
+    description: "Получить {block} блока. Взять {draw} карту.",
+  },
+  iron_wall: {
+    id: "iron_wall",
+    name: "Железная стена",
+    type: "skill",
+    rarity: "uncommon",
+    cost: 2,
+    target: "self",
+    effects: [{ type: "block", amount: 13 }],
+    upgraded: { effects: [{ type: "block", amount: 17 }] },
+    description: "Получить {block} блока.",
+  },
+  focus: {
+    id: "focus",
+    name: "Сосредоточение",
+    type: "skill",
+    rarity: "uncommon",
+    cost: 0,
+    target: "self",
+    effects: [
+      { type: "draw", amount: 2 },
+      { type: "addCard", cardId: "wound", pile: "discard" },
+    ],
+    upgraded: {
+      effects: [
+        { type: "draw", amount: 3 },
+        { type: "addCard", cardId: "wound", pile: "discard" },
+      ],
+    },
+    description: "Взять {draw} карты. Рана в сброс.",
+  },
+  adrenaline: {
+    id: "adrenaline",
+    name: "Прилив сил",
+    type: "skill",
+    rarity: "uncommon",
+    cost: 0,
+    target: "self",
+    effects: [{ type: "gainEnergy", amount: 1 }, { type: "exhaust" }],
+    upgraded: { effects: [{ type: "gainEnergy", amount: 2 }, { type: "exhaust" }] },
+    description: "Получить {energy} энергии. Сжечь.",
+  },
+  bandage: {
+    id: "bandage",
+    name: "Перевязка",
+    type: "skill",
+    rarity: "uncommon",
+    cost: 1,
+    target: "self",
+    effects: [{ type: "heal", amount: 6 }, { type: "exhaust" }],
+    upgraded: { effects: [{ type: "heal", amount: 9 }, { type: "exhaust" }] },
+    description: "Вылечить {heal} HP. Сжечь.",
+  },
+  intimidate: {
+    id: "intimidate",
+    name: "Устрашение",
+    type: "skill",
+    rarity: "uncommon",
+    cost: 1,
+    target: "allEnemies",
+    effects: [{ type: "applyStatus", status: "weak", amount: 2 }, { type: "exhaust" }],
+    upgraded: { effects: [{ type: "applyStatus", status: "weak", amount: 3 }, { type: "exhaust" }] },
+    description: "{weak} Слабости всем врагам. Сжечь.",
+  },
+
+  // Силы
+  stance: {
+    id: "stance",
+    name: "Боевая стойка",
+    type: "power",
+    rarity: "uncommon",
+    cost: 1,
+    target: "self",
+    effects: [{ type: "applyStatus", status: "dexterity", amount: 2 }],
+    upgraded: { effects: [{ type: "applyStatus", status: "dexterity", amount: 3 }] },
+    description: "Получить {dexterity} Ловкости.",
+  },
+  iron_skin: {
+    id: "iron_skin",
+    name: "Железная кожа",
+    type: "power",
+    rarity: "uncommon",
+    cost: 1,
+    target: "self",
+    effects: [],
+    power: { trigger: "onTurnEnd", effects: [{ type: "block", amount: 3, target: "self" }] },
+    upgraded: { power: { trigger: "onTurnEnd", effects: [{ type: "block", amount: 4, target: "self" }] } },
+    description: "В конце хода {block} блока.",
+  },
+  rage: {
+    id: "rage",
+    name: "Ярость",
+    type: "power",
+    rarity: "rare",
+    cost: 1,
+    target: "self",
+    effects: [],
+    power: { trigger: "onTurnStart", effects: [{ type: "applyStatus", status: "strength", amount: 1, target: "self" }] },
+    upgraded: { cost: 0 },
+    description: "В начале хода +{strength} Сила.",
+  },
+  blood_rage: {
+    id: "blood_rage",
+    name: "Кровавый гнев",
+    type: "power",
+    rarity: "rare",
+    cost: 2,
+    target: "self",
+    effects: [],
+    power: { trigger: "onDamageTaken", effects: [{ type: "applyStatus", status: "strength", amount: 1, target: "self" }] },
+    upgraded: { cost: 1 },
+    description: "Теряя HP от атаки, +{strength} Сила.",
+  },
+
+  // Мусор в колоде: не входит в 20 карт Воина
+  wound: {
+    id: "wound",
+    name: "Рана",
+    type: "status",
+    rarity: "common",
+    cost: null, // null — карту нельзя разыграть
+    target: "none",
+    effects: [],
+    description: "Нельзя разыграть.",
   },
 };
