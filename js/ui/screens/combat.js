@@ -10,7 +10,7 @@ import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
-import { ENEMY_ART, HERO_ART, IDLE_STYLES } from "../art.js";
+import { enemySprite, heroSprite, IDLE_STYLES } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
 import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
@@ -106,9 +106,14 @@ function createTopBar(combat) {
 }
 
 // idle — как модель двигается в покое: классы анимаций лежат в css/theme.css
-function createPortrait(art, idle = "breathe") {
+function createPortrait(sprite, idle = "breathe") {
   const portrait = el("div", `unit__portrait idle--${idle}`);
-  portrait.innerHTML = art;
+  const image = el("img", "");
+  image.src = sprite;
+  image.alt = "";
+  image.decoding = "sync"; // экран рисуется заново после каждого действия: рисунок не должен мигать
+  image.draggable = false;
+  portrait.append(image);
   return portrait;
 }
 
@@ -129,7 +134,7 @@ function createEnemy(combat, enemy, compact) {
 
   element.append(
     el("div", "unit__intent", formatIntent(combat, enemy)),
-    createPortrait(ENEMY_ART[enemy.enemyId], IDLE_STYLES[enemy.enemyId]),
+    createPortrait(enemySprite(enemy.enemyId), IDLE_STYLES[enemy.enemyId]),
     el("div", "unit__name", ENEMIES[enemy.enemyId].name),
     createHpBar(enemy),
     createStatusIcons(enemy, { compact }),
@@ -177,7 +182,7 @@ function createHero(combat) {
     createHpBar(combat.hero),
     createStatusIcons(combat.hero, { compact: iconCount > 2 }),
   );
-  unit.append(createPortrait(HERO_ART[combat.hero.heroId]), details);
+  unit.append(createPortrait(heroSprite(combat.hero.heroId)), details);
   unit.addEventListener("click", () => showTooltip(describeStatuses(combat.hero)));
   wrapper.append(unit);
   return wrapper;

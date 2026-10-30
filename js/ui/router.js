@@ -10,6 +10,9 @@ const screens = {};
 // каждого действия, а фаза считается по часам: поэтому модели не дёргаются при перерисовке
 const IDLE_CYCLE_MS = 12000;
 
+// На этих экранах фон меню, а не текущего акта
+const MENU_SCREENS = ["start", "heroSelect", "collection", "settings", "saveTransfer", "credits", "testSetup"];
+
 // Запоминает функцию, которая рисует экран с этим именем
 export function registerScreen(name, render) {
   screens[name] = render;
@@ -19,7 +22,7 @@ export function showScreen(name) {
   const app = document.getElementById("app");
   hideTooltip();
   setMusicMood(name === "combat" ? "combat" : "calm");
-  setSceneAct(state.run?.status === "active" && !state.test.enabled ? state.run.act : 1);
+  setSceneAct(MENU_SCREENS.includes(name) ? 0 : state.test.enabled ? 1 : state.run?.act ?? 0);
   document.documentElement.style.setProperty("--idle-phase", `-${Date.now() % IDLE_CYCLE_MS}ms`);
   app.replaceChildren();
   screens[name](app);

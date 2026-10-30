@@ -52,21 +52,26 @@
 }
 
 /* Цвет карты показывает её тип */
+/* Поверх текстуры лежит цветной слой: так текст читается, а поверхность остаётся видна */
 .card--attack {
-  background: linear-gradient(165deg, #8c3633, #4d1c1c);
+  background: linear-gradient(165deg, rgba(140, 54, 51, 0.72), rgba(66, 22, 22, 0.88)), url("../assets/images/textures/card-attack.png") 0 0 / 64px;
+  image-rendering: pixelated;
 }
 
 .card--skill {
-  background: linear-gradient(165deg, #38648f, #1b3350);
+  background: linear-gradient(165deg, rgba(56, 100, 143, 0.72), rgba(24, 45, 72, 0.88)), url("../assets/images/textures/card-skill.png") 0 0 / 64px;
+  image-rendering: pixelated;
 }
 
 .card--power {
-  background: linear-gradient(165deg, #6f47a0, #33205a);
+  background: linear-gradient(165deg, rgba(111, 71, 160, 0.72), rgba(45, 28, 82, 0.88)), url("../assets/images/textures/card-power.png") 0 0 / 64px;
+  image-rendering: pixelated;
 }
 
 .card--status,
 .card--curse {
-  background: linear-gradient(165deg, #55525a, #29272c);
+  background: linear-gradient(165deg, rgba(85, 82, 90, 0.72), rgba(36, 34, 40, 0.88)), url("../assets/images/textures/card-status.png") 0 0 / 64px;
+  image-rendering: pixelated;
 }
 
 /* Рамка показывает редкость */

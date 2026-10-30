@@ -2,9 +2,9 @@
 import { TEXTS } from "../../data/texts.ru.js";
 import { getCardData } from "../../engine/deck.js";
 import { calculateBlock, calculateDamage } from "../../engine/effects.js";
-import { CARD_GLYPHS } from "../art.js";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
+import { CARD_ART } from "../cardArt.js";
 import { addLongPress } from "../longPress.js";
 import { STATUS_ICONS } from "./statusIcons.js";
 
@@ -44,8 +44,8 @@ function fillEffect(text, effect, hero, fromCard) {
   }
 }
 
-// Какой рисунок поставить на карту: по главному, что она делает
-export function pickGlyph(card) {
+// Цвет рисунка зависит от главного, что делает карта
+function pickArtColor(card) {
   const effects = [...card.effects, ...(card.power?.effects ?? [])];
   const has = (type) => effects.some((effect) => effect.type === type);
   const hasStatus = (...names) => effects.some((effect) => names.includes(effect.status));
@@ -162,9 +162,8 @@ export function fillCardFace(element, instance, hero) {
 
   if (card.cost !== null) element.append(el("div", "card__cost", card.cost));
 
-  const glyphName = pickGlyph(card);
-  const art = el("div", `card__art card__art--${glyphName}`);
-  art.innerHTML = CARD_GLYPHS[glyphName];
+  const art = el("div", `card__art card__art--${pickArtColor(card)}`);
+  art.innerHTML = `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${CARD_ART[instance.cardId]}"/></svg>`;
 
   // Длинное слово в названии получает шрифт поменьше, иначе в руке оно разорвётся на части
   const longestWord = Math.max(...fullName.split(" ").map((word) => word.length));

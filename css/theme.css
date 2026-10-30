@@ -16,26 +16,40 @@
   overflow: hidden;
 }
 
-.scene__wall {
+/* Стены и пол: крупные пиксели как у моделей. На каждый акт своя текстура */
+.scene__texture {
+  position: absolute;
+  inset: 0;
+  background: url("../assets/images/textures/scene-menu.png") center / cover;
+  image-rendering: pixelated;
+}
+
+#scene[data-act="1"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act1.png");
+}
+
+#scene[data-act="2"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act2.png");
+}
+
+#scene[data-act="3"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act3.png");
+}
+
+.scene__torches {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
+/* Затемнение по краям и общее: текст должен читаться поверх текстур */
 .scene__tint {
   position: absolute;
   inset: 0;
-  background: rgba(120, 50, 20, 0.08);
-}
-
-/* Акт 2 — болотно-зелёный, акт 3 — ледяной */
-#scene[data-act="2"] .scene__tint {
-  background: rgba(50, 130, 70, 0.14);
-}
-
-#scene[data-act="3"] .scene__tint {
-  background: rgba(50, 110, 190, 0.17);
+  background:
+    radial-gradient(ellipse at 50% 38%, transparent 25%, rgba(8, 6, 11, 0.72) 100%),
+    rgba(10, 8, 14, 0.62);
 }
 
 /* Свет и пламя нарисованы внутри картинки: при любом размере экрана они остаются на факелах */
@@ -83,8 +97,7 @@
   .scene__glow,
   .scene__flame,
   .scene__ember,
-  .unit__portrait svg,
-  .unit__portrait svg * {
+  .unit__portrait img {
     animation: none !important;
   }
 }
@@ -185,74 +198,63 @@
 
 .unit__portrait {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.7));
 }
 
-.unit__portrait::after {
-  content: "";
-  position: absolute;
-  left: 12%;
-  right: 12%;
-  bottom: -3px;
-  z-index: -1;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.unit__portrait svg {
+.unit__portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
   transform-origin: 50% 100%;
+  -webkit-user-drag: none;
   animation: idle-breathe 3s ease-in-out infinite;
   animation-delay: var(--idle-phase, 0ms);
 }
 
-.unit__portrait svg * {
-  transform-box: fill-box;
-}
-
-/* Несколько врагов в ряд: модели поменьше */
+/* Несколько врагов в ряд: модели поменьше. Размеры кратны 32: так пиксели остаются ровными */
 .combat__enemies:has(.unit + .unit) .unit__portrait {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
 }
 
 /* На высоком экране места больше: модели крупнее */
 @media (min-height: 780px) {
   .unit__portrait {
-    width: 112px;
-    height: 112px;
+    width: 128px;
+    height: 128px;
   }
 
   .combat__enemies:has(.unit + .unit) .unit__portrait {
-    width: 80px;
-    height: 80px;
+    width: 96px;
+    height: 96px;
   }
 }
 
-.idle--float svg {
+.idle--float img {
   animation-name: idle-float;
   animation-duration: 4s;
 }
 
-.idle--scuttle svg {
+.idle--scuttle img {
   animation-name: idle-scuttle;
   animation-duration: 2s;
 }
 
-.idle--heavy svg {
+.idle--heavy img {
   animation-name: idle-heavy;
   animation-duration: 6s;
 }
 
-.idle--pant svg {
+.idle--pant img {
   animation-name: idle-pant;
   animation-duration: 2s;
 }
 
 @keyframes idle-breathe {
-  50% { transform: scale(1.03, 1.05); }
+  50% { transform: scale(1.02, 1.04); }
 }
 
 @keyframes idle-float {
@@ -272,92 +274,6 @@
 
 @keyframes idle-pant {
   50% { transform: scale(1.05, 0.98); }
-}
-
-/* Части моделей */
-.art-eyes {
-  transform-origin: center;
-  animation: art-blink 4s infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-blink {
-  0%, 94%, 100% { transform: scaleY(1); }
-  97% { transform: scaleY(0.1); }
-}
-
-.art-weapon {
-  transform-origin: 50% 100%;
-  animation: art-sway 3s ease-in-out infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-sway {
-  50% { transform: rotate(4deg); }
-}
-
-.art-orb,
-.art-visor,
-.art-flame {
-  transform-origin: center;
-  animation: art-pulse 2s ease-in-out infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-pulse {
-  50% { opacity: 0.55; transform: scale(1.12); }
-}
-
-.art-legs {
-  transform-origin: center;
-  animation: art-legs 2s steps(4) infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-legs {
-  50% { transform: scaleY(0.92) translateY(1px); }
-}
-
-.art-wing--left {
-  transform-origin: 100% 60%;
-  animation: art-wing-left 4s ease-in-out infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-.art-wing--right {
-  transform-origin: 0 60%;
-  animation: art-wing-right 4s ease-in-out infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-wing-left {
-  50% { transform: rotate(9deg); }
-}
-
-@keyframes art-wing-right {
-  50% { transform: rotate(-9deg); }
-}
-
-.art-cape,
-.art-plume,
-.art-ear {
-  transform-origin: 50% 0;
-  animation: art-cape 3s ease-in-out infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-cape {
-  50% { transform: skewX(3deg) scaleY(1.02); }
-}
-
-.art-mouth {
-  transform-origin: center;
-  animation: art-mouth 3s ease-in-out infinite;
-  animation-delay: var(--idle-phase, 0ms);
-}
-
-@keyframes art-mouth {
-  50% { transform: scaleY(1.25); }
 }
 
 /* Куда можно бросить карту */
@@ -380,8 +296,8 @@
 }
 
 .unit--hero .unit__portrait {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
 }
 
 /* Полоска HP */
@@ -594,4 +510,45 @@
 .tutorial {
   background: rgba(14, 11, 18, 0.96);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+}
+
+/* Экран авторов */
+.credits {
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.credits__block {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #4a3f58;
+  border-radius: 8px;
+  background: var(--panel-glass);
+  text-align: left;
+}
+
+.credits__heading {
+  margin: 0 0 6px;
+  font-family: var(--font-title);
+  font-size: 18px;
+}
+
+.credits__text,
+.credits__authors {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.credits__authors {
+  color: var(--color-muted);
+}
+
+/* Ссылка не меньше 44 px по высоте, чтобы легко попасть пальцем */
+.credits__link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: #ffe08a;
+  font-size: 14px;
 }

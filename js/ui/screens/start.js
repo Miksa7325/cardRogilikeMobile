@@ -47,6 +47,7 @@ export function renderStartScreen(root) {
     createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
     createButton(TEXTS.saveTransferButton, "button--secondary", () => showScreen("saveTransfer")),
     createButton(TEXTS.testModeButton, "button--secondary", () => showScreen("testSetup")),
+    createButton(TEXTS.credits.button, "button--secondary", () => showScreen("credits")),
   );
   root.append(screen);
 }

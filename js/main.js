@@ -1,11 +1,15 @@
 // Точка входа: отсюда запускается вся игра.
+import { ENEMIES } from "./data/enemies.js";
+import { HEROES } from "./data/heroes.js";
 import { TEXTS } from "./data/texts.ru.js";
 import { requestPersistentStorage } from "./save.js";
+import { preloadSprites } from "./ui/art.js";
 import { playSound, unlockAudio } from "./ui/audio.js";
 import { enableReliableTaps } from "./ui/reliableTap.js";
 import { registerScreen, showScreen } from "./ui/router.js";
 import { createScene } from "./ui/scene.js";
 import { renderCollectionScreen } from "./ui/screens/collection.js";
+import { renderCreditsScreen } from "./ui/screens/credits.js";
 import { renderCombatScreen } from "./ui/screens/combat.js";
 import { renderEventScreen } from "./ui/screens/event.js";
 import { renderHeroSelectScreen } from "./ui/screens/heroSelect.js";
@@ -26,6 +30,7 @@ document.title = TEXTS.gameTitle;
 registerScreen("start", renderStartScreen);
 registerScreen("heroSelect", renderHeroSelectScreen);
 registerScreen("collection", renderCollectionScreen);
+registerScreen("credits", renderCreditsScreen);
 registerScreen("map", renderMapScreen);
 registerScreen("combat", renderCombatScreen);
 registerScreen("reward", renderRewardScreen);
@@ -41,6 +46,7 @@ registerScreen("testSetup", renderTestSetupScreen);
 enableReliableTaps();
 applySettings();
 createScene();
+preloadSprites(Object.keys(ENEMIES), Object.keys(HEROES));
 showScreen("start");
 
 requestPersistentStorage();
