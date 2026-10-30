@@ -33,7 +33,8 @@ export function executeEffects(combat, effects, context) {
 // Запускает силы и реликвии героя с этим триггером. details.cardType — тип разыгранной карты
 export function fireTrigger(combat, trigger, details = {}) {
   for (const power of combat.hero.powers) {
-    if (power.trigger === trigger) runTriggerEffects(combat, power.effects);
+    const typeMatches = !power.cardType || power.cardType === details.cardType;
+    if (power.trigger === trigger && typeMatches) runTriggerEffects(combat, power.effects);
   }
   for (const relicId of combat.relics) {
     const relic = RELICS[relicId];
@@ -121,6 +122,11 @@ const EFFECT_HANDLERS = {
   heal(combat, effect, context) {
     const unit = context.source;
     unit.hp = Math.min(unit.maxHp, unit.hp + effect.amount);
+  },
+  // Плата своим HP за сильную карту: блок не помогает, силы «при потере HP от атаки» не срабатывают
+  loseHp(combat, effect, context) {
+    const unit = context.source;
+    unit.hp = Math.max(0, unit.hp - effect.amount);
   },
   draw(combat, effect) {
     drawCards(combat.piles, effect.amount, combat.rng);

@@ -310,3 +310,94 @@ export const CARDS = {
     description: "Нельзя разыграть.",
   },
 };
+
+// Короткие записи для эффектов: остальные карты Воина описаны одной таблицей
+const damage = (amount) => ({ type: "damage", amount });
+const hits = (amount, times) => Array.from({ length: times }, () => damage(amount));
+const block = (amount) => ({ type: "block", amount, target: "self" });
+const status = (name, amount) => ({ type: "applyStatus", status: name, amount });
+const selfStatus = (name, amount) => ({ ...status(name, amount), target: "self" });
+const allStatus = (name, amount) => ({ ...status(name, amount), target: "allEnemies" });
+const draw = (amount) => ({ type: "draw", amount });
+const energy = (amount) => ({ type: "gainEnergy", amount });
+const heal = (amount) => ({ type: "heal", amount });
+const loseHp = (amount) => ({ type: "loseHp", amount });
+const wound = { type: "addCard", cardId: "wound", pile: "discard" };
+const burn = { type: "exhaust" };
+
+// Порядок: id, название, тип, редкость, стоимость, цель, описание, эффекты, улучшение, сила
+function card(id, name, type, rarity, cost, target, description, effects, upgraded, power) {
+  return { id, name, type, rarity, cost, target, description, effects, upgraded, ...(power ? { power } : {}) };
+}
+
+const MORE_WARRIOR_CARDS = [
+  // Обычные атаки
+  card("deep_cut", "Глубокий порез", "attack", "common", 1, "enemy", "Нанести {damage} урона. {poison} Яда.", [damage(4), status("poison", 3)], { effects: [damage(5), status("poison", 5)] }),
+  card("kick", "Пинок", "attack", "common", 1, "enemy", "Нанести {damage} урона. {vulnerable} Уязвимости.", [damage(7), status("vulnerable", 1)], { effects: [damage(9), status("vulnerable", 2)] }),
+  card("triple_slash", "Тройной удар", "attack", "common", 2, "enemy", "Нанести {damage} урона 3 раза.", hits(5, 3), { effects: hits(7, 3) }),
+  card("reckless_swing", "Безрассудный взмах", "attack", "common", 0, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(7), loseHp(3)], { effects: [damage(10), loseHp(3)] }),
+  card("guarded_strike", "Осторожный удар", "attack", "common", 1, "enemy", "Нанести {damage} урона. {block} блока.", [damage(6), block(3)], { effects: [damage(8), block(4)] }),
+  card("wide_swing", "Размашистый удар", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(6)], { effects: [damage(9)] }),
+  card("hilt_bash", "Удар рукоятью", "attack", "common", 0, "enemy", "Нанести {damage} урона. Взять {draw} карту.", [damage(3), draw(1)], { effects: [damage(5), draw(1)] }),
+  card("hamstring", "Подрезать жилы", "attack", "common", 1, "enemy", "Нанести {damage} урона. {weak} Слабости. {vulnerable} Уязвимости.", [damage(4), status("weak", 1), status("vulnerable", 1)], { effects: [damage(6), status("weak", 2), status("vulnerable", 1)] }),
+  card("finishing_blow", "Добивание", "attack", "common", 1, "enemy", "Нанести {damage} урона. Сжечь.", [damage(12), burn], { effects: [damage(16), burn] }),
+  card("wild_slash", "Дикий взмах", "attack", "common", 1, "enemy", "Нанести {damage} урона. Рана в сброс.", [damage(11), wound], { effects: [damage(14), wound] }),
+  card("shoulder_charge", "Таран плечом", "attack", "common", 2, "enemy", "Нанести {damage} урона. {block} блока.", [damage(11), block(5)], { effects: [damage(14), block(7)] }),
+
+  // Обычные навыки
+  card("brace", "Упор", "skill", "common", 1, "self", "Получить {block} блока.", [block(7)], { effects: [block(10)] }),
+  card("parry", "Парирование", "skill", "common", 0, "self", "Получить {block} блока.", [block(3)], { effects: [block(5)] }),
+  card("taunt", "Насмешка", "skill", "common", 1, "enemy", "{vulnerable} Уязвимости. {block} блока.", [status("vulnerable", 2), block(4)], { effects: [status("vulnerable", 3), block(6)] }),
+  card("rally", "Собраться с духом", "skill", "common", 1, "self", "Взять {draw} карты.", [draw(2)], { effects: [draw(3)] }),
+  card("dirty_trick", "Грязный приём", "skill", "common", 0, "enemy", "{weak} Слабости. Сжечь.", [status("weak", 1), burn], { effects: [status("weak", 2), burn] }),
+  card("tourniquet", "Жгут", "skill", "common", 0, "self", "Вылечить {heal} HP. Сжечь.", [heal(2), burn], { effects: [heal(4), burn] }),
+  card("warm_up", "Разминка", "skill", "common", 1, "self", "+{strength} Сила. Сжечь.", [selfStatus("strength", 1), burn], { effects: [selfStatus("strength", 2), burn] }),
+  card("battle_cry", "Боевой клич", "skill", "common", 1, "allEnemies", "{vulnerable} Уязвимости всем. Сжечь.", [status("vulnerable", 1), burn], { effects: [status("vulnerable", 2), burn] }),
+  card("poison_cloud", "Ядовитое облако", "skill", "common", 1, "allEnemies", "{poison} Яда всем врагам.", [status("poison", 3)], { effects: [status("poison", 5)] }),
+
+  // Необычные атаки
+  card("sunder", "Раскол брони", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. {vulnerable} Уязвимости.", [damage(5), status("vulnerable", 2)], { effects: [damage(7), status("vulnerable", 3)] }),
+  card("whirlwind", "Вихрь", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем 2 раза.", hits(6, 2), { effects: hits(8, 2) }),
+  card("executioner", "Палач", "attack", "uncommon", 3, "enemy", "Нанести {damage} урона.", [damage(28)], { effects: [damage(36)] }),
+  card("blood_strike", "Кровавый удар", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(13), loseHp(4)], { effects: [damage(17), loseHp(4)] }),
+  card("counterattack", "Контратака", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. {block} блока.", [damage(10), block(10)], { effects: [damage(13), block(13)] }),
+  card("venom_strike", "Ядовитый укус", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. {poison} Яда.", [damage(6), status("poison", 8)], { effects: [damage(8), status("poison", 11)] }),
+  card("momentum", "Натиск", "attack", "uncommon", 1, "enemy", "Нанести {damage} урона. +{energy} энергия. Сжечь.", [damage(6), energy(1), burn], { effects: [damage(9), energy(1), burn] }),
+  card("stunning_blow", "Оглушающий удар", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. {weak} Слабости. {vulnerable} Уязвимости.", [damage(9), status("weak", 2), status("vulnerable", 2)], { effects: [damage(12), status("weak", 3), status("vulnerable", 3)] }),
+
+  // Необычные навыки
+  card("shield_wall", "Стена щитов", "skill", "uncommon", 2, "self", "{block} блока. {weak} Слабости всем.", [block(10), allStatus("weak", 1)], { effects: [block(14), allStatus("weak", 1)] }),
+  card("plague_blade", "Чумной клинок", "skill", "uncommon", 2, "allEnemies", "{poison} Яда всем врагам.", [status("poison", 6)], { effects: [status("poison", 9)] }),
+  card("blood_surge", "Прилив крови", "skill", "uncommon", 1, "self", "+{energy} энергии. Потерять {loseHp} HP. Сжечь.", [energy(2), loseHp(5), burn], { effects: [energy(3), loseHp(5), burn] }),
+  card("retreat", "Отход", "skill", "uncommon", 1, "self", "{block} блока. Взять {draw} карты.", [block(6), draw(2)], { effects: [block(8), draw(2)] }),
+  card("war_drum", "Боевой барабан", "skill", "uncommon", 1, "self", "+{strength} Силы. Сжечь.", [selfStatus("strength", 2), burn], { effects: [selfStatus("strength", 3), burn] }),
+  card("calculation", "Точный расчёт", "skill", "uncommon", 1, "self", "Взять {draw} карты. Рана в сброс.", [draw(3), wound], { effects: [draw(4), wound] }),
+  card("fortress", "Крепость", "skill", "uncommon", 3, "self", "Получить {block} блока.", [block(22)], { effects: [block(28)] }),
+
+  // Необычные силы
+  card("iron_will", "Железная воля", "power", "uncommon", 1, "self", "В начале хода {block} блока.", [], { power: { trigger: "onTurnStart", effects: [block(4)] } }, { trigger: "onTurnStart", effects: [block(3)] }),
+  card("venom_mastery", "Знаток ядов", "power", "uncommon", 1, "self", "В конце хода {poison} Яда всем.", [], { power: { trigger: "onTurnEnd", effects: [allStatus("poison", 2)] } }, { trigger: "onTurnEnd", effects: [allStatus("poison", 1)] }),
+  card("battle_trance", "Боевой транс", "power", "uncommon", 1, "self", "Каждая атака: {block} блока.", [], { power: { trigger: "onCardPlayed", cardType: "attack", effects: [block(2)] } }, { trigger: "onCardPlayed", cardType: "attack", effects: [block(1)] }),
+  card("thick_hide", "Толстая шкура", "power", "uncommon", 2, "self", "Получить {dexterity} Ловкости.", [selfStatus("dexterity", 3)], { effects: [selfStatus("dexterity", 4)] }),
+  card("bloodthirst", "Кровожадность", "power", "uncommon", 1, "self", "Когда враг умирает, вылечить {heal} HP.", [], { power: { trigger: "onEnemyDeath", effects: [heal(5)] } }, { trigger: "onEnemyDeath", effects: [heal(3)] }),
+
+  // Редкие атаки
+  card("earthquake", "Землетрясение", "attack", "rare", 3, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(20)], { effects: [damage(26)] }),
+  card("reaper", "Жнец", "attack", "rare", 2, "allEnemies", "Нанести {damage} урона всем. Вылечить {heal} HP. Сжечь.", [damage(9), heal(6), burn], { effects: [damage(12), heal(8), burn] }),
+  card("decapitate", "Обезглавить", "attack", "rare", 2, "enemy", "Нанести {damage} урона.", [damage(24)], { effects: [damage(32)] }),
+
+  // Редкие навыки
+  card("last_stand", "Последний рубеж", "skill", "rare", 2, "self", "{block} блока. Сжечь.", [block(30), burn], { effects: [block(40), burn] }),
+  card("adrenal_rush", "Всплеск", "skill", "rare", 0, "self", "+{energy} энергии. Взять {draw} карты. Сжечь.", [energy(2), draw(2), burn], { effects: [energy(3), draw(3), burn] }),
+  card("plague", "Чума", "skill", "rare", 2, "allEnemies", "{poison} Яда всем. Сжечь.", [status("poison", 10), burn], { effects: [status("poison", 14), burn] }),
+
+  // Редкие силы
+  card("berserker", "Берсерк", "power", "rare", 0, "self", "+{strength} Силы. Потерять {loseHp} HP.", [selfStatus("strength", 3), loseHp(6)], { effects: [selfStatus("strength", 4), loseHp(6)] }),
+  card("war_avatar", "Аватар войны", "power", "rare", 3, "self", "+{strength} Силы. +{dexterity} Ловкости.", [selfStatus("strength", 3), selfStatus("dexterity", 3)], { cost: 2 }),
+  card("thousand_cuts", "Тысяча порезов", "power", "rare", 1, "self", "Каждая карта: {damage} урона всем.", [], { power: { trigger: "onCardPlayed", effects: [{ type: "damage", amount: 2, fixed: true, target: "allEnemies" }] } }, { trigger: "onCardPlayed", effects: [{ type: "damage", amount: 1, fixed: true, target: "allEnemies" }] }),
+  card("perfect_form", "Идеальная форма", "power", "rare", 1, "self", "В начале хода взять {draw} карту.", [], { cost: 0 }, { trigger: "onTurnStart", effects: [draw(1)] }),
+];
+
+for (const warriorCard of MORE_WARRIOR_CARDS) {
+  CARDS[warriorCard.id] = warriorCard;
+}

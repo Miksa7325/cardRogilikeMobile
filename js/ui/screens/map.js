@@ -9,8 +9,10 @@ import { state } from "../../state.js";
 import { createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
+import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
 import { startNodeCombat } from "./combat.js";
+import { openRunStats } from "./runStats.js";
 
 const ROW_HEIGHT = 64; // расстояние между этажами на карте, px
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -29,6 +31,7 @@ const NODE_ICONS = {
 export function startNewRun() {
   state.run = createRun({ heroId: "warrior", seed: Date.now() });
   state.test.enabled = false;
+  resetPlayTimer();
   showScreen("map");
 }
 
@@ -37,10 +40,14 @@ export function renderMapScreen(root) {
   const screen = el("main", "map");
   const scroller = el("div", "map__scroller");
   scroller.append(createMapContent(run));
-  screen.append(createRunBar(run), el("p", "map__legend", TEXTS.mapLegend), scroller);
+  const statsButton = el("button", "map__stats", TEXTS.stats.button);
+  statsButton.type = "button";
+  statsButton.addEventListener("click", () => openRunStats(run));
+  screen.append(createRunBar(run, { allSaved: true }), el("p", "map__legend", TEXTS.mapLegend), statsButton, scroller);
   root.append(screen);
 
   // На карту игрок попадает только между узлами, поэтому здесь и сохраняем забег
+  trackPlayTime(run);
   if (!saveRun(run)) showTooltip(TEXTS.saveFailed);
 
   // Показываем ряд, куда можно идти: прокрутка работает, только когда карта уже на странице

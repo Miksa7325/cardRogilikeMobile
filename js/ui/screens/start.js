@@ -3,6 +3,7 @@ import { TEXTS } from "../../data/texts.ru.js";
 import { loadRun } from "../../save.js";
 import { state } from "../../state.js";
 import { el } from "../dom.js";
+import { resetPlayTimer } from "../playTime.js";
 import { showScreen } from "../router.js";
 import { startNewRun } from "./map.js";
 
@@ -22,6 +23,7 @@ export function renderStartScreen(root) {
     screen.append(createButton(TEXTS.continueButton, "button--large", () => {
       state.run = savedRun;
       state.test.enabled = false;
+      resetPlayTimer();
       showScreen("map");
     }));
   }

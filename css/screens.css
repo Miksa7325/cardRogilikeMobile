@@ -36,12 +36,12 @@
 .run-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   width: 100%;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 8px;
   background: var(--color-panel);
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -184,6 +184,23 @@
   color: var(--color-muted);
   font-size: 12px;
   text-align: center;
+}
+
+.map__stats {
+  flex-shrink: 0;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--color-muted);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Строка с одним боем на странице статистики */
+.stats__row {
+  margin: 0;
+  font-size: 13px;
 }
 
 .map__scroller {

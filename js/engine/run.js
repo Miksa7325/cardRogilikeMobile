@@ -1,7 +1,7 @@
 // Логика забега: карта, переходы между узлами, награды, отдых. Этот файл не трогает HTML.
 import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
-import { BOSS_ENCOUNTER, ELITE_ENCOUNTERS, ENCOUNTERS } from "../data/enemies.js";
+import { ACTS } from "../data/enemies.js";
 import { HEROES } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
@@ -16,6 +16,7 @@ export function createRun({ heroId, seed }) {
     seed,
     heroId,
     status: "active", // active | won | lost
+    act: 1,
     hp: hero.maxHp,
     maxHp: hero.maxHp,
     gold: 0,
@@ -23,7 +24,8 @@ export function createRun({ heroId, seed }) {
     nextCardUid: 0,
     relics: [],
     potions: [],
-    map: generateMap(createRng(deriveSeed(seed, "map"))),
+    map: generateActMap(seed, 1),
+    stats: { combats: [], playMs: 0 }, // статистика забега для проверки баланса
     currentNodeId: null,
     visitedNodeIds: [],
     pendingReward: null,
@@ -36,9 +38,14 @@ export function createRun({ heroId, seed }) {
   return run;
 }
 
-// У каждого узла свой генератор: результат зависит только от seed забега и самого узла
+// У каждого акта своя карта
+function generateActMap(seed, act) {
+  return generateMap(createRng(deriveSeed(seed, `map:${act}`)));
+}
+
+// У каждого узла свой генератор: результат зависит только от seed забега, акта и самого узла
 export function nodeRng(run, purpose) {
-  return createRng(deriveSeed(run.seed, `${purpose}:${run.currentNodeId}`));
+  return createRng(deriveSeed(run.seed, `${purpose}:${run.act}:${run.currentNodeId}`));
 }
 
 export function getCurrentNode(run) {
@@ -67,14 +74,15 @@ export function enterNode(run, nodeId) {
 export function createNodeCombat(run) {
   const rng = nodeRng(run, "encounter");
   const type = getCurrentNode(run).type;
-  let enemyIds = BOSS_ENCOUNTER;
-  if (type === "battle") enemyIds = pickRandom(rng, ENCOUNTERS);
-  if (type === "elite") enemyIds = pickRandom(rng, ELITE_ENCOUNTERS);
+  const act = ACTS[run.act - 1];
+  let enemyIds = act.boss;
+  if (type === "battle") enemyIds = pickRandom(rng, act.encounters);
+  if (type === "elite") enemyIds = pickRandom(rng, act.elites);
 
   return createCombat({
     heroId: run.heroId,
     enemyIds,
-    seed: deriveSeed(run.seed, `combat:${run.currentNodeId}`),
+    seed: deriveSeed(run.seed, `combat:${run.act}:${run.currentNodeId}`),
     hp: run.hp,
     maxHp: run.maxHp,
     deck: run.deck,
@@ -85,6 +93,7 @@ export function createNodeCombat(run) {
 
 // Переносит итог боя в забег: HP, зелья, реликвии конца боя и награду
 export function finishCombat(run, combat) {
+  recordCombat(run, combat);
   run.hp = combat.hero.hp;
   run.potions = combat.potions;
   if (combat.status === "lost") {
@@ -102,6 +111,21 @@ export function finishCombat(run, combat) {
   } else {
     run.pendingReward = createBattleReward(run);
   }
+}
+
+// Записывает бой в статистику: сколько длился и сколько HP стоил
+function recordCombat(run, combat) {
+  const node = getCurrentNode(run);
+  run.stats.combats.push({
+    act: run.act,
+    floor: node.floor,
+    type: node.type,
+    enemyIds: combat.enemies.map((enemy) => enemy.enemyId),
+    turns: combat.turn,
+    hpBefore: run.hp,
+    hpAfter: combat.hero.hp,
+    won: combat.status === "won",
+  });
 }
 
 // Реликвии, которые срабатывают вне боя
@@ -287,7 +311,19 @@ export function rollCardChoices(rng, onlyRarity = null, count = CONFIG.rewards.c
 export function completeReward(run, cardId) {
   if (cardId) addCardToDeck(run, cardId);
   run.pendingReward = null;
-  if (getCurrentNode(run).type === "boss") run.status = "won";
+  if (getCurrentNode(run).type === "boss") finishAct(run);
+}
+
+// После босса начинается следующий акт с новой картой, а после последнего босса — победа
+function finishAct(run) {
+  if (run.act >= ACTS.length) {
+    run.status = "won";
+    return;
+  }
+  run.act += 1;
+  run.map = generateActMap(run.seed, run.act);
+  run.currentNodeId = null;
+  run.visitedNodeIds = [];
 }
 
 // Сколько HP вылечит отдых прямо сейчас

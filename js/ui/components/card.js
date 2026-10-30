@@ -19,7 +19,7 @@ function formatDescription(card, hero) {
 function fillEffect(text, effect, hero, fromCard) {
   switch (effect.type) {
     case "damage":
-      return text.replace("{damage}", calculateDamage(effect.amount, hero, null));
+      return text.replace("{damage}", effect.fixed ? effect.amount : calculateDamage(effect.amount, hero, null));
     case "block":
       return text.replace("{block}", calculateBlock(effect.amount, hero, fromCard));
     case "applyStatus":
@@ -30,6 +30,8 @@ function fillEffect(text, effect, hero, fromCard) {
       return text.replace("{energy}", effect.amount);
     case "heal":
       return text.replace("{heal}", effect.amount);
+    case "loseHp":
+      return text.replace("{loseHp}", effect.amount);
     default:
       return text;
   }

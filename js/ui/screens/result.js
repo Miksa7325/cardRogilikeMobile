@@ -4,8 +4,10 @@ import { getCurrentFloor } from "../../engine/run.js";
 import { clearRun } from "../../save.js";
 import { state } from "../../state.js";
 import { el } from "../dom.js";
+import { trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
 import { startNewRun } from "./map.js";
+import { openRunStats } from "./runStats.js";
 
 export function renderResultScreen(root) {
   if (state.test.enabled) {
@@ -18,9 +20,15 @@ export function renderResultScreen(root) {
   clearRun();
 
   const run = state.run;
+  trackPlayTime(run);
   const title = run.status === "won" ? TEXTS.victoryTitle : TEXTS.defeatTitle;
-  const summary = TEXTS.runSummary(getCurrentFloor(run), run.gold);
+  const summary = TEXTS.runSummary(run.act, getCurrentFloor(run), run.gold);
   renderResult(root, title, summary, TEXTS.newRun, startNewRun);
+
+  const statsButton = el("button", "button button--secondary", TEXTS.stats.button);
+  statsButton.type = "button";
+  statsButton.addEventListener("click", () => openRunStats(run));
+  root.querySelector(".center-screen").append(statsButton);
 }
 
 function renderResult(root, title, summary, buttonText, onTap) {
@@ -31,6 +39,11 @@ function renderResult(root, title, summary, buttonText, onTap) {
   const button = el("button", "button button--large", buttonText);
   button.type = "button";
   button.addEventListener("click", onTap);
-  screen.append(button);
+
+  const menuButton = el("button", "button button--secondary", TEXTS.mainMenu);
+  menuButton.type = "button";
+  menuButton.addEventListener("click", () => showScreen("start"));
+
+  screen.append(button, menuButton);
   root.append(screen);
 }

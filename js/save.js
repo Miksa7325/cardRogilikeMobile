@@ -9,8 +9,11 @@ const META_KEY = "cardRpg.meta";
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
-export const SAVE_VERSION = 1;
-const MIGRATIONS = {};
+export const SAVE_VERSION = 2;
+const MIGRATIONS = {
+  // Версия 2: появились акты и статистика забега. Старый забег продолжается в акте 1
+  1: (save) => (save.run ? { ...save, run: { ...save.run, act: 1, stats: { combats: [], playMs: 0 } } } : save),
+};
 
 // Просит браузер не удалять данные сайта при нехватке места. Браузер может отказать, это не ошибка
 export function requestPersistentStorage() {
@@ -61,6 +64,7 @@ function isValidRun(run) {
   if (!Number.isFinite(run.hp) || !Number.isFinite(run.maxHp) || !Number.isFinite(run.gold) || run.hp <= 0) return false;
   if (!Array.isArray(run.deck) || !Array.isArray(run.relics) || !Array.isArray(run.potions)) return false;
   if (!run.map?.nodes || !Array.isArray(run.map.rows) || !Array.isArray(run.visitedNodeIds)) return false;
+  if (!Number.isInteger(run.act) || !Array.isArray(run.stats?.combats)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
 
   return run.deck.every((card) => CARDS[card.cardId])

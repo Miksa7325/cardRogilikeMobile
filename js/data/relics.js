@@ -136,7 +136,7 @@ export const RELICS = {
     effects: [{ type: "gainEnergy", amount: 1 }],
   },
 
-  // Реликвия босса
+  // Реликвии боссов: по одной на каждого из трёх боссов
   crown_of_embers: {
     id: "crown_of_embers",
     name: "Корона углей",
@@ -145,5 +145,23 @@ export const RELICS = {
     description: "В начале хода +1 энергия.",
     trigger: "onTurnStart",
     effects: [{ type: "gainEnergy", amount: 1 }],
+  },
+  abyss_heart: {
+    id: "abyss_heart",
+    name: "Сердце бездны",
+    icon: "🖤",
+    rarity: "boss",
+    description: "В начале хода взять 1 карту.",
+    trigger: "onTurnStart",
+    effects: [{ type: "draw", amount: 1 }],
+  },
+  blood_oath: {
+    id: "blood_oath",
+    name: "Кровавая клятва",
+    icon: "🩸",
+    rarity: "boss",
+    description: "В начале боя +3 Силы.",
+    trigger: "onCombatStart",
+    effects: [{ type: "applyStatus", status: "strength", amount: 3, target: "self" }],
   },
 };

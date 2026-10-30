@@ -12,7 +12,7 @@ import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
 import { createCardPicker } from "../components/cardPicker.js";
 import { createHpBar } from "../components/hpBar.js";
-import { createItemsRow, createRunBar } from "../components/runBar.js";
+import { createItemsRow, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -77,7 +77,7 @@ function createTopBar(combat) {
     state.test.pickerOpen = true;
     showScreen("combat");
   });
-  bar.append(testButton);
+  bar.append(testButton, createMenuButton());
   return bar;
 }
 
