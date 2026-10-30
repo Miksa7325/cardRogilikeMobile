@@ -10,15 +10,21 @@ import { canUpgradeCard, upgradeCard } from "./deck.js";
 import { generateMap } from "./map.js";
 import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, shuffle } from "./rng.js";
 
-export function createRun({ heroId, seed }) {
+// difficulty — уровень сложности (0 — без усложнений).
+// lockedCardIds и lockedRelicIds — что ещё не открыто за опыт: это не выпадет в забеге
+export function createRun({ heroId, seed, difficulty = 0, lockedCardIds = [], lockedRelicIds = [] }) {
   const hero = HEROES[heroId];
+  const maxHp = hero.maxHp - (difficulty >= 7 ? CONFIG.difficulty.maxHpLoss : 0);
   const run = {
     seed,
     heroId,
+    difficulty,
+    lockedCardIds,
+    lockedRelicIds,
     status: "active", // active | won | lost
     act: 1,
-    hp: hero.maxHp,
-    maxHp: hero.maxHp,
+    hp: maxHp,
+    maxHp,
     gold: 0,
     deck: [],
     nextCardUid: 0,
@@ -26,6 +32,7 @@ export function createRun({ heroId, seed }) {
     potions: [],
     map: generateActMap(seed, 1),
     stats: { combats: [], playMs: 0 }, // статистика забега для проверки баланса
+    seen: { cards: [], enemies: [], relics: [] }, // что игрок встретил: это пойдёт в коллекцию
     currentNodeId: null,
     visitedNodeIds: [],
     pendingReward: null,
@@ -34,8 +41,18 @@ export function createRun({ heroId, seed }) {
     seenEventIds: [], // какие события уже были в этом забеге
   };
   for (const cardId of hero.deck) addCardToDeck(run, cardId);
+  if (hasDifficulty(run, 8)) addCardToDeck(run, "wound");
   for (const relicId of hero.relics) addRelic(run, relicId);
   return run;
+}
+
+// Действует ли усложнение этого уровня: каждый уровень включает все предыдущие
+export function hasDifficulty(run, level) {
+  return run.difficulty >= level;
+}
+
+function markSeen(run, kind, id) {
+  if (!run.seen[kind].includes(id)) run.seen[kind].push(id);
 }
 
 // У каждого акта своя карта
@@ -78,6 +95,7 @@ export function createNodeCombat(run) {
   let enemyIds = act.boss;
   if (type === "battle") enemyIds = pickRandom(rng, act.encounters);
   if (type === "elite") enemyIds = pickRandom(rng, act.elites);
+  for (const enemyId of enemyIds) markSeen(run, "enemies", enemyId);
 
   return createCombat({
     heroId: run.heroId,
@@ -88,7 +106,21 @@ export function createNodeCombat(run) {
     deck: run.deck,
     relics: run.relics,
     potions: run.potions,
+    ...getEnemyModifiers(run, type),
   });
+}
+
+// Усложнения врагов для этого типа узла
+function getEnemyModifiers(run, nodeType) {
+  const { normalHpMultiplier, eliteHpMultiplier, bossHpMultiplier, eliteStrength, enemyStrength } = CONFIG.difficulty;
+  let enemyHpMultiplier = 1;
+  if (nodeType === "battle" && hasDifficulty(run, 1)) enemyHpMultiplier = normalHpMultiplier;
+  if (nodeType === "elite" && hasDifficulty(run, 2)) enemyHpMultiplier = eliteHpMultiplier;
+  if (nodeType === "boss" && hasDifficulty(run, 3)) enemyHpMultiplier = bossHpMultiplier;
+
+  let strength = hasDifficulty(run, 10) ? enemyStrength : 0;
+  if (nodeType === "elite" && hasDifficulty(run, 4)) strength += eliteStrength;
+  return { enemyHpMultiplier, enemyStrength: strength };
 }
 
 // Переносит итог боя в забег: HP, зелья, реликвии конца боя и награду
@@ -171,7 +203,7 @@ const RUN_EFFECT_HANDLERS = {
   },
   // Конкретная карта (cardId) или случайная заданной редкости (rarity)
   addCard(run, effect, rng) {
-    const cardId = effect.cardId ?? pickRandom(rng, getCardPool().filter((card) => card.rarity === effect.rarity)).id;
+    const cardId = effect.cardId ?? pickRandom(rng, getCardPool(run).filter((card) => card.rarity === effect.rarity)).id;
     addCardToDeck(run, cardId);
     return [{ kind: "card", id: cardId }];
   },
@@ -203,6 +235,7 @@ const RUN_EFFECT_HANDLERS = {
 export function addCardToDeck(run, cardId) {
   run.deck.push({ uid: run.nextCardUid, cardId, upgraded: false });
   run.nextCardUid += 1;
+  markSeen(run, "cards", cardId);
 }
 
 export function removeCardFromDeck(run, uid) {
@@ -212,13 +245,27 @@ export function removeCardFromDeck(run, uid) {
 // Добавляет реликвию и сразу применяет её эффект получения, если он есть
 export function addRelic(run, relicId) {
   run.relics.push(relicId);
+  markSeen(run, "relics", relicId);
   const relic = RELICS[relicId];
   if (relic.trigger === "onPickup") applyRunEffects(run, relic.effects, nodeRng(run, `relic:${relicId}`));
 }
 
 // Новые реликвии заданных редкостей, которых у игрока ещё нет
 export function getRelicPool(run, rarities) {
-  return Object.values(RELICS).filter((relic) => rarities.includes(relic.rarity) && !run.relics.includes(relic.id));
+  return Object.values(RELICS).filter((relic) => (
+    rarities.includes(relic.rarity) && !run.relics.includes(relic.id) && !run.lockedRelicIds.includes(relic.id)
+  ));
+}
+
+// Показанная в магазине реликвия тоже считается встреченной
+export function markRelicSeen(run, relicId) {
+  markSeen(run, "relics", relicId);
+}
+
+// Золото с учётом уровня сложности
+function rollGold(run, rng, range) {
+  const gold = nextInt(rng, ...range);
+  return hasDifficulty(run, 6) ? Math.floor(gold * CONFIG.difficulty.goldMultiplier) : gold;
 }
 
 // Даёт случайную новую реликвию. Если новых нет, вместо неё золото
@@ -254,16 +301,16 @@ function rollPotionReward(run, rng) {
 
 function createBattleReward(run) {
   const rng = nodeRng(run, "reward");
-  const gold = nextInt(rng, ...CONFIG.rewards.battleGold);
+  const gold = rollGold(run, rng, CONFIG.rewards.battleGold);
   run.gold += gold;
-  return { gold, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(rng) };
+  return { gold, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
 function createEliteReward(run) {
   const rng = nodeRng(run, "reward");
-  const gold = nextInt(rng, ...CONFIG.rewards.eliteGold);
+  const gold = rollGold(run, rng, CONFIG.rewards.eliteGold);
   run.gold += gold;
-  return { gold, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(rng) };
+  return { gold, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
 // После босса: реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
@@ -274,7 +321,7 @@ function createBossReward(run) {
     ...grantRandomRelic(run, rng, ["boss"]),
     potionId: null,
     potionsFull: false,
-    cardIds: rollCardChoices(rng, "rare"),
+    cardIds: rollCardChoices(run, rng, "rare"),
   };
 }
 
@@ -284,16 +331,17 @@ export function openChest(run) {
   run.pendingReward = { gold: 0, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
 }
 
-// Карты, которые можно получить в награду и купить. Статусы, проклятия и стартовые сюда не попадают
-function getCardPool() {
-  return Object.values(CARDS).filter(
-    (card) => card.rarity !== "starter" && card.type !== "status" && card.type !== "curse",
-  );
+// Карты, которые можно получить в награду и купить: только карты своего героя и только открытые.
+// Статусы, проклятия и стартовые сюда не попадают
+function getCardPool(run) {
+  return Object.values(CARDS).filter((card) => (
+    card.hero === run.heroId && card.rarity !== "starter" && !run.lockedCardIds.includes(card.id)
+  ));
 }
 
 // Выбирает разные карты с учётом редкости. onlyRarity оставляет только одну редкость
-export function rollCardChoices(rng, onlyRarity = null, count = CONFIG.rewards.cardChoices) {
-  const pool = getCardPool();
+export function rollCardChoices(run, rng, onlyRarity = null, count = CONFIG.rewards.cardChoices) {
+  const pool = getCardPool(run);
   const choices = [];
 
   while (choices.length < count) {
@@ -304,6 +352,7 @@ export function rollCardChoices(rng, onlyRarity = null, count = CONFIG.rewards.c
     if (onlyRarity && sameRarity.length === 0) break;
     choices.push(pickRandom(rng, sameRarity.length > 0 ? sameRarity : free).id);
   }
+  for (const cardId of choices) markSeen(run, "cards", cardId);
   return choices;
 }
 
@@ -328,7 +377,8 @@ function finishAct(run) {
 
 // Сколько HP вылечит отдых прямо сейчас
 export function getRestHealAmount(run) {
-  const heal = Math.floor(run.maxHp * CONFIG.restHealShare);
+  const share = hasDifficulty(run, 5) ? CONFIG.difficulty.restHealShare : CONFIG.restHealShare;
+  const heal = Math.floor(run.maxHp * share);
   return Math.min(heal, run.maxHp - run.hp);
 }
 

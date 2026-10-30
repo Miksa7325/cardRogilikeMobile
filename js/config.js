@@ -5,6 +5,8 @@ export const CONFIG = {
   maxHandSize: 10, // больше карт в руке быть не может
   maxEnemiesInCombat: 3, // больше врагов в одном бою быть не может
   warriorMaxHp: 80, // здоровье Воина
+  assassinMaxHp: 70, // здоровье Убийцы
+  warlockMaxHp: 80, // здоровье Чернокнижника
   vulnerableMultiplier: 1.5, // во сколько раз растёт урон по цели с Уязвимостью
   weakMultiplier: 0.75, // во сколько раз падает урон атакующего со Слабостью
   frailMultiplier: 0.75, // во сколько раз падает получаемый блок при Хрупкости
@@ -44,4 +46,25 @@ export const CONFIG = {
   },
 
   restHealShare: 0.3, // какую долю максимального HP лечит отдых
+
+  // Опыт за забег. Что он открывает — в data/unlocks.js
+  xp: {
+    perFloor: 2,
+    perElite: 10,
+    perBoss: 25,
+  },
+
+  // Числа уровней сложности. Описание уровней — в data/difficulty.js
+  difficulty: {
+    maxLevel: 10,
+    normalHpMultiplier: 1.1, // уровень 1
+    eliteHpMultiplier: 1.15, // уровень 2
+    bossHpMultiplier: 1.1, // уровень 3
+    eliteStrength: 1, // уровень 4
+    restHealShare: 0.25, // уровень 5
+    goldMultiplier: 0.75, // уровень 6
+    maxHpLoss: 10, // уровень 7
+    shopPriceMultiplier: 1.25, // уровень 9
+    enemyStrength: 1, // уровень 10
+  },
 };

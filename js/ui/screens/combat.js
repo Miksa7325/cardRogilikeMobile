@@ -34,7 +34,7 @@ export function startNodeCombat() {
 
 // Запускает бой с врагами, выбранными в тестовом режиме
 export function startTestCombat() {
-  state.combat = createCombat({ heroId: "warrior", enemyIds: state.test.enemyIds, seed: Date.now() });
+  state.combat = createCombat({ heroId: state.test.heroId, enemyIds: state.test.enemyIds, seed: Date.now() });
   state.test.enabled = true;
   clearSelection();
   showScreen("combat");

@@ -11,6 +11,24 @@ export const RELICS = {
     trigger: "onCombatEnd",
     effects: [{ type: "heal", amount: 6 }],
   },
+  venom_ring: {
+    id: "venom_ring",
+    name: "Перстень с ядом",
+    icon: "🐍",
+    rarity: "starter",
+    description: "В начале боя 2 Яда всем врагам.",
+    trigger: "onCombatStart",
+    effects: [{ type: "applyStatus", status: "poison", amount: 2, target: "allEnemies" }],
+  },
+  soul_chalice: {
+    id: "soul_chalice",
+    name: "Чаша душ",
+    icon: "🏺",
+    rarity: "starter",
+    description: "Когда враг умирает, вылечить 6 HP.",
+    trigger: "onEnemyDeath",
+    effects: [{ type: "heal", amount: 6 }],
+  },
 
   // Обычные
   iron_ring: {

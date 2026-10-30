@@ -1,6 +1,7 @@
 // Исполнение эффектов в бою: от карт, врагов, сил, реликвий и зелий.
 // Новый тип эффекта — новая запись в EFFECT_HANDLERS.
 import { CONFIG } from "../config.js";
+import { CARDS } from "../data/cards.js";
 import { RELICS } from "../data/relics.js";
 import { createCardInstance, drawCards } from "./deck.js";
 
@@ -140,5 +141,21 @@ const EFFECT_HANDLERS = {
   // Сжигает разыгранную карту: куда её положить, решает playCard, когда эффекты закончатся
   exhaust(combat, effect, context) {
     context.exhausted = true;
+  },
+  // Умножает статус цели: например, удваивает Яд. Если статуса нет, ничего не происходит
+  multiplyStatus(combat, effect, context) {
+    for (const target of getTargets(combat, effect, context)) {
+      if (target.statuses[effect.status]) target.statuses[effect.status] *= effect.factor;
+    }
+  },
+  // Сжигает все Раны и другие карты, которые нельзя разыграть, из руки
+  exhaustWounds(combat) {
+    const { piles } = combat;
+    const wounds = piles.hand.filter((card) => CARDS[card.cardId].cost === null);
+    piles.hand = piles.hand.filter((card) => !wounds.includes(card));
+    for (const card of wounds) {
+      piles.exhaust.push(card);
+      fireTrigger(combat, "onExhaust");
+    }
   },
 };

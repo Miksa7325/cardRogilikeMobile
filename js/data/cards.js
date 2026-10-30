@@ -1,4 +1,8 @@
-// Все карты игры. Новая карта — новая запись здесь.
+import { ASSASSIN_CARDS } from "./cardsAssassin.js";
+import { block, burn, card, damage, draw, energy, heal, hits, allStatus, loseHp, selfStatus, status, wound } from "./cardHelpers.js";
+import { WARLOCK_CARDS } from "./cardsWarlock.js";
+
+// Все карты игры. Новая карта — новая запись здесь или в таблице её героя.
 // В описании {damage}, {block}, {draw}, {energy}, {heal} и {имя статуса} заменяются на итоговые числа.
 // upgraded — поля, которые заменяются у улучшенной карты.
 // power — постоянный эффект карты-силы: при каком триггере и какие эффекты срабатывают.
@@ -311,25 +315,6 @@ export const CARDS = {
   },
 };
 
-// Короткие записи для эффектов: остальные карты Воина описаны одной таблицей
-const damage = (amount) => ({ type: "damage", amount });
-const hits = (amount, times) => Array.from({ length: times }, () => damage(amount));
-const block = (amount) => ({ type: "block", amount, target: "self" });
-const status = (name, amount) => ({ type: "applyStatus", status: name, amount });
-const selfStatus = (name, amount) => ({ ...status(name, amount), target: "self" });
-const allStatus = (name, amount) => ({ ...status(name, amount), target: "allEnemies" });
-const draw = (amount) => ({ type: "draw", amount });
-const energy = (amount) => ({ type: "gainEnergy", amount });
-const heal = (amount) => ({ type: "heal", amount });
-const loseHp = (amount) => ({ type: "loseHp", amount });
-const wound = { type: "addCard", cardId: "wound", pile: "discard" };
-const burn = { type: "exhaust" };
-
-// Порядок: id, название, тип, редкость, стоимость, цель, описание, эффекты, улучшение, сила
-function card(id, name, type, rarity, cost, target, description, effects, upgraded, power) {
-  return { id, name, type, rarity, cost, target, description, effects, upgraded, ...(power ? { power } : {}) };
-}
-
 const MORE_WARRIOR_CARDS = [
   // Обычные атаки
   card("deep_cut", "Глубокий порез", "attack", "common", 1, "enemy", "Нанести {damage} урона. {poison} Яда.", [damage(4), status("poison", 3)], { effects: [damage(5), status("poison", 5)] }),
@@ -400,4 +385,15 @@ const MORE_WARRIOR_CARDS = [
 
 for (const warriorCard of MORE_WARRIOR_CARDS) {
   CARDS[warriorCard.id] = warriorCard;
+}
+
+// У каждой карты свой герой: только его карты выпадают ему в наградах и магазине
+for (const warriorCard of Object.values(CARDS)) {
+  if (warriorCard.id !== "wound") warriorCard.hero = "warrior";
+}
+for (const assassinCard of ASSASSIN_CARDS) {
+  CARDS[assassinCard.id] = { ...assassinCard, hero: "assassin" };
+}
+for (const warlockCard of WARLOCK_CARDS) {
+  CARDS[warlockCard.id] = { ...warlockCard, hero: "warlock" };
 }

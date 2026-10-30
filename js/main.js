@@ -2,8 +2,10 @@
 import { TEXTS } from "./data/texts.ru.js";
 import { requestPersistentStorage } from "./save.js";
 import { registerScreen, showScreen } from "./ui/router.js";
+import { renderCollectionScreen } from "./ui/screens/collection.js";
 import { renderCombatScreen } from "./ui/screens/combat.js";
 import { renderEventScreen } from "./ui/screens/event.js";
+import { renderHeroSelectScreen } from "./ui/screens/heroSelect.js";
 import { renderMapScreen } from "./ui/screens/map.js";
 import { renderRestScreen, renderRestUpgradeScreen } from "./ui/screens/rest.js";
 import { renderResultScreen } from "./ui/screens/result.js";
@@ -17,6 +19,8 @@ document.title = TEXTS.gameTitle;
 
 // Сообщаем роутеру, какие экраны есть в игре
 registerScreen("start", renderStartScreen);
+registerScreen("heroSelect", renderHeroSelectScreen);
+registerScreen("collection", renderCollectionScreen);
 registerScreen("map", renderMapScreen);
 registerScreen("combat", renderCombatScreen);
 registerScreen("reward", renderRewardScreen);

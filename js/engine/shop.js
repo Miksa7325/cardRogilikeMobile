@@ -3,23 +3,30 @@ import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
 import { POTIONS } from "../data/potions.js";
 import { shuffle } from "./rng.js";
-import { addCardToDeck, addRelic, canCarryPotion, getRelicPool, nodeRng, removeCardFromDeck, rollCardChoices } from "./run.js";
+import {
+  addCardToDeck, addRelic, canCarryPotion, getRelicPool, hasDifficulty, markRelicSeen, nodeRng, removeCardFromDeck, rollCardChoices,
+} from "./run.js";
 
 // Заполняет магазин на текущем узле. Товары зависят только от seed забега и узла
 export function createShop(run) {
   const rng = nodeRng(run, "shop");
   const { cardCount, relicCount, potionCount, cardPrices, relicPrices, potionPrice, removePrice } = CONFIG.shop;
+  // На высокой сложности всё дороже
+  const price = (base) => (hasDifficulty(run, 9) ? Math.round(base * CONFIG.difficulty.shopPriceMultiplier) : base);
 
   const relicPool = getRelicPool(run, ["common", "uncommon"]);
   shuffle(rng, relicPool);
   const potionPool = Object.keys(POTIONS);
   shuffle(rng, potionPool);
 
+  const relics = relicPool.slice(0, relicCount);
+  for (const relic of relics) markRelicSeen(run, relic.id);
+
   run.shop = {
-    cards: rollCardChoices(rng, null, cardCount).map((id) => ({ id, price: cardPrices[CARDS[id].rarity], sold: false })),
-    relics: relicPool.slice(0, relicCount).map((relic) => ({ id: relic.id, price: relicPrices[relic.rarity], sold: false })),
-    potions: potionPool.slice(0, potionCount).map((id) => ({ id, price: potionPrice, sold: false })),
-    removePrice,
+    cards: rollCardChoices(run, rng, null, cardCount).map((id) => ({ id, price: price(cardPrices[CARDS[id].rarity]), sold: false })),
+    relics: relics.map((relic) => ({ id: relic.id, price: price(relicPrices[relic.rarity]), sold: false })),
+    potions: potionPool.slice(0, potionCount).map((id) => ({ id, price: price(potionPrice), sold: false })),
+    removePrice: price(removePrice),
     removeUsed: false,
   };
 }

@@ -94,6 +94,84 @@
   pointer-events: none;
 }
 
+/* Выбор героя */
+.hero-select {
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.hero-select__hero {
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 12px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hero-select__hero:disabled {
+  opacity: 0.5;
+}
+
+.hero-select__hero--selected {
+  border-color: var(--color-highlight);
+}
+
+.hero-select__name {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.hero-select__details {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.hero-select__difficulty {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.hero-select__controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-select__level {
+  min-width: 112px;
+}
+
+/* Коллекция */
+.collection {
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.collection__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.collection__tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.collection__tab {
+  width: 100%;
+  text-align: left;
+}
+
 /* Перенос сохранения. Размер шрифта 16 px: при меньшем iPhone приближает страницу при вводе */
 .save-transfer {
   justify-content: flex-start;

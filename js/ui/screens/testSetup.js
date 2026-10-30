@@ -1,6 +1,7 @@
 // Тестовый режим: выбор любых врагов для боя.
 import { CONFIG } from "../../config.js";
 import { ENEMIES } from "../../data/enemies.js";
+import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { state } from "../../state.js";
 import { el } from "../dom.js";
@@ -10,8 +11,16 @@ import { startTestCombat } from "./combat.js";
 export function renderTestSetupScreen(root) {
   const { test } = state;
   const screen = el("main", "center-screen");
+  // Нажатие переключает героя по кругу. В тест-режиме открыты все герои
+  const heroIds = Object.keys(HEROES);
+  const heroButton = createButton(TEXTS.test.hero(HEROES[test.heroId].name), "button--secondary", () => {
+    test.heroId = heroIds[(heroIds.indexOf(test.heroId) + 1) % heroIds.length];
+    showScreen("testSetup");
+  });
+
   screen.append(
     el("h1", "center-screen__title", TEXTS.test.title),
+    heroButton,
     el("p", "test-setup__label", TEXTS.test.chooseEnemies),
   );
 

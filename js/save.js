@@ -3,16 +3,28 @@
 import { CARDS } from "./data/cards.js";
 import { POTIONS } from "./data/potions.js";
 import { RELICS } from "./data/relics.js";
+import { createMeta } from "./engine/meta.js";
 
 const RUN_KEY = "cardRpg.run";
 const META_KEY = "cardRpg.meta";
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 const MIGRATIONS = {
   // Версия 2: появились акты и статистика забега. Старый забег продолжается в акте 1
   1: (save) => (save.run ? { ...save, run: { ...save.run, act: 1, stats: { combats: [], playMs: 0 } } } : save),
+  // Версия 3: появились герои, сложность и коллекция. Старый забег идёт на сложности 0 со всеми картами
+  2: (save) => (save.run ? {
+    ...save,
+    run: {
+      ...save.run,
+      difficulty: 0,
+      lockedCardIds: [],
+      lockedRelicIds: [],
+      seen: { cards: save.run.deck.map((card) => card.cardId), enemies: [], relics: [...save.run.relics] },
+    },
+  } : save),
 };
 
 // Просит браузер не удалять данные сайта при нехватке места. Браузер может отказать, это не ошибка
@@ -65,11 +77,17 @@ function isValidRun(run) {
   if (!Array.isArray(run.deck) || !Array.isArray(run.relics) || !Array.isArray(run.potions)) return false;
   if (!run.map?.nodes || !Array.isArray(run.map.rows) || !Array.isArray(run.visitedNodeIds)) return false;
   if (!Number.isInteger(run.act) || !Array.isArray(run.stats?.combats)) return false;
+  if (!Number.isInteger(run.difficulty) || !Array.isArray(run.lockedCardIds) || !Array.isArray(run.lockedRelicIds)) return false;
+  if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
 
   return run.deck.every((card) => CARDS[card.cardId])
     && run.relics.every((relicId) => RELICS[relicId])
     && run.potions.every((potionId) => POTIONS[potionId]);
+}
+
+function isValidMeta(meta) {
+  return meta && Number.isFinite(meta.xp) && meta.xp >= 0;
 }
 
 // Сохраняет забег. Возвращает false, если браузер не дал записать
@@ -91,9 +109,15 @@ export function clearRun() {
   }
 }
 
-// Мета-прогресс появится на этапе 7, пока это только версия
-function loadMeta() {
-  return migrateSave(parseJson(readKey(META_KEY))) ?? { version: SAVE_VERSION };
+// Возвращает мета-прогресс. Недостающие поля берутся из значений по умолчанию
+export function loadMeta() {
+  const save = migrateSave(parseJson(readKey(META_KEY)));
+  const defaults = createMeta();
+  return { ...defaults, ...save, seen: { ...defaults.seen, ...save?.seen } };
+}
+
+export function saveMeta(meta) {
+  return writeKey(META_KEY, JSON.stringify({ ...meta, version: SAVE_VERSION }));
 }
 
 // Текст из любых символов → base64 и обратно. Такой текст не портится при пересылке в мессенджере
@@ -110,11 +134,12 @@ function decodeBase64(code) {
   return new TextDecoder().decode(bytes);
 }
 
-// Собирает всё сохранение в одну строку текста. Если забега нет, возвращает null
+// Собирает всё сохранение в одну строку текста. Если сохранять нечего, возвращает null
 export function exportSave() {
   const run = loadRun();
-  if (!run) return null;
-  return encodeBase64(JSON.stringify({ version: SAVE_VERSION, run, meta: loadMeta() }));
+  const meta = loadMeta();
+  if (!run && meta.runsPlayed === 0) return null;
+  return encodeBase64(JSON.stringify({ version: SAVE_VERSION, run, meta }));
 }
 
 // Загружает сохранение из текста. Возвращает { ok: true } или { ok: false, reason: "..." }
@@ -128,8 +153,14 @@ export function importSave(code) {
 
   if (Number.isInteger(raw?.version) && raw.version > SAVE_VERSION) return { ok: false, reason: "tooNew" };
   const save = migrateSave(raw);
-  if (!save || !isValidRun(save.run)) return { ok: false, reason: "invalid" };
+  if (!save) return { ok: false, reason: "invalid" };
 
-  const saved = saveRun(save.run) && writeKey(META_KEY, JSON.stringify(save.meta ?? { version: SAVE_VERSION }));
-  return saved ? { ok: true } : { ok: false, reason: "storageFailed" };
+  // В тексте может не быть забега: тогда он содержит только мета-прогресс
+  const hasRun = save.run !== null && save.run !== undefined;
+  if (hasRun && !isValidRun(save.run)) return { ok: false, reason: "invalid" };
+  if (!hasRun && !isValidMeta(save.meta)) return { ok: false, reason: "invalid" };
+
+  const runSaved = !hasRun || saveRun(save.run);
+  const metaSaved = !isValidMeta(save.meta) || saveMeta(save.meta);
+  return runSaved && metaSaved ? { ok: true } : { ok: false, reason: "storageFailed" };
 }

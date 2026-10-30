@@ -6,6 +6,7 @@ export const state = {
   selectedPotionIndex: null, // какое зелье игрок выбрал
   test: {
     enabled: false, // идёт ли сейчас бой в тестовом режиме
+    heroId: "warrior", // каким героем идёт тестовый бой
     enemyIds: ["cultist"], // каких врагов выбрали для тестового боя
     pickerOpen: false, // открыт ли список карт поверх боя
     addUpgraded: false, // добавлять ли карты из списка улучшенными

@@ -2,9 +2,10 @@
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
+import { getLockedContent, mergeSeen } from "../../engine/meta.js";
 import { createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
 import { createShop } from "../../engine/shop.js";
-import { saveRun } from "../../save.js";
+import { loadMeta, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
@@ -28,8 +29,8 @@ const NODE_ICONS = {
 };
 
 // Запускает новый забег. Время как seed задаём здесь: в логике случайность только через rng.js
-export function startNewRun() {
-  state.run = createRun({ heroId: "warrior", seed: Date.now() });
+export function startNewRun(heroId, difficulty) {
+  state.run = createRun({ heroId, seed: Date.now(), difficulty, ...getLockedContent(loadMeta()) });
   state.test.enabled = false;
   resetPlayTimer();
   showScreen("map");
@@ -48,7 +49,9 @@ export function renderMapScreen(root) {
 
   // На карту игрок попадает только между узлами, поэтому здесь и сохраняем забег
   trackPlayTime(run);
-  if (!saveRun(run)) showTooltip(TEXTS.saveFailed);
+  const meta = loadMeta();
+  mergeSeen(meta, run);
+  if (!saveRun(run) || !saveMeta(meta)) showTooltip(TEXTS.saveFailed);
 
   // Показываем ряд, куда можно идти: прокрутка работает, только когда карта уже на странице
   const firstAvailable = scroller.querySelector(".map-node--available");
