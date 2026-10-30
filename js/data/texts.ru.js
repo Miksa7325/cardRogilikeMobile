@@ -2,5 +2,17 @@
 export const TEXTS = {
   gameTitle: "Карточная RPG", // временное название, окончательное ещё не выбрано
   startButton: "Начать",
-  startMessage: "Бой появится на этапе 1",
+  turn: "Ход",
+  endTurn: "Конец хода",
+  drawPile: "Добор",
+  discardPile: "Сброс",
+  hintPickTarget: "Нажми на врага",
+  hintTapAgain: "Нажми на карту ещё раз",
+  victoryTitle: "Победа!",
+  defeatTitle: "Поражение",
+  newCombat: "Новый бой",
+  statuses: {
+    vulnerable: "Уязвимость",
+    strength: "Сила",
+  },
 };
