@@ -13,8 +13,7 @@ const STEPS = [
   { id: "map", screen: "map", waitFor: "nodeEntered" },
   { id: "intent", screen: "combat", highlight: "enemy" },
   { id: "energy", screen: "combat", highlight: "energy" },
-  { id: "attack", screen: "combat", waitFor: "cardSelected", highlight: "attack" },
-  { id: "target", screen: "combat", waitFor: "cardPlayed", highlight: "enemy" },
+  { id: "attack", screen: "combat", waitFor: "attackPlayed", highlight: "attack" },
   { id: "block", screen: "combat", waitFor: "blockGained", highlight: "block" },
   { id: "endTurn", screen: "combat", waitFor: "turnEnded", highlight: "endTurn" },
   { id: "inspect", screen: "combat" },
@@ -68,6 +67,8 @@ function isBlockCard(cardInstance) {
 export function isTutorialTarget(kind, cardInstance = null) {
   const highlight = currentStep()?.highlight;
   if (highlight === kind) return true;
+  // На шаге атаки видно и карту, и врага: куда её тащить
+  if (kind === "enemy" && highlight === "attack") return true;
   if (!cardInstance) return false;
   if (highlight === "attack") return getCardData(cardInstance).target === "enemy";
   if (highlight === "block") return isBlockCard(cardInstance);

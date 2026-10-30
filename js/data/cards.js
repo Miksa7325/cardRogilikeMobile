@@ -202,7 +202,7 @@ export const CARDS = {
   },
   focus: {
     id: "focus",
-    name: "Сосредоточение",
+    name: "Фокус",
     type: "skill",
     rarity: "uncommon",
     cost: 0,

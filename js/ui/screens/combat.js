@@ -10,8 +10,9 @@ import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback } from "../animations.js";
-import { ENEMY_ART, HERO_ART } from "../art.js";
-import { createCardElement, shakeCard } from "../components/card.js";
+import { ENEMY_ART, HERO_ART, IDLE_STYLES } from "../art.js";
+import { enableCardDrag } from "../cardDrag.js";
+import { createCardElement, describeCard, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
 import { createCardPicker } from "../components/cardPicker.js";
 import { createHpBar } from "../components/hpBar.js";
@@ -62,7 +63,6 @@ function saveTurnStart() {
 }
 
 function clearSelection() {
-  state.selectedCardUid = null;
   state.selectedPotionIndex = null;
 }
 
@@ -104,8 +104,9 @@ function createTopBar(combat) {
   return bar;
 }
 
-function createPortrait(art) {
-  const portrait = el("div", "unit__portrait");
+// idle — как модель двигается в покое: классы анимаций лежат в css/theme.css
+function createPortrait(art, idle = "breathe") {
+  const portrait = el("div", `unit__portrait idle--${idle}`);
   portrait.innerHTML = art;
   return portrait;
 }
@@ -127,7 +128,7 @@ function createEnemy(combat, enemy, compact) {
 
   element.append(
     el("div", "unit__intent", formatIntent(combat, enemy)),
-    createPortrait(ENEMY_ART[enemy.enemyId]),
+    createPortrait(ENEMY_ART[enemy.enemyId], IDLE_STYLES[enemy.enemyId]),
     el("div", "unit__name", ENEMIES[enemy.enemyId].name),
     createHpBar(enemy),
     createStatusIcons(enemy, { compact }),
@@ -192,8 +193,15 @@ function createHand(combat) {
   combat.piles.hand.forEach((instance, index) => {
     const element = createCardElement(instance, combat.hero, {
       playable: canPlayCard(combat, instance),
-      selected: instance.uid === state.selectedCardUid,
-      onTap: (cardElement) => onCardTap(instance, cardElement),
+      selected: false,
+      onTap: (cardElement) => onCardTap(combat, instance, cardElement),
+    });
+    enableCardDrag(element, {
+      targetType: getCardData(instance).target,
+      canPlay: () => canPlayCard(combat, instance),
+      onBlocked: shakeCard,
+      onDragState: (dragging) => showDragHint(dragging, getCardData(instance).target),
+      onDrop: (targetId, ghost) => playDroppedCard(instance, targetId, ghost),
     });
     if (canPlayCard(combat, instance) && isTutorialTarget("card", instance)) element.classList.add("tutorial-target");
     // Чем дальше карта от центра, тем сильнее наклон и ниже положение: получается веер
@@ -237,45 +245,35 @@ function openPiles(combat) {
   ]);
 }
 
-function getSelectedCard() {
-  if (state.selectedCardUid === null) return null;
-  return getCardData(state.combat.piles.hand.find((card) => card.uid === state.selectedCardUid));
-}
-
 function getSelectedPotion() {
   if (state.selectedPotionIndex === null) return null;
   return POTIONS[state.combat.potions[state.selectedPotionIndex]];
 }
 
-// На кого нацелено выбранное: карта или зелье
+// На кого нацелено выбранное зелье
 function getSelectedTargetType() {
-  return (getSelectedCard() ?? getSelectedPotion())?.target ?? null;
+  return getSelectedPotion()?.target ?? null;
 }
 
+// Без выбранного зелья подсказка напоминает главное действие: карты перетаскиваются
 function getHint() {
   const targetType = getSelectedTargetType();
-  if (!targetType) return "";
-  if (targetType === "enemy") return TEXTS.hintPickTarget;
-  return getSelectedPotion() ? TEXTS.hintPotionTapAgain : TEXTS.hintTapAgain;
+  if (!targetType) return TEXTS.hintDragCard;
+  return targetType === "enemy" ? TEXTS.hintPickTarget : TEXTS.hintPotionTapAgain;
 }
 
-function onCardTap(instance, element) {
-  if (!canPlayCard(state.combat, instance)) {
-    shakeCard(element);
-    return;
-  }
+// Подсказка, пока палец несёт карту. Экран нельзя перерисовывать: перенос бы оборвался
+function showDragHint(dragging, targetType) {
+  const hint = document.querySelector(".combat__hint");
+  if (!hint) return;
+  if (!dragging) hint.textContent = getHint();
+  else hint.textContent = targetType === "enemy" ? TEXTS.hintDropOnEnemy : TEXTS.hintDropAbove;
+}
 
-  const alreadySelected = state.selectedCardUid === instance.uid;
-  if (alreadySelected && getCardData(instance).target !== "enemy") {
-    playSelectedCard(null);
-    return;
-  }
-
-  // Повторный тап по карте с целью снимает выбор, тап по другой карте выбирает её
-  clearSelection();
-  state.selectedCardUid = alreadySelected ? null : instance.uid;
-  if (!alreadySelected && getCardData(instance).target === "enemy") notifyTutorial("cardSelected");
-  showScreen("combat");
+// Нажатие на карту показывает её описание. Разыграть её можно только перетаскиванием
+function onCardTap(combat, instance, element) {
+  if (!canPlayCard(combat, instance)) shakeCard(element);
+  showTooltip(describeCard(instance, combat.hero));
 }
 
 function onPotionTap(index) {
@@ -292,28 +290,27 @@ function onPotionTap(index) {
 
 // С выбранной картой нажатие на врага — удар, а без неё — описание врага
 function onEnemyTap(combat, enemy) {
-  if (getSelectedTargetType() !== "enemy") {
-    showTooltip(describeEnemy(combat, enemy));
-    return;
-  }
-  if (getSelectedCard()) {
-    playSelectedCard(enemy.instanceId);
-  } else {
-    useSelectedPotion(enemy.instanceId);
-  }
+  if (getSelectedTargetType() === "enemy") useSelectedPotion(enemy.instanceId);
+  else showTooltip(describeEnemy(combat, enemy));
 }
 
-function playSelectedCard(targetId) {
+// Карту отпустили на цели
+function playDroppedCard(instance, targetId, ghost) {
   const before = captureCombatView(state.combat);
   const blockBefore = state.combat.hero.block;
-  flyCardAway(document.querySelector(".card--selected"));
+  const card = getCardData(instance);
 
-  playCard(state.combat, state.selectedCardUid, targetId);
+  const result = playCard(state.combat, instance.uid, targetId);
+  if (!result.ok) {
+    ghost.remove();
+    return;
+  }
+  flyCardAway(ghost);
   clearSelection();
 
-  notifyTutorial("cardPlayed");
+  if (card.target === "enemy") notifyTutorial("attackPlayed");
   if (state.combat.hero.block > blockBefore) notifyTutorial("blockGained");
-  showCurrentScreen(before);
+  showCurrentScreen(before, { heroAttacked: card.type === "attack" });
 }
 
 function useSelectedPotion(targetId) {

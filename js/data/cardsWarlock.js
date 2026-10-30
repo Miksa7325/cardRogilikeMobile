@@ -8,7 +8,7 @@ export const WARLOCK_CARDS = [
   // Стартовые
   card("w_bolt", "Тёмный разряд", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
   card("w_shield", "Щит тьмы", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)], { effects: [block(8)] }),
-  card("w_sacrifice", "Жертвоприношение", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(11), loseHp(3)], { effects: [damage(15), loseHp(3)] }),
+  card("w_sacrifice", "Жертва", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP.", [damage(11), loseHp(3)], { effects: [damage(15), loseHp(3)] }),
 
   // Обычные атаки
   card("w_drain", "Вытягивание", "attack", "common", 1, "enemy", "Нанести {damage} урона. Вылечить {heal} HP.", [damage(6), heal(2)], { effects: [damage(8), heal(3)] }),

@@ -1,8 +1,11 @@
 // Анимации боя. Экран боя рисуется заново после каждого действия, поэтому мы запоминаем,
-// как он выглядел до действия, и показываем разницу: числа урона, тряску, плавную полоску HP.
+// как он выглядел до действия, и показываем разницу: удары, числа урона, плавную полоску HP.
+import { getEnemyIntent } from "../engine/combat.js";
 import { playSound } from "./audio.js";
 import { el } from "./dom.js";
 import { vibrate } from "./settings.js";
+
+const ENEMY_STAGGER_MS = 140; // враги бьют не одновременно, а друг за другом
 
 function allUnits(combat) {
   return [
@@ -28,11 +31,17 @@ export function captureCombatView(combat) {
       clone: element?.cloneNode(true) ?? null,
     };
   }
-  return { units, handUids: combat.piles.hand.map((card) => card.uid) };
+  // Запоминаем намерения: после хода врага они уже сменятся на следующие
+  const intents = {};
+  for (const enemy of combat.enemies) {
+    if (enemy.hp > 0) intents[enemy.instanceId] = getEnemyIntent(combat, enemy).intent;
+  }
+  return { units, intents, handUids: combat.piles.hand.map((card) => card.uid) };
 }
 
-// Показывает, что изменилось после действия. attackers — кто бил (подрагивание врагов в их ход)
-export function playCombatFeedback(before, combat, { enemyTurn = false } = {}) {
+// Показывает, что изменилось после действия.
+// enemyTurn: ходили враги. heroAttacked: герой разыграл атаку и должен сделать выпад
+export function playCombatFeedback(before, combat, { enemyTurn = false, heroAttacked = false } = {}) {
   let tookDamage = false;
   let dealtDamage = false;
   let gainedBlock = false;
@@ -48,6 +57,7 @@ export function playCombatFeedback(before, combat, { enemyTurn = false } = {}) {
 
     if (hpChange < 0) {
       showFloatingText(previous.rect, String(hpChange), "float-text--damage");
+      showSlash(previous.rect);
       if (id === "hero") tookDamage = true;
       else dealtDamage = true;
       element?.classList.add("unit--hit");
@@ -58,12 +68,16 @@ export function playCombatFeedback(before, combat, { enemyTurn = false } = {}) {
     }
     if (blockChange > 0) {
       showFloatingText(previous.rect, `🛡️+${blockChange}`, "float-text--block");
+      element?.classList.add("unit--blocking");
       gainedBlock = true;
     }
     if (element) animateHpBar(element, previous);
     if (id !== "hero" && unit.hp <= 0 && previous.hp > 0) showDyingEnemy(previous);
-    if (enemyTurn && id !== "hero" && unit.hp > 0) element?.classList.add("unit--attacking");
   }
+
+  if (enemyTurn) playEnemyActions(before, combat);
+  if (heroAttacked) findUnitElement("hero")?.classList.add("unit--lunge");
+  if (tookDamage) document.querySelector(".combat")?.classList.add("combat--shake");
 
   showDrawnCards(before.handUids, combat);
 
@@ -73,12 +87,34 @@ export function playCombatFeedback(before, combat, { enemyTurn = false } = {}) {
   if (tookDamage) vibrate(60);
 }
 
+// Атакующий враг бросается вперёд, остальные колдуют на месте. Каждый в свою очередь
+function playEnemyActions(before, combat) {
+  let order = 0;
+  for (const enemy of combat.enemies) {
+    const element = findUnitElement(enemy.instanceId);
+    const intent = before.intents[enemy.instanceId];
+    if (!element || enemy.hp <= 0 || !intent) continue;
+    element.classList.add(intent === "attack" ? "unit--attacking" : "unit--casting");
+    element.style.setProperty("--action-delay", `calc(${order * ENEMY_STAGGER_MS}ms * var(--anim-speed))`);
+    order += 1;
+  }
+}
+
 function showFloatingText(rect, text, className) {
   const label = el("div", `float-text ${className}`, text);
   label.style.left = `${rect.left + rect.width / 2}px`;
   label.style.top = `${rect.top + rect.height / 3}px`;
   label.addEventListener("animationend", () => label.remove());
   document.body.append(label);
+}
+
+// След удара поверх цели
+function showSlash(rect) {
+  const slash = el("div", "slash");
+  slash.style.left = `${rect.left + rect.width / 2}px`;
+  slash.style.top = `${rect.top + rect.height / 2}px`;
+  slash.addEventListener("animationend", () => slash.remove());
+  document.body.append(slash);
 }
 
 // Полоска HP плавно едет от старого значения к новому
@@ -98,7 +134,7 @@ function showDyingEnemy(previous) {
   if (!previous.clone) return;
   const ghost = previous.clone;
   ghost.classList.add("unit--dying");
-  ghost.classList.remove("unit--targetable");
+  ghost.classList.remove("unit--targetable", "unit--drop-target");
   ghost.style.left = `${previous.rect.left}px`;
   ghost.style.top = `${previous.rect.top}px`;
   ghost.style.width = `${previous.rect.width}px`;
@@ -124,17 +160,12 @@ function showDrawnCards(previousUids, combat) {
   });
 }
 
-// Разыгранная карта улетает вверх и растворяется. Вызывается до перерисовки экрана
-export function flyCardAway(element) {
-  if (!element) return;
-  const rect = element.getBoundingClientRect();
-  const clone = element.cloneNode(true);
-  clone.classList.remove("card--selected", "card--drawn", "tutorial-target");
-  clone.classList.add("card--flying");
-  clone.style.left = `${rect.left}px`;
-  clone.style.top = `${rect.top}px`;
-  clone.style.width = `${rect.width}px`;
-  clone.addEventListener("animationend", () => clone.remove());
-  document.body.append(clone);
+// Брошенная карта вспыхивает и растворяется там, где её отпустили
+export function flyCardAway(ghost) {
+  ghost.classList.remove("card--ghost-ready");
+  ghost.classList.add("card--played");
+  ghost.addEventListener("animationend", () => ghost.remove());
+  // Запасной вариант: если анимации отключены, копия всё равно должна исчезнуть
+  setTimeout(() => ghost.remove(), 800);
   playSound("card");
 }

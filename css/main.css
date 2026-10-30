@@ -30,10 +30,14 @@ body {
   overscroll-behavior: none;
 }
 
+html {
+  background: var(--color-bg);
+}
+
 body {
   margin: 0;
-  /* Свет сверху делает фон подземелья глубже, чем сплошной цвет */
-  background: radial-gradient(ellipse at 50% 0, #2a2233, var(--color-bg) 70%) fixed;
+  /* Фон рисует отдельный слой #scene */
+  background: transparent;
   color: var(--color-text);
   font-family: system-ui, sans-serif;
 }

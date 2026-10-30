@@ -2,7 +2,9 @@
 import { TEXTS } from "./data/texts.ru.js";
 import { requestPersistentStorage } from "./save.js";
 import { playSound, unlockAudio } from "./ui/audio.js";
+import { enableReliableTaps } from "./ui/reliableTap.js";
 import { registerScreen, showScreen } from "./ui/router.js";
+import { createScene } from "./ui/scene.js";
 import { renderCollectionScreen } from "./ui/screens/collection.js";
 import { renderCombatScreen } from "./ui/screens/combat.js";
 import { renderEventScreen } from "./ui/screens/event.js";
@@ -36,7 +38,9 @@ registerScreen("saveTransfer", renderSaveTransferScreen);
 registerScreen("settings", renderSettingsScreen);
 registerScreen("testSetup", renderTestSetupScreen);
 
+enableReliableTaps();
 applySettings();
+createScene();
 showScreen("start");
 
 requestPersistentStorage();

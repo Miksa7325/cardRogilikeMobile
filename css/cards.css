@@ -41,46 +41,20 @@
   margin-left: min(2px, calc((100vw - 16px - var(--card-width) * var(--card-count)) / (var(--card-count) - 1)));
 }
 
-/* Значок типа полупрозрачно лежит внизу карты: рамка и цвет сразу говорят, что это за карта */
-.card::after {
-  position: absolute;
-  bottom: 4px;
-  left: 0;
-  right: 0;
-  font-size: 18px;
-  opacity: 0.22;
-}
-
 .card--attack {
   background: linear-gradient(160deg, #7a2f2f, var(--color-attack));
-}
-
-.card--attack::after {
-  content: "⚔️";
 }
 
 .card--skill {
   background: linear-gradient(160deg, #33597f, var(--color-skill));
 }
 
-.card--skill::after {
-  content: "🛡️";
-}
-
 .card--power {
   background: linear-gradient(160deg, #65418c, var(--color-power));
 }
 
-.card--power::after {
-  content: "✨";
-}
-
 .card--status {
   background: linear-gradient(160deg, #4d4d4d, var(--color-status));
-}
-
-.card--status::after {
-  content: "🩸";
 }
 
 /* Цвет названия показывает редкость */
@@ -101,19 +75,6 @@
   from { opacity: 0; translate: 0 40px; }
 }
 
-/* Разыгранная карта улетает вверх и растворяется */
-.card--flying {
-  position: fixed;
-  z-index: 14;
-  flex: none;
-  margin: 0 !important;
-  pointer-events: none;
-  animation: card-fly calc(300ms * var(--anim-speed)) ease-in forwards;
-}
-
-@keyframes card-fly {
-  to { opacity: 0; translate: 0 -120px; scale: 1.15; }
-}
 
 /* Подсветка карт, которые можно разыграть */
 .card--playable {

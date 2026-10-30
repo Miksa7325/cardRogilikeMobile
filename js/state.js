@@ -2,7 +2,6 @@
 export const state = {
   run: null, // текущий забег, его создаёт createRun из engine/run.js
   combat: null, // текущий бой, его создаёт createCombat из engine/combat.js
-  selectedCardUid: null, // какую карту игрок выбрал в руке
   selectedPotionIndex: null, // какое зелье игрок выбрал
   tutorialStep: null, // номер шага обучения; null — обучения сейчас нет
   test: {

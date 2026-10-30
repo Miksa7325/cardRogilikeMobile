@@ -1,0 +1,672 @@
+/* Визуальный стиль игры: сцена, модели, карты, кнопки и панели. Подключается последним.
+   Все анимации покоя стартуют с --idle-phase и длятся делитель 12 секунд:
+   так модели не дёргаются, когда экран рисуется заново после действия. */
+:root {
+  --font-title: Georgia, "Palatino Linotype", "Times New Roman", serif;
+  --gold: #e0b84c;
+  --gold-dark: #8a6d2c;
+  --panel-glass: rgba(20, 16, 26, 0.82);
+}
+
+/* Сцена подземелья */
+#scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.scene__wall {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scene__tint {
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 50, 20, 0.08);
+}
+
+/* Акт 2 — болотно-зелёный, акт 3 — ледяной */
+#scene[data-act="2"] .scene__tint {
+  background: rgba(50, 130, 70, 0.14);
+}
+
+#scene[data-act="3"] .scene__tint {
+  background: rgba(50, 110, 190, 0.17);
+}
+
+/* Свет и пламя нарисованы внутри картинки: при любом размере экрана они остаются на факелах */
+.scene__glow,
+.scene__flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: torch-flicker 3s infinite;
+}
+
+.scene__glow {
+  transform-origin: center;
+}
+
+.scene__glow--late {
+  animation-delay: -1.2s;
+}
+
+@keyframes torch-flicker {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  20% { opacity: 1; transform: scale(1.07); }
+  45% { opacity: 0.7; transform: scale(0.95); }
+  70% { opacity: 0.95; transform: scale(1.03); }
+}
+
+.scene__ember {
+  position: absolute;
+  bottom: -8px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffb05a;
+  box-shadow: 0 0 6px #ff8a2e;
+  opacity: 0;
+  animation: ember-rise 8s linear infinite;
+}
+
+@keyframes ember-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.9; }
+  100% { transform: translate(18px, -88vh); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene__glow,
+  .scene__flame,
+  .scene__ember,
+  .unit__portrait svg,
+  .unit__portrait svg * {
+    animation: none !important;
+  }
+}
+
+/* Заголовки и кнопки */
+.center-screen__title,
+.event__title {
+  font-family: var(--font-title);
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 0 #000, 0 0 18px rgba(224, 184, 76, 0.35);
+}
+
+.button {
+  border: 1px solid #b4453f;
+  background: linear-gradient(180deg, #a83a36, #6d1f1f);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 1px #000;
+  transition: transform 80ms, filter 80ms;
+}
+
+.button:active {
+  background: linear-gradient(180deg, #6d1f1f, #8a2b2b);
+  transform: translateY(1px) scale(0.98);
+}
+
+.button--secondary {
+  border-color: #51465f;
+  background: linear-gradient(180deg, #3a3147, #231e2b);
+}
+
+.button--secondary:active {
+  background: linear-gradient(180deg, #231e2b, #3a3147);
+}
+
+.button--large {
+  font-family: var(--font-title);
+}
+
+.start-logo {
+  filter: drop-shadow(0 0 14px rgba(224, 184, 76, 0.45));
+  animation: logo-float 6s ease-in-out infinite;
+}
+
+@keyframes logo-float {
+  50% { transform: translateY(-5px) rotate(1deg); }
+}
+
+/* Панели */
+.run-bar,
+.combat__top-bar,
+.combat__bottom-bar {
+  border-color: var(--gold-dark);
+  background: linear-gradient(180deg, rgba(40, 32, 50, 0.95), rgba(20, 16, 26, 0.95));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.run-bar,
+.combat__top-bar {
+  border-bottom: 1px solid var(--gold-dark);
+}
+
+.combat__bottom-bar {
+  border-top: 1px solid var(--gold-dark);
+}
+
+.bar-icon--potion {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.combat__energy {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 64px;
+  height: 44px;
+  border: 2px solid var(--gold);
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 30%, #3f6fb5, #14233f);
+  box-shadow: 0 0 10px rgba(90, 150, 240, 0.6);
+  font-size: 16px;
+}
+
+.combat__hint {
+  color: #cfc4ad;
+  font-size: 13px;
+  text-shadow: 0 1px 2px #000;
+}
+
+.combat__hint:empty {
+  visibility: hidden;
+}
+
+/* Модели бойцов. Враги стоят в зале без рамки, на пятне тени */
+.combat__enemies .unit {
+  border-color: transparent;
+  background: none;
+}
+
+.unit__portrait {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.7));
+}
+
+.unit__portrait::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -3px;
+  z-index: -1;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.unit__portrait svg {
+  transform-origin: 50% 100%;
+  animation: idle-breathe 3s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+.unit__portrait svg * {
+  transform-box: fill-box;
+}
+
+/* Несколько врагов в ряд: модели поменьше */
+.combat__enemies:has(.unit + .unit) .unit__portrait {
+  width: 56px;
+  height: 56px;
+}
+
+/* На высоком экране места больше: модели крупнее */
+@media (min-height: 780px) {
+  .unit__portrait {
+    width: 112px;
+    height: 112px;
+  }
+
+  .combat__enemies:has(.unit + .unit) .unit__portrait {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+.idle--float svg {
+  animation-name: idle-float;
+  animation-duration: 4s;
+}
+
+.idle--scuttle svg {
+  animation-name: idle-scuttle;
+  animation-duration: 2s;
+}
+
+.idle--heavy svg {
+  animation-name: idle-heavy;
+  animation-duration: 6s;
+}
+
+.idle--pant svg {
+  animation-name: idle-pant;
+  animation-duration: 2s;
+}
+
+@keyframes idle-breathe {
+  50% { transform: scale(1.03, 1.05); }
+}
+
+@keyframes idle-float {
+  50% { transform: translateY(-5px) scale(1.02); }
+}
+
+@keyframes idle-scuttle {
+  0%, 100% { transform: translateX(-2px); }
+  25% { transform: translateX(2px) translateY(-1px); }
+  50% { transform: translateX(-1px); }
+  75% { transform: translateX(3px) translateY(-1px); }
+}
+
+@keyframes idle-heavy {
+  50% { transform: scale(1.015, 1.03); }
+}
+
+@keyframes idle-pant {
+  50% { transform: scale(1.05, 0.98); }
+}
+
+/* Части моделей */
+.art-eyes {
+  transform-origin: center;
+  animation: art-blink 4s infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+
+.art-weapon {
+  transform-origin: 50% 100%;
+  animation: art-sway 3s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-sway {
+  50% { transform: rotate(4deg); }
+}
+
+.art-orb,
+.art-visor,
+.art-flame {
+  transform-origin: center;
+  animation: art-pulse 2s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-pulse {
+  50% { opacity: 0.55; transform: scale(1.12); }
+}
+
+.art-legs {
+  transform-origin: center;
+  animation: art-legs 2s steps(4) infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-legs {
+  50% { transform: scaleY(0.92) translateY(1px); }
+}
+
+.art-wing--left {
+  transform-origin: 100% 60%;
+  animation: art-wing-left 4s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+.art-wing--right {
+  transform-origin: 0 60%;
+  animation: art-wing-right 4s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-wing-left {
+  50% { transform: rotate(9deg); }
+}
+
+@keyframes art-wing-right {
+  50% { transform: rotate(-9deg); }
+}
+
+.art-cape,
+.art-plume,
+.art-ear {
+  transform-origin: 50% 0;
+  animation: art-cape 3s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-cape {
+  50% { transform: skewX(3deg) scaleY(1.02); }
+}
+
+.art-mouth {
+  transform-origin: center;
+  animation: art-mouth 3s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes art-mouth {
+  50% { transform: scaleY(1.25); }
+}
+
+/* Реакции моделей: двигается портрет, поэтому покой (на рисунке внутри) не сбивается */
+.unit--hit {
+  animation: none;
+}
+
+.unit--hit .unit__portrait {
+  animation: model-hit calc(320ms * var(--anim-speed));
+}
+
+@keyframes model-hit {
+  15% { transform: translateX(-7px) rotate(-6deg); filter: brightness(2.4) saturate(0.2); }
+  45% { transform: translateX(6px) rotate(4deg); filter: brightness(1.3); }
+  75% { transform: translateX(-2px); }
+}
+
+.unit--attacking {
+  animation: none;
+}
+
+.unit--attacking .unit__portrait {
+  animation: model-attack calc(360ms * var(--anim-speed)) ease-in var(--action-delay, 0ms) both;
+}
+
+@keyframes model-attack {
+  30% { transform: translateY(-8px) scale(0.96); }
+  60% { transform: translateY(34px) scale(1.2); filter: brightness(1.4); }
+}
+
+.unit--casting .unit__portrait {
+  animation: model-cast calc(400ms * var(--anim-speed)) var(--action-delay, 0ms) both;
+}
+
+@keyframes model-cast {
+  50% { transform: translateY(-6px) scale(1.1); filter: brightness(1.8) drop-shadow(0 0 10px #c77dff); }
+}
+
+.unit--lunge .unit__portrait {
+  animation: model-lunge calc(280ms * var(--anim-speed)) ease-out;
+}
+
+@keyframes model-lunge {
+  40% { transform: translate(14px, -18px) scale(1.15) rotate(6deg); }
+}
+
+.unit--blocking .unit__portrait {
+  animation: model-block calc(300ms * var(--anim-speed));
+}
+
+@keyframes model-block {
+  40% { transform: scale(1.1); filter: brightness(1.4) drop-shadow(0 0 10px #6db2ff); }
+}
+
+/* Куда можно бросить карту */
+.unit--targetable {
+  border-color: var(--gold);
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
+}
+
+.unit--drop-target {
+  border-color: #fff2b8;
+  box-shadow: 0 0 22px 5px rgba(255, 220, 120, 0.8);
+  background: rgba(224, 184, 76, 0.12) !important;
+}
+
+/* Герой на тёмной плите */
+.unit--hero {
+  border: 1px solid #4a3f58;
+  background: var(--panel-glass);
+}
+
+.unit--hero .unit__portrait {
+  width: 56px;
+  height: 56px;
+}
+
+/* Полоска HP */
+.hp-bar {
+  border: 1px solid #000;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(224, 184, 76, 0.28);
+  background: #1a0d0d;
+}
+
+.hp-bar__fill {
+  background: linear-gradient(180deg, #e0504d, #8e2323);
+}
+
+.hp-bar--blocked .hp-bar__fill {
+  background: linear-gradient(180deg, #5f9ad6, #2c5a8c);
+}
+
+.hp-bar__label {
+  font-weight: bold;
+  text-shadow: 0 1px 2px #000;
+}
+
+.unit__name {
+  font-family: var(--font-title);
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Намерение висит над врагом пузырём и слегка покачивается */
+.unit__intent {
+  display: table;
+  min-width: 44px;
+  min-height: 0;
+  margin: 0 auto 2px;
+  padding: 1px 8px;
+  border: 1px solid #5a4d68;
+  border-radius: 12px;
+  background: var(--panel-glass);
+  font-size: 15px;
+  font-weight: bold;
+  animation: intent-bob 3s ease-in-out infinite;
+  animation-delay: var(--idle-phase, 0ms);
+}
+
+@keyframes intent-bob {
+  50% { transform: translateY(-3px); }
+}
+
+.statuses {
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Удар */
+.slash {
+  position: fixed;
+  z-index: 16;
+  width: 96px;
+  height: 6px;
+  margin: -3px 0 0 -48px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #fff, #ffd9a0, transparent);
+  box-shadow: 0 0 12px #ffb35a;
+  pointer-events: none;
+  rotate: -35deg;
+  animation: slash-cut calc(240ms * var(--anim-speed)) ease-out forwards;
+}
+
+@keyframes slash-cut {
+  0% { scale: 0.1 1; opacity: 0; }
+  35% { scale: 1.2 1.2; opacity: 1; }
+  100% { scale: 1.5 0.2; opacity: 0; }
+}
+
+.combat--shake {
+  animation: screen-shake calc(240ms * var(--anim-speed));
+}
+
+@keyframes screen-shake {
+  20% { transform: translate(-5px, 3px); }
+  45% { transform: translate(5px, -3px); }
+  70% { transform: translate(-3px, 1px); }
+}
+
+/* Карты */
+.card {
+  overflow: visible;
+  border: 2px solid #4a4030;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 -18px 22px rgba(0, 0, 0, 0.3);
+  touch-action: none;
+}
+
+.card--playable {
+  border-color: var(--gold);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65), 0 0 7px rgba(224, 184, 76, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 -18px 22px rgba(0, 0, 0, 0.3);
+}
+
+.card--unplayable {
+  opacity: 1;
+  filter: grayscale(0.65) brightness(0.62);
+}
+
+.card__glyph {
+  position: absolute;
+  inset: 34px 8px 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  opacity: 0.13;
+  pointer-events: none;
+}
+
+.card__glyph svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Рамка редкости */
+.card--uncommon {
+  outline: 1px solid rgba(120, 180, 255, 0.55);
+}
+
+.card--rare {
+  outline: 1px solid rgba(255, 215, 110, 0.85);
+}
+
+/* Здесь обычный шрифт: на маленькой карте заголовочный слишком широк и рвёт длинные слова */
+.card__name {
+  position: relative;
+  text-shadow: 0 1px 1px #000;
+}
+
+/* В руке карта узкая: размер названия подогнан под его самое длинное слово */
+.hand .card__name {
+  font-size: calc(9.5px * var(--name-fit, 1));
+}
+
+.card__description {
+  position: relative;
+  text-shadow: 0 1px 1px #000;
+}
+
+.card__cost {
+  z-index: 1;
+  border: 1px solid #fff2b8;
+  background: radial-gradient(circle at 35% 30%, #fff0b0, var(--gold) 55%, #8a6d2c);
+  box-shadow: 0 1px 3px #000;
+}
+
+/* Перетаскивание */
+.card--lifted {
+  opacity: 0.25;
+}
+
+.card--ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  margin: 0 !important;
+  pointer-events: none;
+  transition: none;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.75), 0 0 10px rgba(224, 184, 76, 0.5);
+}
+
+.card--ghost-ready {
+  border-color: #fff2b8;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.75), 0 0 22px 5px rgba(255, 220, 120, 0.85);
+}
+
+.card--played {
+  animation: card-played calc(260ms * var(--anim-speed)) ease-out forwards;
+}
+
+@keyframes card-played {
+  40% { filter: brightness(2.2); opacity: 1; }
+  100% { filter: brightness(3); opacity: 0; scale: 1.25; }
+}
+
+/* Карта */
+.map__line {
+  stroke: #8a7a5c;
+  opacity: 0.65;
+}
+
+.map__line--walked {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 3px var(--gold));
+}
+
+.map-node {
+  border-color: #5e5240;
+  background: radial-gradient(circle at 35% 30%, #4a4257, #1d1824);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+}
+
+.map-node--available {
+  border-color: var(--gold);
+  background: radial-gradient(circle at 35% 30%, #6a5a35, #2a2030);
+}
+
+.map__scroller {
+  scrollbar-width: none;
+}
+
+.map__legend,
+.map__stats {
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Экраны со списками: читаемый фон поверх сцены */
+.picker {
+  background: rgba(14, 11, 18, 0.97);
+}
+
+.shop__item,
+.picker__row,
+.hero-select__hero {
+  border: 1px solid #4a3f58;
+  background: linear-gradient(180deg, rgba(50, 42, 62, 0.92), rgba(28, 22, 36, 0.92));
+}
+
+.hero-select__hero--selected {
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
+}
+
+.reward__line {
+  text-shadow: 0 1px 2px #000;
+}
+
+.tooltip,
+.tutorial {
+  background: rgba(14, 11, 18, 0.96);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+}
