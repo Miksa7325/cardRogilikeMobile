@@ -4,10 +4,10 @@ import { CARDS } from "../data/cards.js";
 import { shuffle } from "./rng.js";
 
 // У каждой карты свой uid: в колоде несколько одинаковых Ударов, а различать их нужно
-export function createPiles(cardIds, rng) {
-  const draw = cardIds.map((cardId, index) => ({ uid: index, cardId, upgraded: false }));
+export function createPiles(deck, rng) {
+  const draw = deck.map((card, index) => ({ uid: index, cardId: card.cardId, upgraded: card.upgraded }));
   shuffle(rng, draw);
-  return { draw, hand: [], discard: [], exhaust: [], nextUid: cardIds.length };
+  return { draw, hand: [], discard: [], exhaust: [], nextUid: deck.length };
 }
 
 // Создаёт новую карту посреди боя: например, Рану от врага

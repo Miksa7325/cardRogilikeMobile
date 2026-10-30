@@ -1,4 +1,4 @@
-// Все герои игры: здоровье и стартовая колода.
+// Все герои игры: здоровье, стартовая колода и реликвия.
 import { CONFIG } from "../config.js";
 
 export const HEROES = {
@@ -11,5 +11,6 @@ export const HEROES = {
       "defend", "defend", "defend", "defend",
       "bash",
     ],
+    relics: ["burning_blood"],
   },
 };

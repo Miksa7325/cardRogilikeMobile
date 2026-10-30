@@ -3,12 +3,14 @@ import { CONFIG } from "../../config.js";
 import { ENEMIES } from "../../data/enemies.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { canPlayCard, createCombat, createRandomCombat, endTurn, getEnemyIntent, playCard } from "../../engine/combat.js";
+import { canPlayCard, createCombat, endTurn, getEnemyIntent, playCard } from "../../engine/combat.js";
 import { getCardData } from "../../engine/deck.js";
+import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { state } from "../../state.js";
 import { createCardElement, shakeCard } from "../components/card.js";
 import { createCardPicker } from "../components/cardPicker.js";
 import { createHpBar } from "../components/hpBar.js";
+import { createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -20,9 +22,9 @@ const INTENT_ICONS = {
   debuff: "🌀",
 };
 
-// Запускает новый бой. Время как seed задаём здесь: в логике случайность только через rng.js
-export function startNewCombat() {
-  state.combat = createRandomCombat({ heroId: "warrior", seed: Date.now() });
+// Запускает бой на текущем узле забега
+export function startNodeCombat() {
+  state.combat = createNodeCombat(state.run);
   state.test.enabled = false;
   state.selectedCardUid = null;
   showScreen("combat");
@@ -53,20 +55,20 @@ export function renderCombatScreen(root) {
 }
 
 function createTopBar(combat) {
+  if (!state.test.enabled) return createRunBar(state.run, combat.hero.hp);
+
   const bar = el("div", "combat__top-bar");
   bar.append(
     el("span", "", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${combat.turn}`),
   );
-  if (state.test.enabled) {
-    const testButton = el("button", "button button--secondary", "🧪");
-    testButton.type = "button";
-    testButton.addEventListener("click", () => {
-      state.test.pickerOpen = true;
-      showScreen("combat");
-    });
-    bar.append(testButton);
-  }
+  const testButton = el("button", "button button--secondary", "🧪");
+  testButton.type = "button";
+  testButton.addEventListener("click", () => {
+    state.test.pickerOpen = true;
+    showScreen("combat");
+  });
+  bar.append(testButton);
   return bar;
 }
 
@@ -205,7 +207,16 @@ function onEndTurnTap() {
   showCurrentScreen();
 }
 
-// Бой продолжается — рисуем его заново, закончился — показываем результат
+// Бой продолжается — рисуем его заново. Тестовый бой заканчивается результатом,
+// а в забеге победа ведёт к награде и только поражение — к экрану результата
 function showCurrentScreen() {
-  showScreen(state.combat.status === "playerTurn" ? "combat" : "result");
+  const combat = state.combat;
+  if (combat.status === "playerTurn") {
+    showScreen("combat");
+  } else if (state.test.enabled) {
+    showScreen("result");
+  } else {
+    finishCombat(state.run, combat);
+    showScreen(state.run.status === "lost" ? "result" : "reward");
+  }
 }

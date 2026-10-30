@@ -97,6 +97,43 @@ export const ENEMIES = {
     },
     pattern: ["curse", "slam", "combo", "fortify"],
   },
+
+  // Босс акта 1
+  crypt_warden: {
+    id: "crypt_warden",
+    name: "Хранитель склепа",
+    hp: [150, 150],
+    moves: {
+      hex: {
+        intent: "debuff",
+        effects: [
+          { type: "applyStatus", status: "weak", amount: 2 },
+          { type: "applyStatus", status: "frail", amount: 2 },
+          { type: "addCard", cardId: "wound", pile: "discard" },
+        ],
+      },
+      scythe: {
+        intent: "attack",
+        effects: [{ type: "damage", amount: 15 }],
+      },
+      flurry: {
+        intent: "attack",
+        effects: [
+          { type: "damage", amount: 5 },
+          { type: "damage", amount: 5 },
+          { type: "damage", amount: 5 },
+        ],
+      },
+      fortify: {
+        intent: "buff",
+        effects: [
+          { type: "applyStatus", status: "strength", amount: 2, target: "self" },
+          { type: "block", amount: 12, target: "self" },
+        ],
+      },
+    },
+    pattern: ["hex", "scythe", "flurry", "fortify"],
+  },
 };
 
 // Группы врагов для обычного боя: из них случайно выбирается одна
@@ -106,5 +143,8 @@ export const ENCOUNTERS = [
   ["spider", "spider"],
   ["skeleton", "spider"],
   ["spider", "spider", "spider"],
-  ["fallen_knight"],
 ];
+
+export const ELITE_ENCOUNTERS = [["fallen_knight"]];
+
+export const BOSS_ENCOUNTER = ["crypt_warden"];

@@ -1,6 +1,6 @@
 // Логика боя. Этот файл не трогает HTML: только меняет данные боя.
 import { CONFIG } from "../config.js";
-import { ENCOUNTERS, ENEMIES } from "../data/enemies.js";
+import { ENEMIES } from "../data/enemies.js";
 import { HEROES } from "../data/heroes.js";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
 import { applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, reduceStatus } from "./effects.js";
@@ -9,20 +9,11 @@ import { createRng, nextInt } from "./rng.js";
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
 const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];
 
-// Создаёт бой со случайной группой врагов из ENCOUNTERS
-export function createRandomCombat({ heroId, seed }) {
+// Создаёт бой. hp, maxHp и deck приходят из забега; в тестовом режиме их нет, тогда берём стартовые
+export function createCombat({ heroId, enemyIds, seed, hp, maxHp, deck }) {
   const rng = createRng(seed);
-  const enemyIds = ENCOUNTERS[nextInt(rng, 0, ENCOUNTERS.length - 1)];
-  return buildCombat(heroId, enemyIds, rng);
-}
-
-// Создаёт бой с заданными врагами
-export function createCombat({ heroId, enemyIds, seed }) {
-  return buildCombat(heroId, enemyIds, createRng(seed));
-}
-
-function buildCombat(heroId, enemyIds, rng) {
   const heroData = HEROES[heroId];
+  const startingDeck = heroData.deck.map((cardId) => ({ cardId, upgraded: false }));
 
   const combat = {
     rng,
@@ -31,14 +22,14 @@ function buildCombat(heroId, enemyIds, rng) {
     energy: 0,
     hero: {
       heroId,
-      hp: heroData.maxHp,
-      maxHp: heroData.maxHp,
+      hp: hp ?? heroData.maxHp,
+      maxHp: maxHp ?? heroData.maxHp,
       block: 0,
       statuses: {},
       powers: [], // разыгранные карты-силы с триггерами
     },
     enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng)),
-    piles: createPiles(heroData.deck, rng),
+    piles: createPiles(deck ?? startingDeck, rng),
   };
 
   startPlayerTurn(combat);

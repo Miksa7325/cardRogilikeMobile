@@ -8,6 +8,16 @@
   padding: 20px 4px 8px;
 }
 
+/* Карты вне боя: награда и улучшение на отдыхе */
+.card-row {
+  --card-width: 96px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+}
+
 /* --fan-angle и --fan-drop задаёт код: так получается веер */
 .card {
   position: relative;

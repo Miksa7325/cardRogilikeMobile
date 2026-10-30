@@ -5,6 +5,16 @@ export function createRng(seed) {
   return { state: seed >>> 0 };
 }
 
+// Делает из seed забега отдельный seed для конкретной цели. Так награда на узле
+// не зависит от того, сколько случайных чисел потратил предыдущий бой.
+export function deriveSeed(seed, purpose) {
+  let hash = seed >>> 0;
+  for (const char of purpose) {
+    hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+  }
+  return hash;
+}
+
 // Случайное дробное число от 0 до 1 (алгоритм mulberry32)
 export function nextFloat(rng) {
   rng.state = (rng.state + 0x6d2b79f5) >>> 0;
@@ -17,6 +27,23 @@ export function nextFloat(rng) {
 // Случайное целое число от min до max включительно
 export function nextInt(rng, min, max) {
   return min + Math.floor(nextFloat(rng) * (max - min + 1));
+}
+
+// Случайный элемент массива
+export function pickRandom(rng, items) {
+  return items[nextInt(rng, 0, items.length - 1)];
+}
+
+// Случайный ключ объекта с учётом весов: { battle: 45, rest: 12 }
+export function pickWeighted(rng, weights) {
+  const entries = Object.entries(weights);
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = nextFloat(rng) * total;
+  for (const [key, weight] of entries) {
+    roll -= weight;
+    if (roll < 0) return key;
+  }
+  return entries[entries.length - 1][0];
 }
 
 // Перемешивает массив на месте (алгоритм Фишера — Йетса)
