@@ -17,7 +17,7 @@ import { openCardList } from "../components/cardList.js";
 import { createCardPicker } from "../components/cardPicker.js";
 import { openCardPreview } from "../components/cardPreview.js";
 import { createHpBar } from "../components/hpBar.js";
-import { createItemsRow, createMenuButton, createRunBar } from "../components/runBar.js";
+import { createCombatItems, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
@@ -74,6 +74,10 @@ export function renderCombatScreen(root) {
   screen.append(
     createTopBar(combat),
     createEnemies(combat),
+    createCombatItems(state.test.enabled ? combat.relics : state.run.relics, combat.potions, {
+      onPotionTap,
+      selectedPotionIndex: state.selectedPotionIndex,
+    }),
     createHero(combat),
     el("p", "combat__hint", getHint()),
     createHand(combat),
@@ -86,14 +90,12 @@ export function renderCombatScreen(root) {
 }
 
 function createTopBar(combat) {
-  const potionOptions = { onPotionTap: onPotionTap, selectedPotionIndex: state.selectedPotionIndex };
-  if (!state.test.enabled) return createRunBar(state.run, { combat, ...potionOptions });
+  if (!state.test.enabled) return createRunBar(state.run, { combat });
 
   const bar = el("div", "combat__top-bar");
   bar.append(
     el("span", "bar-hp", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${combat.turn}`),
-    createItemsRow(combat.relics, combat.potions, potionOptions),
   );
   const testButton = el("button", "button button--secondary", "🧪");
   testButton.type = "button";

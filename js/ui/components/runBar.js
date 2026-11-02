@@ -42,9 +42,25 @@ export function createMenuButton({ needsConfirm = false, confirmText = TEXTS.men
 
 // Зелья и реликвии в ряд: нажатие показывает описание.
 // onPotionTap есть только в бою: там нажатие на зелье выбирает его.
-export function createItemsRow(relics, potions, { onPotionTap = null, selectedPotionIndex = null } = {}) {
+export function createItemsRow(relics, potions, options = {}) {
   const row = el("div", "bar-items");
-  potions.forEach((potionId, index) => {
+  row.append(...createPotionButtons(potions, options), ...createRelicButtons(relics));
+  return row;
+}
+
+// В бою зелья стоят слева, а реликвии справа
+export function createCombatItems(relics, potions, options = {}) {
+  const row = el("div", "combat__items");
+  const potionGroup = el("div", "combat__potions");
+  potionGroup.append(...createPotionButtons(potions, options));
+  const relicGroup = el("div", "combat__relics");
+  relicGroup.append(...createRelicButtons(relics));
+  row.append(potionGroup, relicGroup);
+  return row;
+}
+
+function createPotionButtons(potions, { onPotionTap = null, selectedPotionIndex = null }) {
+  return potions.map((potionId, index) => {
     const potion = POTIONS[potionId];
     // Сначала выбор зелья: он перерисовывает экран и убирает старую подсказку
     const button = createIconButton(potion.icon, () => {
@@ -53,21 +69,20 @@ export function createItemsRow(relics, potions, { onPotionTap = null, selectedPo
     });
     button.classList.add("bar-icon--potion");
     if (index === selectedPotionIndex) button.classList.add("bar-icon--selected");
-    row.append(button);
+    return button;
   });
-  for (const relicId of relics) {
-    row.append(createIconButton(RELICS[relicId].icon, () => showItemDescription(RELICS[relicId])));
-  }
-  return row;
 }
 
-// В бою передаём combat: HP и зелья меняются раньше, чем попадают в забег.
-// Кнопка колоды вне боя: в бою её заменяют стопки в нижней панели.
+function createRelicButtons(relics) {
+  return relics.map((relicId) => createIconButton(RELICS[relicId].icon, () => showItemDescription(RELICS[relicId])));
+}
+
+// В бою передаём combat: HP меняется раньше, чем попадает в забег.
+// Кнопка колоды и предметы только вне боя: в бою их заменяют стопки и отдельный ряд предметов.
 // allSaved: true только на карте — там всё сохранено, и выйти можно сразу.
-export function createRunBar(run, { combat = null, onPotionTap = null, selectedPotionIndex = null, allSaved = false } = {}) {
+export function createRunBar(run, { combat = null, allSaved = false } = {}) {
   const bar = el("div", "run-bar");
   const hp = combat ? combat.hero.hp : run.hp;
-  const potions = combat ? combat.potions : run.potions;
 
   bar.append(
     el("span", "bar-hp", `❤️ ${hp}/${run.maxHp}`),
@@ -75,10 +90,12 @@ export function createRunBar(run, { combat = null, onPotionTap = null, selectedP
     el("span", "", TEXTS.floorLabel(run.act, getCurrentFloor(run))),
   );
   if (!combat) {
-    bar.append(createIconButton("🃏", () => openCardList([{ title: TEXTS.deck, cards: run.deck }])));
+    bar.append(
+      createIconButton("🃏", () => openCardList([{ title: TEXTS.deck, cards: run.deck }])),
+      createItemsRow(run.relics, run.potions),
+    );
   }
   bar.append(
-    createItemsRow(run.relics, potions, { onPotionTap, selectedPotionIndex }),
     createMenuButton({ needsConfirm: !allSaved, confirmText: combat ? TEXTS.menuConfirmCombat : TEXTS.menuConfirm }),
   );
   return bar;

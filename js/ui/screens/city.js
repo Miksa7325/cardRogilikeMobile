@@ -1,4 +1,4 @@
-// Экран города: дом героев и здания, которые покупаются за кроны.
+// Экран города: карта с видом сверху. Подсвеченные дома можно открыть, остальное нарисовано на карте как декор.
 import { BUILDINGS } from "../../data/buildings.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
@@ -11,6 +11,11 @@ import { shakeCard } from "../components/card.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
+
+// Размер карты и рисунка здания в пикселях: положение на экране считаем в процентах от карты
+const MAP_WIDTH = 360;
+const MAP_HEIGHT = 780;
+const BUILDING_WIDTH = 88;
 
 function createButton(text, modifier, onTap) {
   const button = el("button", `button ${modifier}`, text);
@@ -27,21 +32,23 @@ function createBuildingArt(building) {
 
 export function renderCityScreen(root) {
   const meta = loadMeta();
-  const screen = el("main", "center-screen city");
-  screen.append(
-    el("h1", "event__title", TEXTS.city.title),
+  const screen = el("main", "city");
+
+  const map = el("div", "city__map");
+  for (const building of Object.values(BUILDINGS)) map.append(createBuildingTile(meta, building));
+
+  const header = el("div", "city__header");
+  header.append(
+    el("h1", "city__title", TEXTS.city.title),
     el("p", "city__balance", TEXTS.city.balance(meta.crowns)),
     el("p", "city__hint", TEXTS.city.hint),
   );
-
-  const grid = el("div", "city__grid");
-  for (const building of Object.values(BUILDINGS)) grid.append(createBuildingTile(meta, building));
-  const actions = el("div", "button-row");
+  const actions = el("div", "button-row city__actions");
   actions.append(
     createButton(TEXTS.quests.button, "button--secondary", () => showScreen("quests")),
     createButton(TEXTS.city.back, "button--secondary", () => showScreen("start")),
   );
-  screen.append(grid, actions);
+  screen.append(map, header, actions);
   root.append(screen);
 }
 
@@ -51,11 +58,18 @@ function createBuildingTile(meta, building) {
   tile.type = "button";
   tile.classList.add(built ? "building--built" : "building--locked");
   if (!built && meta.crowns >= building.price) tile.classList.add("building--affordable");
-  tile.append(
-    createBuildingArt(building),
-    el("div", "building__name", building.name),
-    el("div", "building__price", built ? TEXTS.city.built : TEXTS.city.locked(building.price)),
-  );
+  tile.style.left = `${(building.x / MAP_WIDTH) * 100}%`;
+  tile.style.top = `${(building.y / MAP_HEIGHT) * 100}%`;
+  tile.style.width = `${(BUILDING_WIDTH / MAP_WIDTH) * 100}%`;
+
+  // Пока здание не построено, на его месте стройплощадка
+  const image = el("img", "building__sprite");
+  image.src = `assets/images/city/${built ? building.id : "plot"}.png`;
+  image.alt = "";
+  image.draggable = false;
+  const label = el("span", "building__label", building.name);
+  if (!built) label.append(el("span", "building__price", TEXTS.city.locked(building.price)));
+  tile.append(image, label);
   tile.addEventListener("click", () => openBuilding(building));
   return tile;
 }

@@ -24,10 +24,6 @@
   image-rendering: pixelated;
 }
 
-#scene[data-act="city"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-city.png");
-}
-
 #scene[data-act="1"] .scene__texture {
   background-image: url("../assets/images/textures/scene-act1.png");
 }
@@ -563,10 +559,45 @@
   box-shadow: 0 0 10px rgba(224, 184, 76, 0.65);
 }
 
-/* Город */
+/* Город: карта с видом сверху. Она шире и выше экрана телефона только снизу и сверху, все здания в середине */
 .city {
-  gap: 12px;
-  justify-content: flex-start;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #0f3a12 url("../assets/images/city/grass.png");
+  background-size: 48px;
+  image-rendering: pixelated;
+}
+
+.city__map {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(100vw, calc(100dvh * 9 / 16));
+  aspect-ratio: 360 / 780;
+  background: url("../assets/images/city/map.png") center / 100% 100% no-repeat;
+  transform: translate(-50%, -50%);
+}
+
+.city__header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: calc(6px + env(safe-area-inset-top)) 16px 8px;
+  background: linear-gradient(180deg, rgba(10, 8, 14, 0.92), rgba(10, 8, 14, 0.72));
+  border-bottom: 1px solid #5e5240;
+}
+
+.city__title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 24px;
+  text-shadow: 0 2px 2px #000;
 }
 
 .city__balance {
@@ -578,40 +609,84 @@
 }
 
 .city__hint {
+  grid-column: 1 / -1;
   margin: 0;
   color: #d8cdb6;
   font-size: 13px;
   text-shadow: 0 1px 2px #000;
 }
 
-.city__grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  width: 100%;
+.city__actions {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
 }
 
-/* Здание: рисунок на каменном основании */
+/* Дом на карте: подсветка повторяет его контур и мягко пульсирует, поэтому его видно среди декора */
 .building {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-height: 128px;
-  padding: 10px 6px 8px;
-  border: 2px solid #5e5240;
-  border-radius: 10px;
-  background: var(--panel-glass);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--color-text);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.building--built {
-  border-color: var(--gold);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6), 0 0 10px rgba(224, 184, 76, 0.4);
+.building__sprite {
+  display: block;
+  width: 100%;
+  image-rendering: pixelated;
+  animation: building-glow 2.2s ease-in-out infinite;
 }
 
+.building:active .building__sprite {
+  transform: translateY(1px) scale(0.97);
+}
+
+@keyframes building-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px #ffe08a) drop-shadow(0 0 6px rgba(255, 200, 80, 0.7)); }
+  50% { filter: drop-shadow(0 0 3px #fff0b8) drop-shadow(0 0 12px rgba(255, 200, 80, 1)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .building__sprite {
+    animation: none;
+    filter: drop-shadow(0 0 2px #ffe08a) drop-shadow(0 0 6px rgba(255, 200, 80, 0.8));
+  }
+}
+
+.building__label {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  padding: 1px 4px;
+  line-height: 1.15;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  background: rgba(10, 8, 14, 0.88);
+  /* Размер растёт с экраном, чтобы подпись самого длинного здания не вышла за край */
+  font-size: min(11px, 3vw);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.building__price {
+  display: block;
+  color: #ffe08a;
+}
+
+/* Хватает крон на постройку */
+.building--affordable .building__label {
+  border-color: #9cf0a0;
+}
+
+.building--affordable .building__price {
+  color: #9cf0a0;
+}
+
+/* Значок здания в окне: и для построенного, и для ещё не построенного */
 .building__art {
   width: 64px;
   height: 64px;
@@ -625,33 +700,10 @@
   height: 100%;
 }
 
-/* Ещё не построено: тёмный силуэт */
-.building--locked .building__art {
-  color: #5a5262;
-}
-
-.building--affordable {
-  border-color: #9cf0a0;
-}
-
-.building--affordable .building__art {
-  color: #cfc7b8;
-}
-
 .building__name {
   font-family: var(--font-title);
   font-size: 15px;
   font-weight: bold;
-  text-align: center;
-}
-
-.building__price {
-  color: #ffe08a;
-  font-size: 13px;
-}
-
-.building--built .building__price {
-  color: #9cf0a0;
 }
 
 /* Окно здания */
@@ -701,6 +753,24 @@
 }
 
 /* Задания */
+/* Подпись и подсказка на экране заданий */
+.quests__balance,
+.quests__hint {
+  margin: 0;
+  text-shadow: 0 1px 2px #000;
+}
+
+.quests__balance {
+  color: #ffe08a;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.quests__hint {
+  color: #d8cdb6;
+  font-size: 13px;
+}
+
 .quests {
   gap: 10px;
   justify-content: flex-start;
@@ -782,10 +852,83 @@
   gap: 10px;
 }
 
-.city__grid {
-  flex-shrink: 0;
-}
-
 .building-details__hero .building__name {
   text-align: left;
+}
+
+/* Кнопки в ряду одной ширины */
+.button-row .button {
+  flex: 1 1 0;
+  max-width: 200px;
+}
+
+/* Меню: все кнопки одинаковые, по две в ряд. Нечётная последняя встаёт по центру */
+.start-menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.start-menu .button {
+  width: calc(50% - 5px);
+  min-width: 0;
+  height: 52px;
+  min-height: 0;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+/* В бою: зелья слева, реликвии справа. Реликвий бывает много, поэтому они прокручиваются */
+.combat__items {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 46px;
+  padding: 0 8px;
+}
+
+.combat__potions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.combat__relics {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+/* Зелья и реликвии лежат на отдельных панелях: так видно, что это две разные группы */
+.combat__potions,
+.combat__relics {
+  border-radius: 10px;
+  background: var(--panel-glass);
+}
+
+.combat__potions {
+  border: 1px solid #7fb6e0;
+}
+
+.combat__relics {
+  border: 1px solid var(--gold);
+}
+
+/* Пустая панель не нужна: пустое место лучше пустой рамки */
+.combat__potions:empty,
+.combat__relics:empty {
+  visibility: hidden;
+}
+
+.combat__potions .bar-icon--potion {
+  background: none;
 }

@@ -19,8 +19,8 @@ export function renderQuestsScreen(root) {
   const screen = el("main", "center-screen quests");
   screen.append(
     el("h1", "event__title", TEXTS.quests.title),
-    el("p", "city__balance", TEXTS.city.balance(meta.crowns)),
-    el("p", "city__hint", TEXTS.quests.hint),
+    el("p", "quests__balance", TEXTS.city.balance(meta.crowns)),
+    el("p", "quests__hint", TEXTS.quests.hint),
   );
 
   // Кнопки сверху: иначе до них пришлось бы листать весь список

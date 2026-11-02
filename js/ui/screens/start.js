@@ -30,8 +30,9 @@ export function renderStartScreen(root) {
     screen.append(el("p", "reward__line", next ? TEXTS.meta.progress(meta.xp, next.xp) : TEXTS.meta.allUnlocked(meta.xp)));
   }
 
+  const menu = el("div", "start-menu");
   if (savedRun) {
-    screen.append(createButton(TEXTS.continueButton, "button--large", () => {
+    menu.append(createButton(TEXTS.continueButton, "button--large", () => {
       state.run = savedRun;
       state.test.enabled = false;
       resetPlayTimer();
@@ -41,30 +42,19 @@ export function renderStartScreen(root) {
       else showScreen("map");
     }));
   }
-  // Кнопки стоят парами, чтобы всё меню помещалось на экран телефона без прокрутки
-  screen.append(
+  // Все кнопки одного размера и стоят парами: так меню помещается на экран телефона без прокрутки
+  menu.append(
     createNewRunButton(savedRun !== null),
-    createButtonRow(
-      createButton(TEXTS.city.button, "button--secondary", () => showScreen("city")),
-      createQuestsButton(meta),
-    ),
-    createButtonRow(
-      createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
-      createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
-    ),
+    createButton(TEXTS.city.button, "button--secondary", () => showScreen("city")),
+    createQuestsButton(meta),
+    createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
+    createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
     createButton(TEXTS.saveTransferButton, "button--secondary", () => showScreen("saveTransfer")),
-    createButtonRow(
-      createButton(TEXTS.testModeButton, "button--secondary", () => showScreen("testSetup")),
-      createButton(TEXTS.credits.button, "button--secondary", () => showScreen("credits")),
-    ),
+    createButton(TEXTS.testModeButton, "button--secondary", () => showScreen("testSetup")),
+    createButton(TEXTS.credits.button, "button--secondary", () => showScreen("credits")),
   );
+  screen.append(menu);
   root.append(screen);
-}
-
-function createButtonRow(...buttons) {
-  const row = el("div", "button-row");
-  row.append(...buttons);
-  return row;
 }
 
 // Кнопка заданий подсказывает, что есть награды, которые можно забрать
