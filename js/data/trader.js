@@ -8,7 +8,7 @@ export const TRADER_GOODS = [
     icon: "🗺️",
     name: "Карта подземелья",
     description: "На один забег. Без неё не увидеть пройденный путь и не вернуться быстро в знакомую комнату.",
-    price: 30,
+    price: 35,
   },
   {
     id: "fireflies",
@@ -16,8 +16,8 @@ export const TRADER_GOODS = [
     icon: "✨",
     name: "Банка светлячков",
     description: "На один забег. Светлячки показывают, что ждёт за одним неизведанным туннелем. Снова собираются в банку на отдыхе и в комнате сохранения.",
-    price: 40,
+    price: 50,
   },
 ];
 
-export const POTION_PRICE = 15;
+export const POTION_PRICE = 25;

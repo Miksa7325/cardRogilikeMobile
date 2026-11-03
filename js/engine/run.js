@@ -231,12 +231,13 @@ export function createNodeCombat(run) {
 }
 
 // Усложнения врагов для этого типа узла
+// Сложность добавляется поверх общего запаса HP врагов
 function getEnemyModifiers(run, nodeType) {
   const { normalHpMultiplier, eliteHpMultiplier, bossHpMultiplier, eliteStrength, enemyStrength } = CONFIG.difficulty;
-  let enemyHpMultiplier = 1;
-  if (nodeType === "battle" && hasDifficulty(run, 1)) enemyHpMultiplier = normalHpMultiplier;
-  if (nodeType === "elite" && hasDifficulty(run, 2)) enemyHpMultiplier = eliteHpMultiplier;
-  if (nodeType === "boss" && hasDifficulty(run, 3)) enemyHpMultiplier = bossHpMultiplier;
+  let enemyHpMultiplier = CONFIG.enemyHpMultiplier;
+  if (nodeType === "battle" && hasDifficulty(run, 1)) enemyHpMultiplier *= normalHpMultiplier;
+  if (nodeType === "elite" && hasDifficulty(run, 2)) enemyHpMultiplier *= eliteHpMultiplier;
+  if (nodeType === "boss" && hasDifficulty(run, 3)) enemyHpMultiplier *= bossHpMultiplier;
 
   let strength = hasDifficulty(run, 10) ? enemyStrength : 0;
   if (nodeType === "elite" && hasDifficulty(run, 4)) strength += eliteStrength;
@@ -535,12 +536,13 @@ export function hasHealedHere(run) {
   return run.cityHeals.includes(`${run.act}:${run.currentNodeId ?? "start"}`);
 }
 
-// В городе герой отдыхает: здоровье восстанавливается полностью. Возвращает, сколько HP вылечено
+// В городе герой отдыхает и лечит часть ран — не все: иначе две комнаты сохранения за акт снимали бы любой риск.
+// Возвращает, сколько HP вылечено
 export function healInCity(run) {
   if (hasHealedHere(run)) return 0;
-  const healed = run.maxHp - run.hp;
+  const healed = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * CONFIG.cityHealShare));
   if (healed > 0) run.cityHeals.push(`${run.act}:${run.currentNodeId ?? "start"}`);
-  run.hp = run.maxHp;
+  run.hp += healed;
   return healed;
 }
 

@@ -42,20 +42,21 @@ export function createMenuButton({ needsConfirm = false, confirmText = TEXTS.men
 
 // Зелья и реликвии в ряд: нажатие показывает описание.
 // onPotionTap есть только в бою: там нажатие на зелье выбирает его.
+// Во всех местах игры реликвии слева, а зелья справа: так их не приходится искать заново на каждом экране
 export function createItemsRow(relics, potions, options = {}) {
   const row = el("div", "bar-items");
-  row.append(...createPotionButtons(potions, options), ...createRelicButtons(relics));
+  row.append(...createRelicButtons(relics), el("span", "bar-items__gap"), ...createPotionButtons(potions, options));
   return row;
 }
 
-// В бою зелья стоят слева, а реликвии справа
+// В бою реликвии слева, а зелья справа — как в подземелье и на верхней панели
 export function createCombatItems(relics, potions, options = {}) {
   const row = el("div", "combat__items");
-  const potionGroup = el("div", "combat__potions");
-  potionGroup.append(...createPotionButtons(potions, options));
   const relicGroup = el("div", "combat__relics");
   relicGroup.append(...createRelicButtons(relics));
-  row.append(potionGroup, relicGroup);
+  const potionGroup = el("div", "combat__potions");
+  potionGroup.append(...createPotionButtons(potions, options));
+  row.append(relicGroup, potionGroup);
   return row;
 }
 
