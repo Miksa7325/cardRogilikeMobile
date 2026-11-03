@@ -125,22 +125,10 @@ export function isNodeCleared(run, nodeId) {
   return nodeId === null || run.visitedNodeIds.includes(nodeId);
 }
 
-// Куда ведёт «Назад»: комната, из которой герой пришёл, null — начальная. undefined — назад некуда
+// Откуда герой пришёл: комната, null — начальная. undefined — он в начальной, позади ничего
+// Вернуться туда — обычный переход: enterNode укоротит путь до этой комнаты
 export function getPreviousNodeId(run) {
-  return canGoBack(run) ? run.trail.at(-2) ?? null : undefined;
-}
-
-// Назад можно, пока герой не в начальной комнате
-export function canGoBack(run) {
-  return run.trail.length > 0;
-}
-
-// Возвращается в предыдущую комнату пути. Возвращает false, если герой уже в начальной комнате
-export function goBack(run) {
-  if (!canGoBack(run)) return false;
-  run.trail.pop();
-  run.currentNodeId = run.trail.at(-1) ?? null;
-  return true;
+  return run.trail.length > 0 ? run.trail.at(-2) ?? null : undefined;
 }
 
 // Путь от начальной комнаты до пройденной комнаты только по пройденным: по нему герой быстро переходит по карте.

@@ -77,10 +77,20 @@ function createRelicButtons(relics) {
   return relics.map((relicId) => createIconButton(RELICS[relicId].icon, () => showItemDescription(RELICS[relicId])));
 }
 
+// Реликвии столбцом у левого края экрана, зелья — у правого: так они не теснят верхнюю панель
+export function createItemColumns(relics, potions) {
+  const relicColumn = el("div", "item-column item-column--relics");
+  relicColumn.append(...createRelicButtons(relics));
+  const potionColumn = el("div", "item-column item-column--potions");
+  potionColumn.append(...createPotionButtons(potions, {}));
+  return [relicColumn, potionColumn];
+}
+
 // В бою передаём combat: HP меняется раньше, чем попадает в забег.
 // Кнопка колоды и предметы только вне боя: в бою их заменяют стопки и отдельный ряд предметов.
-// allSaved: true только на карте — там всё сохранено, и выйти можно сразу.
-export function createRunBar(run, { combat = null, allSaved = false } = {}) {
+// allSaved: true только в подземелье — там всё сохранено, и выйти можно сразу.
+// showItems: false — предметы показаны столбцами по бокам экрана. onStats — кнопка статистики забега
+export function createRunBar(run, { combat = null, allSaved = false, showItems = true, onStats = null } = {}) {
   const bar = el("div", "run-bar");
   const hp = combat ? combat.hero.hp : run.hp;
 
@@ -89,12 +99,14 @@ export function createRunBar(run, { combat = null, allSaved = false } = {}) {
     el("span", "", `💰 ${run.gold}`),
     el("span", "", TEXTS.floorLabel(run.act, getCurrentFloor(run))),
   );
-  if (!combat) {
-    bar.append(
-      createIconButton("🃏", () => openCardList([{ title: TEXTS.deck, cards: run.deck }])),
-      createItemsRow(run.relics, run.potions),
-    );
+  if (!combat) bar.append(createIconButton("🃏", () => openCardList([{ title: TEXTS.deck, cards: run.deck }])));
+  if (onStats) {
+    const stats = createIconButton("📊", onStats);
+    stats.setAttribute("aria-label", TEXTS.stats.button);
+    bar.append(stats);
   }
+  // Ряд предметов растягивается и прижимает кнопку меню вправо; без него это делает пустая распорка
+  if (!combat) bar.append(showItems ? createItemsRow(run.relics, run.potions) : el("span", "run-bar__spacer"));
   bar.append(
     createMenuButton({ needsConfirm: !allSaved, confirmText: combat ? TEXTS.menuConfirmCombat : TEXTS.menuConfirm }),
   );

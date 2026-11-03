@@ -477,48 +477,75 @@
   font-size: 13px;
 }
 
-.dungeon__tunnels {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-  padding: 0 12px;
-}
-
-.dungeon__tunnels .button {
+/* Пустая распорка в верхней панели: прижимает кнопку меню вправо, когда предметов в панели нет */
+.run-bar__spacer {
   flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-  font-size: 15px;
-  line-height: 1.15;
 }
 
-/* Спуски вниз — ряд под туннелями */
-.dungeon__tunnels--down {
-  margin-top: 6px;
-}
-
-/* Назад — узкая каменная табличка слева, туннели шире */
-.back-button {
+/* Предметы столбцами по бокам коридора: реликвии слева, зелья справа. Реликвий бывает много — столбец прокручивается.
+   Низ свободен: там город и карта */
+.item-column {
+  position: absolute;
+  top: 8px;
+  bottom: 64px;
+  z-index: 2;
   display: flex;
-  flex: 0 0 auto;
   flex-direction: column;
-  justify-content: center;
+  gap: 4px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+
+.item-column--relics {
+  left: 4px;
+}
+
+.item-column--potions {
+  right: 4px;
+}
+
+/* Нижние углы коридора: город слева, карта справа */
+.corridor__actions {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.corridor__actions > * {
+  pointer-events: auto;
+}
+
+.map-button {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 1px;
-  min-width: 64px;
-  min-height: 52px;
-  padding: 4px 10px;
+  min-width: 60px;
+  padding: 5px 8px 4px;
   cursor: pointer;
 }
 
-.back-button__icon {
-  width: 22px;
-  height: 22px;
+.map-button__icon {
+  width: 32px;
+  height: 32px;
 }
 
-.back-button__label {
+.map-button__label {
   font-size: 12px;
   line-height: 1;
+}
+
+.corridor__city {
+  min-height: 44px;
+  padding: 0 12px;
+  cursor: pointer;
 }
 
 /* Подсказка про быстрый переход */
@@ -569,25 +596,6 @@
   color: var(--color-muted);
   font-size: 12px;
   text-align: center;
-}
-
-/* Ссылки под туннелями: карта, статистика и город */
-.map__links {
-  display: flex;
-  flex-shrink: 0;
-  justify-content: center;
-  gap: 20px;
-}
-
-.map__stats {
-  flex-shrink: 0;
-  min-height: 44px;
-  border: none;
-  background: none;
-  color: var(--color-muted);
-  font-size: 13px;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* Строка с одним боем на странице статистики */
