@@ -1,14 +1,17 @@
-// Мета-прогресс: опыт, открытия и коллекция. Этот файл не трогает хранилище и HTML:
+// Мета-прогресс: казна города, постройки, задания, выбранный герой и коллекция. Этот файл не трогает хранилище и HTML:
 // сохраняет данные save.js, а показывает их интерфейс.
 import { CONFIG } from "../config.js";
 import { BUILDINGS } from "../data/buildings.js";
+import { POTIONS } from "../data/potions.js";
 import { QUESTS } from "../data/quests.js";
-import { UNLOCKS } from "../data/unlocks.js";
+import { POTION_PRICE, TRADER_GOODS } from "../data/trader.js";
 
 export function createMeta() {
   return {
-    xp: 0,
-    crowns: 0, // валюта города
+    gold: 0, // казна города: на золото строят дома и покупают у торговца
+    essences: 0, // эссенции с монстров: в гильдии их меняют на золото
+    selectedHero: "warrior", // кем герой спустится в подземелье: выбирают в доме героев
+    supplies: createSupplies(), // что куплено у торговца для следующего забега
     buildings: ["home"], // построенные здания: дом есть с самого начала
     totals: {}, // счётчики всех забегов для заданий
     claimedQuests: [], // задания, за которые уже получена награда
@@ -21,21 +24,17 @@ export function createMeta() {
   };
 }
 
-// Открытия, до которых игрок ещё не дошёл
-function getLockedUnlocks(meta) {
-  return UNLOCKS.filter((unlock) => unlock.xp > meta.xp);
+// Припасы на следующий забег: зелья в сумку, карта подземелья и банка светлячков
+export function createSupplies() {
+  return { potions: [], hasMap: false, fireflies: false };
 }
 
-// Что пока закрыто: эти списки попадают в новый забег и не меняются до его конца
+// Что пока закрыто: содержимое ещё не построенных зданий. Эти списки попадают в новый забег и не меняются до его конца
 export function getLockedContent(meta) {
-  const locked = getLockedUnlocks(meta);
   const unbuilt = Object.values(BUILDINGS).filter((building) => !meta.buildings.includes(building.id));
   return {
-    lockedCardIds: locked.flatMap((unlock) => unlock.cards ?? []),
-    lockedRelicIds: [
-      ...locked.flatMap((unlock) => unlock.relics ?? []),
-      ...unbuilt.flatMap((building) => building.unlocks.relics ?? []),
-    ],
+    lockedCardIds: [],
+    lockedRelicIds: unbuilt.flatMap((building) => building.unlocks.relics ?? []),
     lockedEventIds: unbuilt.flatMap((building) => building.unlocks.events ?? []),
     lockedPotionIds: unbuilt.flatMap((building) => building.unlocks.potions ?? []),
   };
@@ -45,10 +44,83 @@ export function getLockedContent(meta) {
 export function buyBuilding(meta, buildingId) {
   const building = BUILDINGS[buildingId];
   if (meta.buildings.includes(buildingId)) return { ok: false, reason: "owned" };
-  if (meta.crowns < building.price) return { ok: false, reason: "notEnoughCrowns" };
-  meta.crowns -= building.price;
+  if (meta.gold < building.price) return { ok: false, reason: "notEnoughGold" };
+  meta.gold -= building.price;
   meta.buildings.push(buildingId);
   return { ok: true };
+}
+
+export function selectHero(meta, heroId) {
+  meta.selectedHero = heroId;
+}
+
+// Обмен в гильдии: все эссенции, которых хватает на целое золото, превращаются в золото.
+// Остаток меньше курса остаётся. Возвращает, сколько золота получено
+export function exchangeEssences(meta) {
+  const { essencesPerGold } = CONFIG.city;
+  const gold = Math.floor(meta.essences / essencesPerGold);
+  meta.essences -= gold * essencesPerGold;
+  meta.gold += gold;
+  return gold;
+}
+
+// Сдаёт в казну добычу, которую герой несёт из подземелья. Возвращает, сколько сдано
+export function bankLoot(meta, run) {
+  const loot = { gold: run.gold, essences: run.essences };
+  meta.gold += run.gold;
+  meta.essences += run.essences;
+  run.gold = 0;
+  run.essences = 0;
+  return loot;
+}
+
+// Что продаёт торговец: карту, банку светлячков и все открытые зелья
+export function getTraderGoods(meta) {
+  const { lockedPotionIds } = getLockedContent(meta);
+  const potions = Object.values(POTIONS)
+    .filter((potion) => !lockedPotionIds.includes(potion.id))
+    .map((potion) => ({
+      id: potion.id, kind: "potion", potionId: potion.id, icon: potion.icon, name: potion.name, description: potion.description, price: POTION_PRICE,
+    }));
+  return [...TRADER_GOODS, ...potions];
+}
+
+// Куда уйдёт покупка у торговца: в текущий забег, если он идёт, иначе в припасы на следующий
+function getHolder(meta, run) {
+  return run ?? meta.supplies;
+}
+
+// Есть ли уже этот товар: карту и банку второй раз не купить
+export function isTraderGoodOwned(meta, run, good) {
+  const holder = getHolder(meta, run);
+  if (good.kind === "map") return holder.hasMap;
+  if (good.kind === "fireflies") return Boolean(holder.fireflies);
+  return false;
+}
+
+// Покупка у торговца. Возвращает { ok: true } или { ok: false, reason: "..." }
+export function buyFromTrader(meta, run, good) {
+  const holder = getHolder(meta, run);
+  if (isTraderGoodOwned(meta, run, good)) return { ok: false, reason: "owned" };
+  if (good.kind === "potion" && holder.potions.length >= CONFIG.maxPotions) return { ok: false, reason: "potionsFull" };
+  if (meta.gold < good.price) return { ok: false, reason: "notEnoughGold" };
+
+  meta.gold -= good.price;
+  if (good.kind === "potion") {
+    holder.potions.push(good.potionId);
+    if (run && !run.seen.potions.includes(good.potionId)) run.seen.potions.push(good.potionId);
+  }
+  if (good.kind === "map") holder.hasMap = true;
+  // В забеге банка сразу заряжена, в припасах это просто отметка, что она куплена
+  if (good.kind === "fireflies") holder.fireflies = run ? { charged: true } : true;
+  return { ok: true };
+}
+
+// Забирает припасы в новый забег: в казне их больше нет
+export function takeSupplies(meta) {
+  const supplies = meta.supplies;
+  meta.supplies = createSupplies();
+  return supplies;
 }
 
 export function getQuestProgress(meta, quest) {
@@ -72,32 +144,8 @@ export function claimQuest(meta, questId) {
   const quest = QUESTS.find((item) => item.id === questId);
   if (!quest || !isQuestReady(meta, quest)) return false;
   meta.claimedQuests.push(questId);
-  meta.crowns += quest.reward;
+  meta.gold += quest.reward;
   return true;
-}
-
-// Кроны зависят от пройденных этажей, убитых элит и боссов и оставшегося золота
-export function calculateRunCrowns(run, currentFloor) {
-  const totals = run.stats.totals ?? {};
-  const { perFloor, perElite, perBoss, goldPerCrown } = CONFIG.crowns;
-  return getTotalFloor(run, currentFloor) * perFloor
-    + (totals.elites ?? 0) * perElite
-    + (totals.bosses ?? 0) * perBoss
-    + Math.floor(run.gold / goldPerCrown);
-}
-
-// Сколько опыта нужно для героя. Если герой не указан в открытиях, он доступен сразу
-export function getHeroUnlockXp(heroId) {
-  return UNLOCKS.find((unlock) => unlock.hero === heroId)?.xp ?? 0;
-}
-
-export function isHeroUnlocked(meta, heroId) {
-  return meta.xp >= getHeroUnlockXp(heroId);
-}
-
-// Следующее открытие, чтобы показать игроку цель; null, если открыто всё
-export function getNextUnlock(meta) {
-  return getLockedUnlocks(meta)[0] ?? null;
 }
 
 // Уровни сложности открываются после первой победы
@@ -111,15 +159,6 @@ export function getTotalFloor(run, currentFloor) {
   return (run.act - 1) * floors + Math.min(currentFloor, floors);
 }
 
-// Опыт зависит от пройденных этажей, убитых элит и боссов
-export function calculateRunXp(run, currentFloor) {
-  const won = run.stats.combats.filter((combat) => combat.won);
-  const elites = won.filter((combat) => combat.type === "elite").length;
-  const bosses = won.filter((combat) => combat.type === "boss").length;
-  const { perFloor, perElite, perBoss } = CONFIG.xp;
-  return getTotalFloor(run, currentFloor) * perFloor + elites * perElite + bosses * perBoss;
-}
-
 // Переносит встреченное в забеге в коллекцию
 export function mergeSeen(meta, run) {
   for (const kind of ["cards", "enemies", "relics", "potions"]) {
@@ -127,16 +166,11 @@ export function mergeSeen(meta, run) {
   }
 }
 
-// Записывает итог законченного забега. Возвращает, что игрок получил
+// Записывает итог законченного забега. Добыча, которую герой нёс, уходит в казну. Возвращает, что игрок получил
 export function applyRunToMeta(meta, run, currentFloor) {
   const wasDifficultyUnlocked = isDifficultyUnlocked(meta);
-  const xpBefore = meta.xp;
-  const xpGained = calculateRunXp(run, currentFloor);
-  const crownsGained = calculateRunCrowns(run, currentFloor);
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
-
-  meta.xp += xpGained;
-  meta.crowns += crownsGained;
+  const loot = bankLoot(meta, run);
 
   // Счётчики заданий: то, что набралось в забеге, плюс сам забег
   const add = (key, amount) => {
@@ -159,11 +193,9 @@ export function applyRunToMeta(meta, run, currentFloor) {
   mergeSeen(meta, run);
 
   return {
-    xpGained,
-    xpTotal: meta.xp,
-    crownsGained,
+    goldGained: loot.gold,
+    essencesGained: loot.essences,
     questsReady: QUESTS.filter((quest) => isQuestReady(meta, quest) && !readyBefore.includes(quest.id)).map((quest) => quest.title),
-    newUnlocks: UNLOCKS.filter((unlock) => unlock.xp > xpBefore && unlock.xp <= meta.xp),
     difficultyJustUnlocked: !wasDifficultyUnlocked && isDifficultyUnlocked(meta),
   };
 }

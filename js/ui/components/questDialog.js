@@ -25,7 +25,7 @@ export function openQuestDialog(onClaimed) {
     portrait,
     el("h2", "event__title", TEXTS.quests.elder),
     el("p", "quest-dialog__speech", countReadyQuests(meta) > 0 ? TEXTS.quests.greetingReady : TEXTS.quests.greeting),
-    el("p", "quests__balance", TEXTS.city.balance(meta.crowns)),
+    el("p", "quests__balance", TEXTS.city.balance(meta.gold, meta.essences)),
     el("p", "quests__hint", TEXTS.quests.hint),
   );
 

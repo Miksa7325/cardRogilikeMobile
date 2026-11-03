@@ -1,15 +1,14 @@
 // Подземелье от первого лица: герой стоит в комнате или коридоре и выбирает, куда идти. Туннели вверх, от одного
 // до трёх, — на дальней стене, спуски в комнаты этажом ниже — люки в полу. Что за новым проходом, не видно.
-// Карта акта открывается отдельной кнопкой.
+// Карта акта открывается отдельной кнопкой, если её купили у торговца. Банка светлячков освещает неизведанный проход.
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
-import { countReadyQuests, getLockedContent, mergeSeen } from "../../engine/meta.js";
+import { countReadyQuests, getLockedContent, mergeSeen, takeSupplies } from "../../engine/meta.js";
 import {
   canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId,
-  isNodeCleared, openChest, travelTo,
+  isNodeCleared, isNodeRevealed, openChest, rechargeFireflies, releaseFireflies, travelTo,
 } from "../../engine/run.js";
-import { createShop } from "../../engine/shop.js";
 import { loadMeta, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { NODE_ICONS, openDungeonMap } from "../components/dungeonMap.js";
@@ -29,16 +28,22 @@ const WALK_ANIMATIONS = 2.4; // шаг в туннель длится столь
 // Сложенная карта для кнопки карты: три листа и пунктир пути с крестиком
 const MAP_ICON = `<svg class="map-button__icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 8l8-3 10 3 8-3v19l-8 3-10-3-8 3z" fill="#e8d3a2" stroke="#5a3d1e" stroke-width="2" stroke-linejoin="round"/><path d="M11 5v19M21 8v19" stroke="#5a3d1e" stroke-width="1.5" opacity=".55"/><path d="M6 21c3-1 4-6 8-6s4 4 9-1" fill="none" stroke="#8a2a1e" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M22 10l3 3m0-3-3 3" stroke="#b0281a" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-// Запускает новый забег. Время как seed задаём здесь: в логике случайность только через rng.js
+// Запускает новый забег. Время как seed задаём здесь: в логике случайность только через rng.js.
+// Припасы, купленные у торговца, герой берёт с собой: из казны они уходят
 export function startNewRun(heroId, difficulty) {
   const meta = loadMeta();
+  const supplies = takeSupplies(meta);
   state.run = createRun({
     heroId,
     seed: Date.now(),
     difficulty,
     tutorialFight: !meta.tutorialDone,
     ...getLockedContent(meta),
+    potions: supplies.potions,
+    hasMap: supplies.hasMap,
+    fireflies: supplies.fireflies,
   });
+  saveMeta(meta);
   state.test.enabled = false;
   if (!meta.tutorialDone) startTutorial();
   resetPlayTimer();
@@ -66,24 +71,34 @@ export function renderDungeonScreen(root) {
   const tunnels = getAvailableNodeIds(run).map((id) => run.map.nodes[id]).sort((a, b) => a.column - b.column);
   const descents = getLowerNodeIds(run).map((id) => (id === null ? START_ROOM : run.map.nodes[id])).sort((a, b) => a.column - b.column);
 
-  // Пока герой идёт, второй выбор не принимаем
+  // Пока герой идёт, второй выбор не принимаем. Если открыта банка светлячков, нажатие на проход освещает его, а не ведёт туда
   let walking = false;
-  const move = (start) => {
+  let aiming = false;
+  const move = (node, start) => {
+    if (aiming) {
+      lightUp(run, node);
+      return;
+    }
     if (walking) return;
     walking = true;
     start();
   };
   const tunnelPlaces = layoutBySide(run, tunnels, TUNNEL_WIDTH);
   const hatchPlaces = layoutBySide(run, descents, HATCH_WIDTH);
-  const choose = (index) => move(() => walkInto(corridor, index, tunnelPlaces[index], () => enterTunnel(run, tunnels[index].id)));
-  const chooseDown = (index) => move(() => walkDown(corridor, index, hatchPlaces[index], () => enterTunnel(run, descents[index].id)));
+  const choose = (index) => move(tunnels[index], () => walkInto(corridor, index, tunnelPlaces[index], () => enterTunnel(run, tunnels[index].id)));
+  const chooseDown = (index) => move(descents[index], () => walkDown(corridor, index, hatchPlaces[index], () => enterTunnel(run, descents[index].id)));
+  const toggleAiming = () => {
+    aiming = !aiming;
+    corridor.classList.toggle("corridor--aiming", aiming);
+    if (aiming) showTooltip(TEXTS.dungeon.fireflies.aim);
+  };
   const corridor = createCorridor(run, { tunnels, descents, tunnelPlaces, hatchPlaces, previous, choose, chooseDown });
 
   const heading = el("div", "dungeon__place");
   heading.append(el("h1", "dungeon__title", place.title), el("p", "dungeon__hint", describeWay(place, tunnels.length, descents.length)));
 
   // Переходят, нажимая на сами проходы: туннели и люки. Предметы висят по бокам, карта и город — в нижних углах
-  corridor.append(...createItemColumns(run.relics, run.potions), createCorridorActions(run, meta));
+  corridor.append(...createItemColumns(run.relics, run.potions), createCorridorActions(run, meta, toggleAiming));
   screen.append(createRunBar(run, { allSaved: true, showItems: false, onStats: () => openRunStats(run) }), heading, corridor);
   const banner = createTutorialBanner("dungeon");
   if (banner) screen.append(banner);
@@ -179,10 +194,24 @@ function createCorridor(run, { tunnels, descents, tunnelPlaces, hatchPlaces, pre
 }
 
 // Знак над проходом. Над новым его нет: что там, не видно. Над пройденным — что там было, с галочкой.
-// Над тем, откуда герой пришёл, — стрелка назад
+// Над тем, откуда герой пришёл, — стрелка назад. Над освещённым светлячками — что там ждёт
 function createSign(run, node, previous, className) {
   if (node.id === previous) return el("span", `${className} ${className}--back`, `↩ ${NODE_ICONS[node.type]}`);
+  if (isNodeRevealed(run, node.id) && !isNodeCleared(run, node.id)) {
+    return el("span", `${className} ${className}--revealed`, `✨ ${NODE_ICONS[node.type]}`);
+  }
   return isNodeCleared(run, node.id) ? el("span", className, NODE_ICONS[node.type]) : null;
+}
+
+// Светлячки летят в выбранный проход и показывают, что там. В пройденный светить незачем
+function lightUp(run, node) {
+  if (isNodeCleared(run, node.id)) {
+    showTooltip(TEXTS.dungeon.fireflies.known);
+    return;
+  }
+  if (!releaseFireflies(run, node.id)) return;
+  showScreen("dungeon");
+  showTooltip(TEXTS.dungeon.fireflies.revealed(`${NODE_ICONS[node.type]} ${TEXTS.dungeon.nodes[node.type]}`));
 }
 
 function createTunnel(run, node, index, spot, previous, onChoose) {
@@ -235,14 +264,35 @@ function walkDown(corridor, index, spot, onArrive) {
 function describeTunnel(run, node, side, previous, sideNames) {
   if (node.id === previous) return TEXTS.dungeon.cameFrom(TEXTS.dungeon.nodes[node.type]);
   if (isNodeCleared(run, node.id)) return TEXTS.dungeon.cleared(`${NODE_ICONS[node.type]} ${TEXTS.dungeon.nodes[node.type]}`);
+  if (isNodeRevealed(run, node.id)) return `${sideNames[side]}: ${TEXTS.dungeon.nodes[node.type]}`;
   return sideNames[side];
 }
 
-// Нижние углы коридора: слева город, когда в него можно подняться, справа карта
-function createCorridorActions(run, meta) {
+// Нижние углы коридора: слева город, когда в него можно подняться, справа банка светлячков и карта — если они куплены
+function createCorridorActions(run, meta, toggleAiming) {
   const actions = el("div", "corridor__actions");
-  actions.append(canReturnToCity(run) ? createCityButton(meta) : el("span", ""), createMapButton(run));
+  const tools = el("div", "corridor__tools");
+  if (run.fireflies) tools.append(createFirefliesButton(run, toggleAiming));
+  if (run.hasMap) tools.append(createMapButton(run));
+  actions.append(canReturnToCity(run) ? createCityButton(meta) : el("span", ""), tools);
   return actions;
+}
+
+// Банка светлячков: полная светится, пустая тёмная до следующего отдыха или комнаты сохранения
+function createFirefliesButton(run, toggleAiming) {
+  const charged = run.fireflies.charged;
+  const button = el("button", `fireflies-button${charged ? " fireflies-button--charged" : ""}`);
+  button.type = "button";
+  button.append(el("span", "fireflies-button__jar", charged ? "✨" : "·"), el("span", "map-button__label", TEXTS.dungeon.fireflies.button));
+  button.addEventListener("click", () => {
+    if (!charged) {
+      showTooltip(TEXTS.dungeon.fireflies.empty);
+      return;
+    }
+    button.classList.toggle("fireflies-button--aiming");
+    toggleAiming();
+  });
+  return button;
 }
 
 // Карта — свёрнутый лист пергамента. На карте можно нажать на пройденную комнату и быстро перейти туда
@@ -270,7 +320,8 @@ function createCityButton(meta) {
   return button;
 }
 
-// Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там
+// Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там.
+// Магазины остались только в старых сохранениях: теперь торговец в городе, и такая комната пуста
 function enterTunnel(run, nodeId) {
   const cleared = isNodeCleared(run, nodeId);
   if (!enterNode(run, nodeId)) return;
@@ -278,7 +329,9 @@ function enterTunnel(run, nodeId) {
 
   // В начальной комнате узла нет, но она всегда пройдена: тип не нужен
   const type = cleared ? null : getCurrentNode(run).type;
-  if (cleared || type === "deadEnd") {
+  // На отдыхе и в комнате сохранения светлячки снова собираются в банку
+  if (type === "rest" || type === "save") rechargeFireflies(run);
+  if (cleared || type === "deadEnd" || type === "shop") {
     showScreen("dungeon");
   } else if (type === "rest") {
     showScreen("rest");
@@ -290,9 +343,6 @@ function enterTunnel(run, nodeId) {
   } else if (type === "event") {
     startEvent(run);
     showScreen("event");
-  } else if (type === "shop") {
-    createShop(run);
-    showScreen("shop");
   } else {
     startNodeCombat();
   }

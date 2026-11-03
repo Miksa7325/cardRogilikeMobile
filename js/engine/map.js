@@ -137,11 +137,10 @@ function pickNodeType(rng, floor, parentNodes) {
 
   const weights = { ...nodeWeights };
   if (floor < eliteMinFloor) delete weights.elite;
-  // Отдых и магазин не стоят два раза подряд на одном пути
+  // Отдых не стоит два раза подряд на одном пути
   if (floor + 1 === restFloor) delete weights.rest;
   for (const parent of parentNodes) {
     if (parent.type === "rest") delete weights.rest;
-    if (parent.type === "shop") delete weights.shop;
   }
   return pickWeighted(rng, weights);
 }

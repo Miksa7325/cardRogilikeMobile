@@ -1,5 +1,5 @@
 // Все события игры. У каждого варианта: text — кнопка, result — текст после выбора,
-// effects — что произойдёт, requiresGold — сколько золота нужно, чтобы вариант был доступен.
+// effects — что произойдёт. Тратить золото в подземелье негде: платят здоровьем, а золото можно только получить.
 export const EVENTS = {
   abandoned_altar: {
     id: "abandoned_altar",
@@ -17,13 +17,12 @@ export const EVENTS = {
   wandering_alchemist: {
     id: "wandering_alchemist",
     title: "Бродячий алхимик",
-    text: "Старик звенит склянками и протягивает руку за монетами.",
+    text: "Старик звенит склянками. Монеты ему не нужны: для зелий ему нужна живая кровь.",
     choices: [
       {
-        text: "Заплатить 15 золота (зелье)",
+        text: "Отдать кровь (−6 HP, зелье)",
         result: "Старик вкладывает в ладонь склянку и исчезает в тумане.",
-        requiresGold: 15,
-        effects: [{ type: "loseGold", amount: 15 }, { type: "gainPotion" }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "gainPotion" }],
       },
       { text: "Отказаться", result: "Старик пожимает плечами.", effects: [] },
     ],
@@ -53,13 +52,12 @@ export const EVENTS = {
   ghost_smith: {
     id: "ghost_smith",
     title: "Кузнец-призрак",
-    text: "Призрак молча кивает на наковальню. За хорошую работу он просит плату.",
+    text: "Призрак молча кивает на наковальню. За хорошую работу он просит раздуть горн собственным жаром.",
     choices: [
       {
-        text: "Заплатить 25 золота (улучшить 2 карты)",
+        text: "Раздуть горн (−10 HP, улучшить 2 карты)",
         result: "Молот бьёт беззвучно, но оружие становится острее.",
-        requiresGold: 25,
-        effects: [{ type: "loseGold", amount: 25 }, { type: "upgradeRandomCards", count: 2 }],
+        effects: [{ type: "loseHp", amount: 10 }, { type: "upgradeRandomCards", count: 2 }],
       },
       {
         text: "Попросить бесплатно (улучшить 1 карту, −5 HP)",
@@ -110,13 +108,12 @@ export const EVENTS = {
   confessor: {
     id: "confessor",
     title: "Исповедник",
-    text: "Монах предлагает избавить тебя от старых привычек. Небесплатно.",
+    text: "Монах предлагает избавить тебя от старых привычек. Покаяние будет болезненным.",
     choices: [
       {
-        text: "Заплатить 15 золота (убрать стартовую карту)",
+        text: "Покаяться (−7 HP, убрать стартовую карту)",
         result: "В колоде стало на одну карту меньше.",
-        requiresGold: 15,
-        effects: [{ type: "loseGold", amount: 15 }, { type: "removeRandomCard", rarity: "starter" }],
+        effects: [{ type: "loseHp", amount: 7 }, { type: "removeRandomCard", rarity: "starter" }],
       },
       { text: "Уйти", result: "Монах кивает и возвращается к молитве.", effects: [] },
     ],
@@ -143,13 +140,12 @@ export const EVENTS = {
   card_sharp: {
     id: "card_sharp",
     title: "Шулер",
-    text: "За столом ухмыляется игрок с колодой в рукаве. Ставка — твоё золото.",
+    text: "За столом ухмыляется игрок с колодой в рукаве. Золото здесь не в ходу — ставят на кровь.",
     choices: [
       {
-        text: "Заплатить 20 золота (необычная карта)",
-        result: "Ты проиграл монеты, зато подсмотрел его лучший приём.",
-        requiresGold: 20,
-        effects: [{ type: "loseGold", amount: 20 }, { type: "addCard", rarity: "uncommon" }],
+        text: "Сыграть на кровь (−8 HP, необычная карта)",
+        result: "Ты проиграл, зато подсмотрел его лучший приём.",
+        effects: [{ type: "loseHp", amount: 8 }, { type: "addCard", rarity: "uncommon" }],
       },
       { text: "Пройти мимо", result: "Шулер пожимает плечами и ищет другого простака.", effects: [] },
     ],
@@ -183,13 +179,12 @@ export const EVENTS = {
   smuggler: {
     id: "smuggler",
     title: "Контрабандист",
-    text: "В тёмном углу открывается сундук. Всё по цене, и никаких вопросов.",
+    text: "В тёмном углу открывается сундук. Монет контрабандист не берёт: только то, без чего не проживёшь.",
     choices: [
       {
-        text: "Купить за 45 золота (реликвия)",
+        text: "Отдать часть жизни (−6 к максимуму HP, реликвия)",
         result: "Контрабандист исчезает раньше, чем ты рассмотрел покупку.",
-        requiresGold: 45,
-        effects: [{ type: "loseGold", amount: 45 }, { type: "gainRelic" }],
+        effects: [{ type: "loseMaxHp", amount: 6 }, { type: "gainRelic" }],
       },
       { text: "Уйти", result: "Сундук захлопывается за твоей спиной.", effects: [] },
     ],

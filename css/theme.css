@@ -680,6 +680,7 @@
   position: absolute;
   bottom: 100%;
   left: 50%;
+  white-space: nowrap;
   padding: 2px 8px;
   border: 2px solid var(--gold);
   border-radius: 10px;
@@ -785,6 +786,46 @@
   text-shadow: 0 1px 2px #000;
 }
 
+/* Проход, который осветили светлячки: знак мерцает холодным светом — там ещё не был, но видно, что ждёт */
+.tunnel__sign--revealed,
+.hatch__sign--revealed {
+  border-color: #c8f08a;
+  box-shadow: 0 0 12px rgba(200, 240, 138, 0.8);
+  animation: fireflies-glow 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes fireflies-glow {
+  to { box-shadow: 0 0 18px rgba(230, 255, 160, 1); }
+}
+
+/* Банка светлячков открыта: проходы ждут, какой из них осветить */
+.corridor--aiming .tunnel,
+.corridor--aiming .hatch {
+  border-color: #c8f08a;
+  box-shadow: inset 0 0 22px #000, 0 0 14px rgba(200, 240, 138, 0.8);
+}
+
+/* Банка светлячков: полная светится зелёным, пустая — тусклое стекло */
+.fireflies-button {
+  border: 2px solid #4a6a5a;
+  border-radius: 14px 14px 8px 8px;
+  background: linear-gradient(180deg, rgba(60, 80, 70, 0.9), rgba(20, 30, 26, 0.95));
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.7), 0 3px 8px rgba(0, 0, 0, 0.7);
+  color: #b8c8b0;
+  font-family: var(--font-title);
+  font-weight: bold;
+}
+
+.fireflies-button--charged {
+  border-color: #c8f08a;
+  color: #e8ffc0;
+  box-shadow: inset 0 0 12px rgba(200, 240, 138, 0.6), 0 0 10px rgba(200, 240, 138, 0.6);
+}
+
+.fireflies-button--aiming {
+  background: linear-gradient(180deg, rgba(120, 160, 80, 0.95), rgba(40, 60, 30, 0.95));
+}
+
 /* Проход, откуда герой пришёл: знак со стрелкой назад, яркий и тёплый — по нему легко найти дорогу обратно */
 .tunnel__sign--back,
 .hatch__sign--back {
@@ -878,16 +919,9 @@
   background: rgba(14, 11, 18, 0.97);
 }
 
-.shop__item,
-.picker__row,
-.hero-select__hero {
+.picker__row {
   border: 1px solid #4a3f58;
   background: linear-gradient(180deg, rgba(50, 42, 62, 0.92), rgba(28, 22, 36, 0.92));
-}
-
-.hero-select__hero--selected {
-  border: 2px solid var(--gold);
-  box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
 }
 
 .reward__line {
@@ -1247,8 +1281,53 @@
   image-rendering: pixelated;
 }
 
-.building-details__hero--locked img {
-  filter: brightness(0.15);
+/* Герой в доме героев: кнопка выбора справа, выбранный обведён золотом */
+.building-details__hero {
+  padding: 6px 8px;
+  border: 1px solid #4a3f58;
+  border-radius: 8px;
+  background: var(--panel-glass);
+}
+
+.building-details__hero--selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
+}
+
+.building-details__hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.building-details__hero .button {
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+/* Гильдия и торговец живут в домах, нарисованных на карте: светится контур самого дома */
+.city-service {
+  position: absolute;
+  padding: 0;
+  border: 2px solid rgba(255, 224, 138, 0.8);
+  border-radius: 6px;
+  background: rgba(255, 224, 138, 0.08);
+  color: var(--color-text);
+  cursor: pointer;
+  animation: service-glow 2.2s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes service-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 200, 80, 0.6); }
+  50% { box-shadow: 0 0 12px rgba(255, 200, 80, 1); }
+}
+
+/* Значок гильдии или торговца в их окне */
+.service__icon {
+  font-size: 56px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 3px #000);
 }
 
 /* Разговор со старейшиной: портрет, реплика и задания. Прокручивается только список */

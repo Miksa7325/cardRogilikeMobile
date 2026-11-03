@@ -1,4 +1,4 @@
-// Верхняя панель забега: HP, золото, этаж, колода, зелья и реликвии.
+// Верхняя панель забега: HP, золото и эссенции, которые герой несёт, этаж, колода, зелья и реликвии.
 import { POTIONS } from "../../data/potions.js";
 import { RELICS } from "../../data/relics.js";
 import { TEXTS } from "../../data/texts.ru.js";
@@ -97,6 +97,7 @@ export function createRunBar(run, { combat = null, allSaved = false, showItems =
   bar.append(
     el("span", "bar-hp", `❤️ ${hp}/${run.maxHp}`),
     el("span", "", `💰 ${run.gold}`),
+    el("span", "", `🔮 ${run.essences}`),
     el("span", "", TEXTS.floorLabel(run.act, getCurrentFloor(run))),
   );
   if (!combat) bar.append(createIconButton("🃏", () => openCardList([{ title: TEXTS.deck, cards: run.deck }])));

@@ -38,7 +38,7 @@ function createSlot(slot) {
     const meta = loadMeta(slot);
     const run = loadRun(slot);
     card.append(
-      el("div", "save-slot__line", TEXTS.saves.progress(meta.xp, meta.runsPlayed, meta.wins, meta.crowns)),
+      el("div", "save-slot__line", TEXTS.saves.progress(meta.runsPlayed, meta.wins, meta.gold)),
       el("div", "save-slot__line", run ? TEXTS.saves.run((HEROES[run.heroId] ?? HEROES.warrior).name,TEXTS.floorLabel(run.act, getCurrentFloor(run))) : TEXTS.saves.noRun),
     );
   } else {

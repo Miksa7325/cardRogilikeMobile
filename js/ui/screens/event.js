@@ -4,7 +4,7 @@ import { EVENTS } from "../../data/events.js";
 import { POTIONS } from "../../data/potions.js";
 import { RELICS } from "../../data/relics.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { canChooseEventOption, chooseEventOption, finishEvent } from "../../engine/events.js";
+import { chooseEventOption, finishEvent } from "../../engine/events.js";
 import { state } from "../../state.js";
 import { createRunBar } from "../components/runBar.js";
 import { el } from "../dom.js";
@@ -32,7 +32,6 @@ export function renderEventScreen(root) {
 function createChoiceButton(run, choice, index) {
   const button = el("button", "button event__choice", choice.text);
   button.type = "button";
-  button.disabled = !canChooseEventOption(run, choice);
   button.addEventListener("click", () => {
     chooseEventOption(run, index);
     showScreen("event");

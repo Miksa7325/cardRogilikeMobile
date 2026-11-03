@@ -22,7 +22,7 @@ export function renderRewardScreen(root) {
   const allSaved = getCurrentNode(run).type !== "chest";
   screen.append(createRunBar(run, { allSaved }), el("h1", "center-screen__title", getTitle(run)));
 
-  if (reward.gold > 0) screen.append(el("p", "reward__line", TEXTS.reward.gold(reward.gold)));
+  if (reward.essences > 0) screen.append(el("p", "reward__line", TEXTS.reward.essences(reward.essences)));
   if (reward.relicId) {
     const relic = RELICS[reward.relicId];
     screen.append(el("p", "reward__line", TEXTS.reward.relic(relic.name, relic.icon, relic.description)));

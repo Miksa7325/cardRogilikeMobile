@@ -12,9 +12,11 @@ import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, sh
 
 // difficulty — уровень сложности (0 — без усложнений).
 // locked...Ids — что ещё не открыто за опыт и постройки: это не выпадет в забеге
-// tutorialFight: первый бой забега — лёгкий и один на один, для обучения
+// tutorialFight: первый бой забега — лёгкий и один на один, для обучения.
+// potions, hasMap, fireflies — припасы, купленные у торговца
 export function createRun({
   heroId, seed, difficulty = 0, lockedCardIds = [], lockedRelicIds = [], lockedEventIds = [], lockedPotionIds = [], tutorialFight = false,
+  potions = [], hasMap = false, fireflies = false,
 }) {
   const hero = HEROES[heroId];
   const maxHp = hero.maxHp - (difficulty >= 7 ? CONFIG.difficulty.maxHpLoss : 0);
@@ -30,7 +32,11 @@ export function createRun({
     act: 1,
     hp: maxHp,
     maxHp,
-    gold: 0,
+    gold: 0, // золото из событий: в подземелье его не потратить, оно уходит в казну города
+    essences: 0, // эссенции с монстров: в городе их меняют на золото
+    hasMap: false, // куплена ли карта подземелья: без неё карту не открыть
+    fireflies: null, // банка светлячков: { charged } — заряжена ли она до следующего отдыха или комнаты сохранения
+    revealedNodeIds: [], // комнаты, которые осветили светлячки: видно, что там, хотя герой там не был
     deck: [],
     nextCardUid: 0,
     relics: [],
@@ -45,13 +51,18 @@ export function createRun({
     trail: [], // путь героя по акту от начальной комнаты: по нему он возвращается назад
     cityHeals: [], // комнаты, из которых герой уже поднимался в город и лечился
     pendingReward: null,
-    shop: null, // магазин на текущем узле, его создаёт engine/shop.js
     activeEvent: null, // событие на текущем узле, его создаёт engine/events.js
     seenEventIds: [], // какие события уже были в этом забеге
   };
   for (const cardId of hero.deck) addCardToDeck(run, cardId);
   if (hasDifficulty(run, 8)) addCardToDeck(run, "wound");
   for (const relicId of hero.relics) addRelic(run, relicId);
+  for (const potionId of potions.slice(0, CONFIG.maxPotions)) {
+    run.potions.push(potionId);
+    markSeen(run, "potions", potionId);
+  }
+  run.hasMap = hasMap;
+  run.fireflies = fireflies ? { charged: true } : null;
   return run;
 }
 
@@ -165,6 +176,26 @@ export function travelTo(run, nodeId) {
   run.trail = path;
   run.currentNodeId = nodeId;
   return true;
+}
+
+// Светлячки из банки освещают одну неизведанную соседнюю комнату: видно, что там, хотя герой туда не ходил.
+// После этого банка пуста до следующего отдыха или комнаты сохранения. Возвращает false, если светить нечего или нечем
+export function releaseFireflies(run, nodeId) {
+  if (!run.fireflies?.charged || nodeId === null || isNodeCleared(run, nodeId)) return false;
+  if (![...getAvailableNodeIds(run), ...getLowerNodeIds(run)].includes(nodeId)) return false;
+  run.fireflies.charged = false;
+  if (!run.revealedNodeIds.includes(nodeId)) run.revealedNodeIds.push(nodeId);
+  return true;
+}
+
+// На отдыхе и в комнате сохранения светлячки снова собираются в банку
+export function rechargeFireflies(run) {
+  if (run.fireflies) run.fireflies.charged = true;
+}
+
+// Освещена ли светлячками неизведанная комната
+export function isNodeRevealed(run, nodeId) {
+  return nodeId !== null && run.revealedNodeIds.includes(nodeId);
 }
 
 // Самый глубокий этаж акта, куда дошёл герой: по нему считаются опыт и кроны, даже если он вернулся назад
@@ -288,9 +319,6 @@ const RUN_EFFECT_HANDLERS = {
   gainGold(run, effect) {
     run.gold += effect.amount;
   },
-  loseGold(run, effect) {
-    run.gold = Math.max(0, run.gold - effect.amount);
-  },
   gainMaxHp(run, effect) {
     run.maxHp += effect.amount;
     run.hp += effect.amount;
@@ -366,9 +394,9 @@ export function markPotionSeen(run, potionId) {
 }
 
 // Золото с учётом уровня сложности
-function rollGold(run, rng, range) {
-  const gold = nextInt(rng, ...range);
-  return hasDifficulty(run, 6) ? Math.floor(gold * CONFIG.difficulty.goldMultiplier) : gold;
+function rollEssences(run, rng, range) {
+  const essences = nextInt(rng, ...range);
+  return hasDifficulty(run, 6) ? Math.floor(essences * CONFIG.difficulty.essenceMultiplier) : essences;
 }
 
 // Даёт случайную новую реликвию. Если новых нет, вместо неё золото
@@ -403,30 +431,34 @@ function grantRandomPotion(run, rng) {
 
 // Зелье в награду за бой выпадает с шансом; если места нет, игрок об этом узнает
 function rollPotionReward(run, rng) {
-  if (nextFloat(rng) >= CONFIG.rewards.potionChance) return { potionId: null, potionsFull: false };
+  const chance = CONFIG.rewards.potionChance * (hasDifficulty(run, 9) ? CONFIG.difficulty.potionChanceMultiplier : 1);
+  if (nextFloat(rng) >= chance) return { potionId: null, potionsFull: false };
   const potionId = grantRandomPotion(run, rng);
   return { potionId, potionsFull: potionId === null };
 }
 
+// С монстров падают эссенции, а не золото
 function createBattleReward(run) {
   const rng = nodeRng(run, "reward");
-  const gold = rollGold(run, rng, CONFIG.rewards.battleGold);
-  run.gold += gold;
-  return { gold, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
+  const essences = rollEssences(run, rng, CONFIG.rewards.battleEssences);
+  run.essences += essences;
+  return { essences, relicId: null, relicFallbackGold: 0, ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
 function createEliteReward(run) {
   const rng = nodeRng(run, "reward");
-  const gold = rollGold(run, rng, CONFIG.rewards.eliteGold);
-  run.gold += gold;
-  return { gold, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
+  const essences = rollEssences(run, rng, CONFIG.rewards.eliteEssences);
+  run.essences += essences;
+  return { essences, ...grantRandomRelic(run, rng), ...rollPotionReward(run, rng), cardIds: rollCardChoices(run, rng) };
 }
 
-// После босса: реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
+// После босса: эссенции, реликвия босса и только редкие карты, их столько, сколько есть, но не больше cardChoices
 function createBossReward(run) {
   const rng = nodeRng(run, "reward");
+  const essences = rollEssences(run, rng, CONFIG.rewards.bossEssences);
+  run.essences += essences;
   return {
-    gold: 0,
+    essences,
     ...grantRandomRelic(run, rng, ["boss"]),
     potionId: null,
     potionsFull: false,
@@ -437,7 +469,7 @@ function createBossReward(run) {
 // Открывает сундук на текущем узле: внутри реликвия
 export function openChest(run) {
   const rng = nodeRng(run, "chest");
-  run.pendingReward = { gold: 0, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
+  run.pendingReward = { essences: 0, ...grantRandomRelic(run, rng), potionId: null, potionsFull: false, cardIds: [] };
 }
 
 // Карты, которые можно получить в награду и купить: только карты своего героя и только открытые.
@@ -483,6 +515,7 @@ function finishAct(run) {
   run.currentNodeId = null;
   run.visitedNodeIds = [];
   run.trail = [];
+  run.revealedNodeIds = [];
 }
 
 // Сколько HP вылечит отдых прямо сейчас

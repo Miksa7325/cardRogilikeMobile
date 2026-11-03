@@ -5,7 +5,6 @@ import { HEROES } from "../../data/heroes.js";
 import { POTIONS } from "../../data/potions.js";
 import { RELICS } from "../../data/relics.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { isHeroUnlocked } from "../../engine/meta.js";
 import { loadMeta } from "../../save.js";
 import { enemySprite, heroSprite } from "../art.js";
 import { createCardIcon } from "../components/card.js";
@@ -42,7 +41,6 @@ export function renderCollectionScreen(root) {
 function createStats(meta) {
   const stats = el("div", "collection__stats");
   stats.append(
-    el("p", "reward__line", TEXTS.collection.xp(meta.xp)),
     el("p", "reward__line", TEXTS.collection.runs(meta.runsPlayed, meta.wins, meta.bestFloor)),
   );
   return stats;
@@ -180,8 +178,7 @@ function createPotionsTab(meta) {
 }
 
 function createHeroesTab(meta) {
-  const unlocked = Object.values(HEROES).filter((hero) => isHeroUnlocked(meta, hero.id));
-  return createListTab(unlocked.map((hero) => hero.id), HEROES, (hero) => createTile(createSpriteIcon(heroSprite(hero.id)), hero.name, () => {
+  return createListTab(Object.keys(HEROES), HEROES, (hero) => createTile(createSpriteIcon(heroSprite(hero.id)), hero.name, () => {
     const stats = meta.heroStats[hero.id] ?? { runs: 0, wins: 0 };
     openItemDetails({
       icon: createSpriteIcon(heroSprite(hero.id)),

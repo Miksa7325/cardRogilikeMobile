@@ -1,4 +1,4 @@
-// Задания. stat — какой счётчик считаем за все забеги, goal — сколько нужно, reward — награда в кронах.
+// Задания. stat — какой счётчик считаем за все забеги, goal — сколько нужно, reward — награда в золоте.
 // Счётчики обновляются в конце забега: их список — в applyRunToMeta из engine/meta.js.
 export const QUESTS = [
   { id: "kills_1", title: "Первая кровь", description: "Убей 10 врагов", stat: "kills", goal: 10, reward: 5 },

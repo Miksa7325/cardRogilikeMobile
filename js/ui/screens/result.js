@@ -1,7 +1,6 @@
 // Экран победы или поражения: в забеге и в тестовом бою.
-import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { applyRunToMeta, getNextUnlock } from "../../engine/meta.js";
+import { applyRunToMeta } from "../../engine/meta.js";
 import { getDeepestFloor } from "../../engine/run.js";
 import { clearRun, loadMeta, saveMeta } from "../../save.js";
 import { state } from "../../state.js";
@@ -27,14 +26,14 @@ export function renderResultScreen(root) {
   // Итог записываем один раз, даже если экран нарисуют повторно
   if (!run.metaResult) {
     const meta = loadMeta();
-    // Опыт и кроны за самый глубокий этаж: герой мог погибнуть, возвращаясь назад
+    // Этажи для заданий — по самому глубокому: герой мог погибнуть, возвращаясь назад. Добыча уходит в казну
     run.metaResult = applyRunToMeta(meta, run, getDeepestFloor(run));
     saveMeta(meta);
     playSound(run.status === "won" ? "victory" : "defeat");
   }
 
   const title = run.status === "won" ? TEXTS.victoryTitle : TEXTS.defeatTitle;
-  const summary = TEXTS.runSummary(run.act, getDeepestFloor(run), run.gold);
+  const summary = TEXTS.runSummary(run.act, getDeepestFloor(run));
   renderResult(root, title, [summary, ...formatMetaResult(run.metaResult)], TEXTS.city.toCity, () => openCity("gate"));
 
   const statsButton = el("button", "button button--secondary", TEXTS.stats.button);
@@ -43,19 +42,11 @@ export function renderResultScreen(root) {
   root.querySelector(".center-screen").append(statsButton);
 }
 
-// Опыт, новые открытия и следующая цель
+// Добыча, сданная в казну, выполненные задания и открытая сложность
 function formatMetaResult(result) {
-  const lines = [TEXTS.meta.xpGained(result.xpGained, result.xpTotal), TEXTS.meta.crownsGained(result.crownsGained)];
+  const lines = [TEXTS.meta.banked(result.goldGained, result.essencesGained)];
   for (const title of result.questsReady) lines.push(TEXTS.meta.questReady(title));
-  for (const unlock of result.newUnlocks) {
-    if (unlock.hero) lines.push(TEXTS.meta.newHero(HEROES[unlock.hero].name));
-    if (unlock.cards) lines.push(TEXTS.meta.newCards(unlock.cards.length));
-    if (unlock.relics) lines.push(TEXTS.meta.newRelics(unlock.relics.length));
-  }
   if (result.difficultyJustUnlocked) lines.push(TEXTS.meta.difficultyUnlocked);
-
-  const next = getNextUnlock({ xp: result.xpTotal });
-  if (next) lines.push(TEXTS.meta.nextUnlock(next.xp - result.xpTotal));
   return lines;
 }
 

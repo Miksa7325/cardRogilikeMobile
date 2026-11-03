@@ -1,9 +1,15 @@
-// Город: с него начинается игра. Карта с видом сверху, по которой ходит герой. Подсвеченные дома можно открыть,
-// у фонтана стоит старейшина с заданиями, а в конце южной дороги — вход в подземелье. Остальное нарисовано на карте как декор.
+// Город: с него начинается игра. Карта с видом сверху, по которой ходит герой. Подсвеченные дома можно открыть:
+// в доме героев выбирают, кем спуститься, в гильдии меняют эссенции на золото, у торговца покупают припасы.
+// У фонтана стоит старейшина с заданиями, а в конце южной дороги — вход в подземелье. Остальное нарисовано на карте как декор.
+import { CONFIG } from "../../config.js";
 import { BUILDINGS } from "../../data/buildings.js";
+import { DIFFICULTY_LEVELS } from "../../data/difficulty.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { buyBuilding, countReadyQuests, isHeroUnlocked } from "../../engine/meta.js";
+import {
+  bankLoot, buyBuilding, buyFromTrader, countReadyQuests, exchangeEssences, getTraderGoods, isDifficultyUnlocked, isTraderGoodOwned,
+  selectHero,
+} from "../../engine/meta.js";
 import { canReturnToCity, getCurrentFloor, hasHealedHere, healInCity } from "../../engine/run.js";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
@@ -15,7 +21,7 @@ import { openQuestDialog } from "../components/questDialog.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
-import { continueRun } from "./dungeon.js";
+import { continueRun, startNewRun } from "./dungeon.js";
 
 // Размеры в пикселях карты: положение на экране считаем в процентах от неё
 const MAP_WIDTH = 360;
@@ -40,6 +46,10 @@ const ELDER = { x: 236, y: 420 }; // старейшина стоит у фонт
 const GATE = { x: 180, y: 778 }; // вход в подземелье в конце южной дороги; это середина его нижнего края
 const GATE_SPOT = { x: 180, y: 734 }; // где стоит герой у входа в подземелье
 
+// Гильдия и торговец живут в домах, нарисованных на карте у фонтана: подсвечиваем сами дома. x и y — левый верхний угол
+const GUILD = { x: 210, y: 320, width: 52, height: 46 };
+const TRADER = { x: 211, y: 464, width: 51, height: 46 };
+
 // Куда нельзя зайти: дома, колодец и лоток, нарисованные на карте, и фонтан. x и y — левый верхний угол
 const DECOR_OBSTACLES = [
   { x: 0, y: 62, width: 38, height: 45 },
@@ -48,10 +58,8 @@ const DECOR_OBSTACLES = [
   { x: 215, y: 70, width: 50, height: 45 },
   { x: 272, y: 62, width: 52, height: 45 },
   { x: 102, y: 322, width: 48, height: 30 },
-  { x: 210, y: 320, width: 52, height: 46 },
   { x: 162, y: 390, width: 36, height: 36 },
   { x: 116, y: 478, width: 20, height: 24 },
-  { x: 211, y: 464, width: 51, height: 46 },
   { x: 0, y: 584, width: 42, height: 46 },
   { x: 47, y: 590, width: 50, height: 45 },
   { x: 250, y: 590, width: 52, height: 45 },
@@ -70,6 +78,9 @@ const MOVE_KEYS = {
   KeyD: { x: 1, y: 0 },
 };
 const ACTION_KEYS = ["Enter", "Space", "KeyE"];
+
+// Какой уровень сложности выбран у входа в подземелье. Живёт, пока открыта игра
+let selectedDifficulty = 0;
 
 // Где стоит герой. Живёт между перерисовками: после покупки дома или награды герой остаётся на месте
 let heroPosition = { ...GATE_SPOT };
@@ -100,39 +111,45 @@ function buildingSpot(building) {
 // "gate" — у входа в подземелье, когда он поднялся из забега
 export function openCity(entrance) {
   heroPosition = entrance === "home" ? buildingSpot(BUILDINGS.home) : { ...GATE_SPOT };
-  // Герой забега, поднявшийся в город, отдыхает: здоровье восстанавливается полностью.
-  // Но из каждой комнаты только раз: иначе можно было бы возвращаться к ней и лечиться снова
+  // Герой забега, поднявшийся в город, сдаёт добычу в казну и отдыхает: здоровье восстанавливается полностью.
+  // Лечит каждая комната только раз: иначе можно было бы возвращаться к ней и лечиться снова
   const run = loadRun();
-  const fromDungeon = run !== null && canReturnToCity(run);
-  const restedBefore = fromDungeon && run.hp < run.maxHp && hasHealedHere(run);
-  const healed = fromDungeon ? healInCity(run) : 0;
-  if (healed > 0) {
+  const news = [];
+  if (run !== null && canReturnToCity(run)) {
+    const meta = loadMeta();
+    const loot = bankLoot(meta, run);
+    if (loot.gold > 0 || loot.essences > 0) news.push(TEXTS.city.banked(loot.gold, loot.essences));
+    const restedBefore = run.hp < run.maxHp && hasHealedHere(run);
+    const healed = healInCity(run);
+    if (healed > 0) news.push(TEXTS.city.healed(healed));
+    else if (restedBefore) news.push(TEXTS.city.restedBefore);
     state.run = run;
-    if (!saveRun(run)) showTooltip(TEXTS.saveFailed);
+    if (!saveRun(run) || !saveMeta(meta)) news.push(TEXTS.saveFailed);
   }
   showScreen("city");
-  if (healed > 0) showTooltip(TEXTS.city.healed(healed));
-  else if (restedBefore) showTooltip(TEXTS.city.restedBefore);
+  if (news.length > 0) showTooltip(news.join(". "));
 }
 
 export function renderCityScreen(root) {
   const meta = loadMeta();
   const screen = el("main", "city");
 
-  // Места, к которым можно подойти: дома, старейшина и вход в подземелье
+  // Места, к которым можно подойти: дома, гильдия, торговец, старейшина и вход в подземелье
   const places = [
     ...Object.values(BUILDINGS).map((building) => createBuildingPlace(meta, building)),
+    createServicePlace(GUILD, TEXTS.guild.title, openGuild),
+    createServicePlace(TRADER, TEXTS.trader.title, openTrader),
     createElderPlace(meta),
     createGatePlace(),
   ];
-  const hero = createHero(loadRun()?.heroId ?? "warrior");
+  const hero = createHero(loadRun()?.heroId ?? meta.selectedHero);
   const map = el("div", "city__map");
   map.append(...places.map((place) => place.element), hero);
 
   const header = el("div", "city__header");
   header.append(
     el("h1", "city__title", TEXTS.city.title),
-    el("p", "city__balance", TEXTS.city.balance(meta.crowns)),
+    el("p", "city__balance", TEXTS.city.balance(meta.gold, meta.essences)),
     el("p", "city__hint", TEXTS.city.hint),
   );
   const actions = el("div", "button-row city__actions");
@@ -144,7 +161,7 @@ export function renderCityScreen(root) {
   for (const place of places) place.element.addEventListener("click", () => walker.walkTo(place));
 }
 
-// По городу ходит герой сохранённого забега, а если забега нет — Воин
+// По городу ходит герой сохранённого забега, а если забега нет — тот, кого выбрали в доме героев
 function createHero(heroId) {
   const hero = el("div", "city-hero");
   hero.style.width = percent(HERO_WIDTH, MAP_WIDTH);
@@ -172,7 +189,7 @@ function createBuildingTile(meta, building) {
   const tile = el("button", "building");
   tile.type = "button";
   tile.classList.add(built ? "building--built" : "building--locked");
-  if (!built && meta.crowns >= building.price) tile.classList.add("building--affordable");
+  if (!built && meta.gold >= building.price) tile.classList.add("building--affordable");
   tile.style.left = percent(building.x, MAP_WIDTH);
   tile.style.top = percent(building.y, MAP_HEIGHT);
   tile.style.width = percent(BUILDING_WIDTH, MAP_WIDTH);
@@ -232,9 +249,11 @@ function createGatePlace() {
   };
 }
 
-// Окно входа: продолжить сохранённый забег или начать новый
+// Окно входа: продолжить сохранённый забег или спуститься героем, которого выбрали в доме героев
 function openGate() {
   const run = loadRun();
+  const meta = loadMeta();
+  if (!isDifficultyUnlocked(meta)) selectedDifficulty = 0;
   const overlay = el("div", "card-preview");
   const details = el("div", "building-details");
   const art = el("div", "building__art");
@@ -250,10 +269,12 @@ function openGate() {
     details.append(
       el("p", "building-details__note", TEXTS.city.gateRun(hero, TEXTS.floorLabel(run.act, getCurrentFloor(run)))),
       createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run)),
-      createNewRunButton(),
+      createNewRunButton(meta),
     );
   } else {
-    details.append(createButton(TEXTS.city.chooseHero, "button--large", () => showScreen("heroSelect")));
+    details.append(el("p", "building-details__note", TEXTS.city.gateHero(HEROES[meta.selectedHero].name)));
+    if (isDifficultyUnlocked(meta)) details.append(createDifficultyPicker(overlay));
+    details.append(createButton(TEXTS.city.descend, "button--large", () => startNewRun(meta.selectedHero, selectedDifficulty)));
   }
   details.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 
@@ -261,18 +282,132 @@ function openGate() {
   document.getElementById("app").append(overlay);
 }
 
-// Новый забег сотрёт сохранённый, поэтому просим нажать дважды
-function createNewRunButton() {
+// Уровень сложности выбирают у входа: он открывается после первой победы
+function createDifficultyPicker(overlay) {
+  const picker = el("div", "hero-select__difficulty");
+  const change = (step) => {
+    selectedDifficulty += step;
+    overlay.remove();
+    openGate();
+  };
+  const lower = createButton("−", "button--secondary", () => change(-1));
+  lower.disabled = selectedDifficulty === 0;
+  const raise = createButton("+", "button--secondary", () => change(1));
+  raise.disabled = selectedDifficulty === CONFIG.difficulty.maxLevel;
+
+  const controls = el("div", "hero-select__controls");
+  controls.append(lower, el("span", "hero-select__level", TEXTS.heroSelect.difficulty(selectedDifficulty)), raise);
+  // Показываем, что добавляет именно выбранный уровень: остальные уже включены в него
+  const level = DIFFICULTY_LEVELS.find((item) => item.level === selectedDifficulty);
+  picker.append(controls, el("p", "hero-select__details", level ? level.description : TEXTS.heroSelect.noDifficulty));
+  return picker;
+}
+
+// Новый забег сотрёт сохранённый, поэтому просим нажать дважды. Спускается герой из дома героев
+function createNewRunButton(meta) {
   let confirmed = false;
   const button = createButton(TEXTS.newRun, "button--secondary", () => {
     if (confirmed) {
-      showScreen("heroSelect");
+      startNewRun(meta.selectedHero, selectedDifficulty);
       return;
     }
     confirmed = true;
     button.textContent = TEXTS.confirmNewRun;
   });
   return button;
+}
+
+// Дом на карте, где работает гильдия или торговец: его контур светится, над ним подпись
+function createServicePlace(rect, name, open) {
+  const house = el("button", "city-service");
+  house.type = "button";
+  house.style.left = percent(rect.x, MAP_WIDTH);
+  house.style.top = percent(rect.y, MAP_HEIGHT);
+  house.style.width = percent(rect.width, MAP_WIDTH);
+  house.style.height = percent(rect.height, MAP_HEIGHT);
+  house.style.zIndex = rect.y + rect.height;
+  house.append(el("span", "building__label", name));
+  return {
+    element: house,
+    action: TEXTS.city.enter(name),
+    spot: { x: rect.x + rect.width / 2, y: rect.y + rect.height + 6 },
+    obstacle: rect,
+    open,
+  };
+}
+
+// Окно поверх города: значок, название и описание. Возвращает его содержимое, чтобы добавить остальное
+function openDialog(icon, title, text) {
+  const overlay = el("div", "card-preview");
+  const dialog = el("div", "quest-dialog");
+  dialog.append(el("div", "service__icon", icon), el("h2", "event__title", title), el("p", "quest-dialog__speech", text));
+  overlay.append(dialog);
+  document.getElementById("app").append(overlay);
+  return { overlay, dialog };
+}
+
+function createBalance(meta) {
+  return el("p", "quests__balance", TEXTS.city.balance(meta.gold, meta.essences));
+}
+
+// Перерисовывает город с новым балансом и снова открывает то же окно
+function reopen(openWindow) {
+  showScreen("city");
+  openWindow();
+}
+
+// Гильдия скупает эссенции чудовищ за золото
+function openGuild() {
+  const meta = loadMeta();
+  const { overlay, dialog } = openDialog("⚖️", TEXTS.guild.title, TEXTS.guild.text(CONFIG.city.essencesPerGold));
+  const gold = Math.floor(meta.essences / CONFIG.city.essencesPerGold);
+  const exchange = createButton(gold > 0 ? TEXTS.guild.exchange(gold * CONFIG.city.essencesPerGold, gold) : TEXTS.guild.notEnough, "button--large", () => {
+    exchangeEssences(meta);
+    saveMeta(meta);
+    playSound("buy");
+    reopen(openGuild);
+  });
+  exchange.disabled = gold === 0;
+  dialog.append(createBalance(meta), exchange, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+}
+
+// Торговец продаёт припасы. Если забег идёт, покупка сразу уходит в сумку героя, иначе он возьмёт её в следующий забег
+function openTrader() {
+  const meta = loadMeta();
+  const run = loadRun();
+  const { overlay, dialog } = openDialog("🛒", TEXTS.trader.title, TEXTS.trader.text);
+  const holder = run ?? meta.supplies;
+  dialog.append(
+    createBalance(meta),
+    el("p", "quests__hint", run ? TEXTS.trader.intoRun : TEXTS.trader.intoNextRun),
+    el("p", "quests__hint", TEXTS.trader.bag(holder.potions.length, CONFIG.maxPotions)),
+  );
+  const list = el("div", "quest-dialog__list");
+  for (const good of getTraderGoods(meta)) list.append(createGood(meta, run, good));
+  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+}
+
+function createGood(meta, run, good) {
+  const row = el("div", "quest");
+  row.append(el("div", "quest__title", `${good.icon} ${good.name}`), el("div", "quest__description", good.description));
+  const owned = isTraderGoodOwned(meta, run, good);
+  const buy = createButton(owned ? TEXTS.trader.owned : TEXTS.trader.buy(good.price), "", () => {
+    const result = buyFromTrader(meta, run, good);
+    if (!result.ok) {
+      shakeCard(buy);
+      showTooltip(TEXTS.trader[result.reason]);
+      return;
+    }
+    if (run) state.run = run;
+    if (!saveMeta(meta) || (run && !saveRun(run))) showTooltip(TEXTS.saveFailed);
+    playSound("buy");
+    reopen(openTrader);
+  });
+  buy.disabled = owned;
+  const actions = el("div", "quest__row");
+  actions.append(buy);
+  row.append(actions);
+  return row;
 }
 
 function openElder() {
@@ -583,7 +718,7 @@ function openBuilding(building) {
   if (building.id === "home") appendHomeDetails(details, meta);
 
   if (!built) {
-    const missing = building.price - meta.crowns;
+    const missing = building.price - meta.gold;
     const buy = createButton(missing > 0 ? TEXTS.city.notEnough(missing) : TEXTS.city.buy(building.price), "button--large", () => onBuy(building, buy));
     details.append(buy);
   }
@@ -606,27 +741,37 @@ function onBuy(building, button) {
   showTooltip(TEXTS.city.nextRun);
 }
 
-// Внутри дома — герои и итоги всех забегов
+// Внутри дома — герои и итоги всех забегов. Здесь выбирают, кем спуститься в подземелье
 function appendHomeDetails(details, meta) {
   details.append(
     el("p", "building-details__note", TEXTS.city.homeTitle),
     el("p", "building-details__text", TEXTS.city.homeTotals(meta.runsPlayed, meta.wins, meta.bestFloor, meta.totals.kills ?? 0)),
   );
+  // Герой идущего забега не меняется: выбор будет в силе со следующего
+  if (loadRun()) details.append(el("p", "building-details__note", TEXTS.city.heroNextRun));
   for (const hero of Object.values(HEROES)) {
-    const unlocked = isHeroUnlocked(meta, hero.id);
     const stats = meta.heroStats[hero.id] ?? { runs: 0, wins: 0 };
+    const selected = hero.id === meta.selectedHero;
     const row = el("div", "building-details__hero");
-    if (!unlocked) row.classList.add("building-details__hero--locked");
+    if (selected) row.classList.add("building-details__hero--selected");
 
     const image = el("img", "");
     image.src = heroSprite(hero.id);
     image.alt = "";
-    const text = el("div", "");
+    const text = el("div", "building-details__hero-text");
     text.append(
       el("div", "building__name", hero.name),
-      el("div", "building-details__note", unlocked ? TEXTS.city.heroRow(stats.runs, stats.wins) : TEXTS.city.heroLocked),
+      el("div", "building-details__note", `${hero.description} ${TEXTS.heroSelect.hp(hero.maxHp)}`),
+      el("div", "building-details__note", TEXTS.city.heroRow(stats.runs, stats.wins)),
     );
-    row.append(image, text);
+    const choose = createButton(selected ? TEXTS.city.heroSelected : TEXTS.city.heroChoose, selected ? "" : "button--secondary", () => {
+      selectHero(meta, hero.id);
+      saveMeta(meta);
+      showScreen("city");
+      openBuilding(BUILDINGS.home);
+    });
+    choose.disabled = selected;
+    row.append(image, text, choose);
     details.append(row);
   }
 }

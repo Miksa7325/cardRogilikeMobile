@@ -28,12 +28,13 @@ export const CONFIG = {
     saveFloors: [5, 11], // этажи, где всегда комната сохранения: только из неё можно подняться в город
     restFloor: 15, // верхний этаж, где всегда отдых
     eliteMinFloor: 6, // раньше этого этажа элиты нет
-    nodeWeights: { battle: 45, event: 22, rest: 12, elite: 8, shop: 5 }, // доли узлов
+    nodeWeights: { battle: 47, event: 25, rest: 12, elite: 8 }, // доли узлов. Магазинов в подземелье нет: тратят золото в городе
   },
 
   rewards: {
-    battleGold: [10, 20], // золото за обычный бой: от и до
-    eliteGold: [25, 35], // золото за элиту
+    battleEssences: [4, 6], // эссенции за обычный бой: от и до. Золото с монстров не падает
+    eliteEssences: [10, 14], // эссенции за элиту
+    bossEssences: [24, 30], // эссенции за босса
     relicFallbackGold: 25, // золото вместо реликвии, если новых реликвий не осталось
     cardChoices: 3, // сколько карт предлагается на выбор
     rarityWeights: { common: 60, uncommon: 30, rare: 10 }, // шансы редкости карт в награде
@@ -42,32 +43,12 @@ export const CONFIG = {
 
   maxPotions: 3, // сколько зелий можно носить с собой
 
-  shop: {
-    cardCount: 5, // сколько карт в продаже
-    relicCount: 2, // сколько реликвий в продаже
-    potionCount: 2, // сколько зелий в продаже
-    cardPrices: { common: 15, uncommon: 25, rare: 45 },
-    relicPrices: { common: 50, uncommon: 75 },
-    potionPrice: 15,
-    removePrice: 25, // цена удаления карты из колоды
+  // Город: обмен в гильдии и цены торговца. Товары — в data/trader.js
+  city: {
+    essencesPerGold: 2, // сколько эссенций гильдия берёт за одно золото
   },
 
   restHealShare: 0.3, // какую долю максимального HP лечит отдых
-
-  // Опыт за забег. Что он открывает — в data/unlocks.js
-  xp: {
-    perFloor: 2,
-    perElite: 10,
-    perBoss: 25,
-  },
-
-  // Кроны за забег: на них покупаются здания в городе
-  crowns: {
-    perFloor: 1,
-    perElite: 5,
-    perBoss: 15,
-    goldPerCrown: 10, // сколько оставшегося золота даёт одну крону
-  },
 
   // Числа уровней сложности. Описание уровней — в data/difficulty.js
   difficulty: {
@@ -77,9 +58,9 @@ export const CONFIG = {
     bossHpMultiplier: 1.1, // уровень 3
     eliteStrength: 1, // уровень 4
     restHealShare: 0.25, // уровень 5
-    goldMultiplier: 0.75, // уровень 6
+    essenceMultiplier: 0.75, // уровень 6
     maxHpLoss: 10, // уровень 7
-    shopPriceMultiplier: 1.25, // уровень 9
+    potionChanceMultiplier: 0.5, // уровень 9
     enemyStrength: 1, // уровень 10
   },
 };

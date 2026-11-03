@@ -6,9 +6,9 @@ export const DIFFICULTY_LEVELS = [
   { level: 3, description: "У боссов больше HP" },
   { level: 4, description: "Элита начинает бой с Силой" },
   { level: 5, description: "Отдых лечит меньше" },
-  { level: 6, description: "Меньше золота за бои" },
+  { level: 6, description: "Меньше эссенций за бои" },
   { level: 7, description: "Меньше максимального HP" },
   { level: 8, description: "В стартовой колоде есть Рана" },
-  { level: 9, description: "В магазине всё дороже" },
+  { level: 9, description: "Зелья после боя выпадают реже" },
   { level: 10, description: "Все враги начинают бой с Силой" },
 ];
