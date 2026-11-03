@@ -3,6 +3,7 @@
 // путь выбирают в туннелях на экране подземелья.
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
+import { getLowerNodeIds } from "../../engine/run.js";
 import { el } from "../dom.js";
 
 const ROW_HEIGHT = 64; // расстояние между этажами на карте, px
@@ -83,21 +84,29 @@ function createLines(run, known) {
 
   for (const node of known) {
     for (const nextId of node.next) {
-      const next = run.map.nodes[nextId];
       const explored = run.visitedNodeIds.includes(nextId);
-      const share = explored ? 1 : UNKNOWN_SHARE;
-      const x1 = getNodeX(node);
-      const y1 = getNodeY(run, node);
-      const line = document.createElementNS(SVG_NAMESPACE, "line");
-      line.setAttribute("x1", `${x1}%`);
-      line.setAttribute("y1", y1);
-      line.setAttribute("x2", `${x1 + (getNodeX(next) - x1) * share}%`);
-      line.setAttribute("y2", y1 + (getNodeY(run, next) - y1) * share);
-      line.classList.add(explored ? "map__line--walked" : "map__line--unknown");
-      svg.append(line);
+      svg.append(createLine(run, node, run.map.nodes[nextId], explored));
+    }
+    // Туннели двусторонние: из пройденной комнаты виден и спуск в неизведанную комнату ниже.
+    // Спуск в пройденную уже нарисован снизу, от неё
+    for (const lowerId of getLowerNodeIds(run, node.id)) {
+      if (lowerId !== null && !run.visitedNodeIds.includes(lowerId)) svg.append(createLine(run, node, run.map.nodes[lowerId], false));
     }
   }
   return svg;
+}
+
+function createLine(run, from, to, explored) {
+  const share = explored ? 1 : UNKNOWN_SHARE;
+  const x1 = getNodeX(from);
+  const y1 = getNodeY(run, from);
+  const line = document.createElementNS(SVG_NAMESPACE, "line");
+  line.setAttribute("x1", `${x1}%`);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", `${x1 + (getNodeX(to) - x1) * share}%`);
+  line.setAttribute("y2", y1 + (getNodeY(run, to) - y1) * share);
+  line.classList.add(explored ? "map__line--walked" : "map__line--unknown");
+  return line;
 }
 
 // Где стоит герой, тот узел обведён. Остальные пройденные — кнопки быстрого перехода

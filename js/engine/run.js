@@ -95,18 +95,39 @@ export function getAvailableNodeIds(run) {
   return run.currentNodeId ? getCurrentNode(run).next : run.map.rows[0];
 }
 
-// Переходит вперёд, на следующий узел. Возвращает false, если туда нельзя
+// Комнаты этажом ниже, из которых туннель ведёт в эту: туннели двусторонние, по ним можно спуститься.
+// Для первого ряда нижняя комната — начальная (null), у самой начальной нижних нет
+export function getLowerNodeIds(run, nodeId = run.currentNodeId) {
+  if (nodeId === null) return [];
+  if (run.map.rows[0].includes(nodeId)) return [null];
+  return Object.values(run.map.nodes).filter((node) => node.next.includes(nodeId)).map((node) => node.id);
+}
+
+// Переходит в соседнюю комнату: вверх по туннелю или вниз по спуску, null — в начальную.
+// Возвращает false, если туда нельзя
 export function enterNode(run, nodeId) {
-  if (!getAvailableNodeIds(run).includes(nodeId)) return false;
+  if (![...getAvailableNodeIds(run), ...getLowerNodeIds(run)].includes(nodeId)) return false;
   run.currentNodeId = nodeId;
-  run.trail.push(nodeId);
+  if (nodeId === null) {
+    run.trail = [];
+    return true;
+  }
+  // Пришёл в комнату, через которую уже шёл: путь укорачивается до неё, и «Назад» ведёт как раньше
+  const index = run.trail.indexOf(nodeId);
+  if (index >= 0) run.trail.length = index + 1;
+  else run.trail.push(nodeId);
   if (!run.visitedNodeIds.includes(nodeId)) run.visitedNodeIds.push(nodeId);
   return true;
 }
 
-// Пройдена ли комната: тогда в ней ничего не случается заново
+// Пройдена ли комната: тогда в ней ничего не случается заново. Начальная пройдена всегда
 export function isNodeCleared(run, nodeId) {
-  return run.visitedNodeIds.includes(nodeId);
+  return nodeId === null || run.visitedNodeIds.includes(nodeId);
+}
+
+// Куда ведёт «Назад»: комната, из которой герой пришёл, null — начальная. undefined — назад некуда
+export function getPreviousNodeId(run) {
+  return canGoBack(run) ? run.trail.at(-2) ?? null : undefined;
 }
 
 // Назад можно, пока герой не в начальной комнате
@@ -123,14 +144,15 @@ export function goBack(run) {
 }
 
 // Путь от начальной комнаты до пройденной комнаты только по пройденным: по нему герой быстро переходит по карте.
-// Возвращает список комнат или null, если знакомой дороги туда нет
+// Туннели двусторонние, поэтому путь может идти и вверх, и вниз. Возвращает список комнат или null, если дороги нет
 function findKnownPath(run, nodeId) {
   const known = new Set(run.visitedNodeIds);
   const parents = new Map();
   const queue = run.map.rows[0].filter((id) => known.has(id));
   for (const id of queue) parents.set(id, null);
   for (let head = 0; head < queue.length && !parents.has(nodeId); head++) {
-    for (const nextId of run.map.nodes[queue[head]].next) {
+    const neighbours = [...run.map.nodes[queue[head]].next, ...getLowerNodeIds(run, queue[head])];
+    for (const nextId of neighbours) {
       if (!known.has(nextId) || parents.has(nextId)) continue;
       parents.set(nextId, queue[head]);
       queue.push(nextId);

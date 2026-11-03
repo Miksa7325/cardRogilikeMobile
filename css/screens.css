@@ -492,6 +492,11 @@
   line-height: 1.15;
 }
 
+/* Спуски вниз — ряд под туннелями */
+.dungeon__tunnels--down {
+  margin-top: 6px;
+}
+
 /* Назад — узкая каменная табличка слева, туннели шире */
 .back-button {
   display: flex;

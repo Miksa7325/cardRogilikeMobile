@@ -1,10 +1,12 @@
-// Подземелье от первого лица: герой стоит в комнате или коридоре и выбирает, в какой туннель идти.
-// Туннелей от одного до трёх, над входом видно, что ждёт впереди. Карта акта открывается отдельной кнопкой.
+// Подземелье от первого лица: герой стоит в комнате или коридоре и выбирает, куда идти. Туннели вверх, от одного
+// до трёх, — на дальней стене, спуски в комнаты этажом ниже — люки в полу. Что за новым проходом, не видно.
+// Карта акта открывается отдельной кнопкой.
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
 import { countReadyQuests, getLockedContent, mergeSeen } from "../../engine/meta.js";
 import {
-  canGoBack, canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, goBack, isNodeCleared, openChest, travelTo,
+  canGoBack, canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId,
+  goBack, isNodeCleared, openChest, travelTo,
 } from "../../engine/run.js";
 import { createShop } from "../../engine/shop.js";
 import { loadMeta, saveMeta, saveRun } from "../../save.js";
@@ -60,8 +62,12 @@ export function renderDungeonScreen(root) {
   const meta = loadMeta();
   const screen = el("main", "dungeon");
   const place = describePlace(run);
-  // Туннели слева направо в том же порядке, что узлы на карте
-  const tunnels = getAvailableNodeIds(run).map((id) => run.map.nodes[id]).sort((a, b) => a.column - b.column);
+  // Комнату, откуда герой пришёл, ведёт «Назад»: в туннелях и спусках её не повторяем.
+  // Проходы слева направо в том же порядке, что узлы на карте
+  const previous = getPreviousNodeId(run);
+  const tunnels = getAvailableNodeIds(run).filter((id) => id !== previous).map((id) => run.map.nodes[id]).sort((a, b) => a.column - b.column);
+  const descents = getLowerNodeIds(run).filter((id) => id !== previous).map((id) => (id === null ? START_ROOM : run.map.nodes[id]))
+    .sort((a, b) => a.column - b.column);
 
   // Пока герой идёт, второй выбор не принимаем
   let walking = false;
@@ -71,24 +77,21 @@ export function renderDungeonScreen(root) {
     start();
   };
   const choose = (index) => move(() => walkInto(corridor, index, tunnels.length, () => enterTunnel(run, tunnels[index].id)));
+  const chooseDown = (index) => move(() => walkDown(corridor, index, descents.length, () => enterTunnel(run, descents[index].id)));
   const back = canGoBack(run)
     ? () => move(() => walkBack(corridor, () => {
       goBack(run);
       showScreen("dungeon");
     }))
     : null;
-  const corridor = createCorridor(run, tunnels, choose, back);
+  const corridor = createCorridor(run, { tunnels, descents, choose, chooseDown, back });
 
   const heading = el("div", "dungeon__place");
-  heading.append(el("h1", "dungeon__title", place.title), el("p", "dungeon__hint", describeWay(place, tunnels.length)));
+  heading.append(el("h1", "dungeon__title", place.title), el("p", "dungeon__hint", describeWay(place, tunnels.length, descents.length)));
 
-  screen.append(
-    createRunBar(run, { allSaved: true }),
-    heading,
-    corridor,
-    createTunnelButtons(run, tunnels, choose, back),
-    createLinks(run, meta),
-  );
+  screen.append(createRunBar(run, { allSaved: true }), heading, corridor, createTunnelButtons(run, tunnels, choose, back));
+  if (descents.length > 0) screen.append(createDescentButtons(run, descents, chooseDown));
+  screen.append(createLinks(run, meta));
   const banner = createTutorialBanner("dungeon");
   if (banner) screen.append(banner);
   root.append(screen);
@@ -114,27 +117,32 @@ function describePlace(run) {
 }
 
 // Подсказка под названием: сколько дальше дорог и есть ли они вообще
-function describeWay(place, tunnelCount) {
-  if (tunnelCount === 0) return TEXTS.dungeon.deadEndHint;
+function describeWay(place, tunnelCount, descentCount) {
+  if (tunnelCount === 0) return descentCount > 0 ? TEXTS.dungeon.onlyDown : TEXTS.dungeon.deadEndHint;
   if (tunnelCount === 1) return TEXTS.dungeon.oneTunnel;
   return place.hint;
 }
 
-// Коридор в перспективе: стены, пол и потолок — грани коробки, на дальней стене входы в туннели.
+// Начальная комната как место, куда можно спуститься из первого ряда
+const START_ROOM = { id: null, type: "start", column: 0 };
+
+// Коридор в перспективе: стены, пол и потолок — грани коробки, на дальней стене входы в туннели, в полу люки вниз.
 // В комнате коробка короче и шире на вид, а сверху падает свет. В тупике на стене нет ни одного входа
-function createCorridor(run, tunnels, onChoose, onBack) {
+function createCorridor(run, { tunnels, descents, choose, chooseDown, back: onBack }) {
   const corridor = el("div", "corridor");
   corridor.dataset.act = String(run.act);
   if (describePlace(run).room) corridor.classList.add("corridor--room");
 
   const end = el("div", "corridor__end");
-  tunnels.forEach((node, index) => end.append(createTunnel(run, node, index, tunnels.length, onChoose)));
+  tunnels.forEach((node, index) => end.append(createTunnel(run, node, index, tunnels.length, choose)));
+  const floor = el("div", "corridor__floor");
+  descents.forEach((node, index) => floor.append(createHatch(run, node, index, descents.length, chooseDown)));
 
   const world = el("div", "corridor__world");
   world.append(
     el("div", "corridor__wall corridor__wall--left"),
     el("div", "corridor__wall corridor__wall--right"),
-    el("div", "corridor__floor"),
+    floor,
     el("div", "corridor__ceiling"),
     end,
   );
@@ -191,10 +199,34 @@ function walkBack(corridor, onArrive) {
   }, animationMs(WALK_ANIMATIONS));
 }
 
-// Новый туннель называем по направлению, пройденный — по тому, что в нём было
-function describeTunnel(run, node, index, count) {
+// Люк в полу со ступенями вниз. Как и у туннелей, знак есть только у пройденного: туда уже спускался
+function createHatch(run, node, index, count, onChoose) {
+  const hatch = el("button", "hatch");
+  hatch.type = "button";
+  hatch.style.left = `${tunnelPosition(index, count)}%`;
+  hatch.setAttribute("aria-label", describeTunnel(run, node, index, count, TEXTS.dungeon.downDirections));
+  if (isNodeCleared(run, node.id)) {
+    hatch.classList.add("hatch--cleared");
+    hatch.append(el("span", "hatch__sign", NODE_ICONS[node.type]));
+  }
+  hatch.addEventListener("click", () => onChoose(index));
+  return hatch;
+}
+
+// Герой спускается в люк: коридор уходит вверх и надвигается, всё темнеет
+function walkDown(corridor, index, count, onArrive) {
+  corridor.style.setProperty("--walk-x", `${50 - tunnelPosition(index, count)}%`);
+  corridor.classList.add("corridor--descending");
+  corridor.querySelectorAll(".hatch")[index].classList.add("hatch--chosen");
+  setTimeout(() => {
+    if (corridor.isConnected) onArrive();
+  }, animationMs(WALK_ANIMATIONS));
+}
+
+// Новый проход называем по направлению, пройденный — по тому, что в нём было
+function describeTunnel(run, node, index, count, directions = TEXTS.dungeon.directions) {
   if (isNodeCleared(run, node.id)) return TEXTS.dungeon.cleared(`${NODE_ICONS[node.type]} ${TEXTS.dungeon.nodes[node.type]}`);
-  return TEXTS.dungeon.directions[count]?.[index] ?? TEXTS.dungeon.tunnel(index + 1);
+  return directions[count]?.[index] ?? TEXTS.dungeon.tunnel(index + 1);
 }
 
 // Те же туннели кнопками под коридором. Первой стоит дорога назад: каменная табличка со стрелкой разворота
@@ -212,6 +244,19 @@ function createTunnelButtons(run, tunnels, choose, back) {
     const button = el("button", "button button--secondary", describeTunnel(run, node, index, tunnels.length));
     button.type = "button";
     button.addEventListener("click", () => choose(index));
+    row.append(button);
+  });
+  return row;
+}
+
+// Спуски вниз — отдельным рядом под туннелями
+function createDescentButtons(run, descents, chooseDown) {
+  const row = el("div", "dungeon__tunnels dungeon__tunnels--down");
+  descents.forEach((node, index) => {
+    const label = describeTunnel(run, node, index, descents.length, TEXTS.dungeon.downDirections);
+    const button = el("button", "button button--secondary", isNodeCleared(run, node.id) ? TEXTS.dungeon.below(label) : label);
+    button.type = "button";
+    button.addEventListener("click", () => chooseDown(index));
     row.append(button);
   });
   return row;
