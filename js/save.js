@@ -1,5 +1,7 @@
-// Сохранение и загрузка. Два ключа в localStorage: текущий забег и мета-прогресс.
+// Сохранение и загрузка. Есть несколько ячеек сохранения: в каждой свой забег и мета-прогресс,
+// игра пишет в выбранную ячейку. Настройки общие для всех ячеек.
 // Смерть стирает только забег. Браузер может запретить хранилище, поэтому всё обёрнуто в try.
+import { CONFIG } from "./config.js";
 import { BUILDINGS } from "./data/buildings.js";
 import { CARDS } from "./data/cards.js";
 import { ENEMIES } from "./data/enemies.js";
@@ -7,8 +9,18 @@ import { POTIONS } from "./data/potions.js";
 import { RELICS } from "./data/relics.js";
 import { createMeta } from "./engine/meta.js";
 
-const RUN_KEY = "cardRpg.run";
-const META_KEY = "cardRpg.meta";
+const SLOT_KEY = "cardRpg.slot"; // номер выбранной ячейки
+const SETTINGS_KEY = "cardRpg.settings";
+const DEFAULT_SETTINGS = { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true };
+
+// Первая ячейка лежит под старыми ключами: так прогресс, сделанный до появления ячеек, оказался в ней
+function runKey(slot) {
+  return slot === 1 ? "cardRpg.run" : `cardRpg.run.${slot}`;
+}
+
+function metaKey(slot) {
+  return slot === 1 ? "cardRpg.meta" : `cardRpg.meta.${slot}`;
+}
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
@@ -66,12 +78,59 @@ function readKey(key) {
   }
 }
 
+function removeKey(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Хранилище недоступно: стирать нечего
+  }
+}
+
 function parseJson(text) {
   try {
     return JSON.parse(text);
   } catch {
     return null;
   }
+}
+
+function isSlot(slot) {
+  return Number.isInteger(slot) && slot >= 1 && slot <= CONFIG.saveSlots;
+}
+
+let activeSlot = Number(readKey(SLOT_KEY));
+if (!isSlot(activeSlot)) activeSlot = 1;
+
+export function getActiveSlot() {
+  return activeSlot;
+}
+
+// Переключает игру на другую ячейку: дальше всё читается и пишется в неё
+export function setActiveSlot(slot) {
+  if (!isSlot(slot)) return false;
+  activeSlot = slot;
+  return writeKey(SLOT_KEY, String(slot));
+}
+
+// Есть ли в ячейке хоть что-то: забег или мета-прогресс
+export function hasSave(slot) {
+  return readKey(runKey(slot)) !== null || readKey(metaKey(slot)) !== null;
+}
+
+// Стирает ячейку целиком: и забег, и мета-прогресс
+export function deleteSlot(slot) {
+  removeKey(runKey(slot));
+  removeKey(metaKey(slot));
+}
+
+// Настройки. До появления ячеек они лежали в мета-прогрессе: если своих ещё нет, берём оттуда
+export function loadSettings() {
+  const saved = parseJson(readKey(SETTINGS_KEY)) ?? parseJson(readKey(metaKey(1)))?.settings;
+  return { ...DEFAULT_SETTINGS, ...saved };
+}
+
+export function saveSettings(settings) {
+  return writeKey(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 // Доводит сохранение до текущей версии. Если перевести нельзя, возвращает null
@@ -120,34 +179,29 @@ function isValidMeta(meta) {
   return meta && Number.isFinite(meta.xp) && meta.xp >= 0;
 }
 
-// Сохраняет забег. Возвращает false, если браузер не дал записать
+// Сохраняет забег в выбранную ячейку. Возвращает false, если браузер не дал записать
 export function saveRun(run) {
-  return writeKey(RUN_KEY, JSON.stringify({ version: SAVE_VERSION, run }));
+  return writeKey(runKey(activeSlot), JSON.stringify({ version: SAVE_VERSION, run }));
 }
 
-// Возвращает забег или null, если сохранения нет или оно испорчено
-export function loadRun() {
-  const save = migrateSave(parseJson(readKey(RUN_KEY)));
+// Возвращает забег или null, если сохранения нет или оно испорчено. Без номера — из выбранной ячейки
+export function loadRun(slot = activeSlot) {
+  const save = migrateSave(parseJson(readKey(runKey(slot))));
   return save && isValidRun(save.run) ? save.run : null;
 }
 
 export function clearRun() {
-  try {
-    localStorage.removeItem(RUN_KEY);
-  } catch {
-    // Хранилище недоступно: стирать нечего
-  }
+  removeKey(runKey(activeSlot));
 }
 
-// Возвращает мета-прогресс. Недостающие поля берутся из значений по умолчанию
-export function loadMeta() {
-  const save = migrateSave(parseJson(readKey(META_KEY)));
+// Возвращает мета-прогресс. Недостающие поля берутся из значений по умолчанию. Без номера — из выбранной ячейки
+export function loadMeta(slot = activeSlot) {
+  const save = migrateSave(parseJson(readKey(metaKey(slot))));
   const defaults = createMeta();
   return {
     ...defaults,
     ...save,
     seen: { ...defaults.seen, ...save?.seen },
-    settings: { ...defaults.settings, ...save?.settings },
     // Дом есть всегда, даже если сохранение испорчено
     buildings: [...new Set(["home", ...(save?.buildings ?? [])])],
     // Кто уже играл до появления обучения, тому оно не нужно
@@ -155,15 +209,14 @@ export function loadMeta() {
   };
 }
 
-// Сброс прогресса: стирает забег, опыт и коллекцию, но оставляет настройки звука и анимаций
+// Сброс прогресса выбранной ячейки: стирает забег, опыт и коллекцию. Настройки общие, их не трогаем
 export function resetProgress() {
-  const { settings } = loadMeta();
   clearRun();
-  saveMeta({ ...createMeta(), settings });
+  saveMeta(createMeta());
 }
 
 export function saveMeta(meta) {
-  return writeKey(META_KEY, JSON.stringify({ ...meta, version: SAVE_VERSION }));
+  return writeKey(metaKey(activeSlot), JSON.stringify({ ...meta, version: SAVE_VERSION }));
 }
 
 // Текст из любых символов → base64 и обратно. Такой текст не портится при пересылке в мессенджере
@@ -180,7 +233,7 @@ function decodeBase64(code) {
   return new TextDecoder().decode(bytes);
 }
 
-// Собирает всё сохранение в одну строку текста. Если сохранять нечего, возвращает null
+// Собирает выбранную ячейку в одну строку текста. Если сохранять нечего, возвращает null
 export function exportSave() {
   const run = loadRun();
   const meta = loadMeta();
@@ -188,7 +241,7 @@ export function exportSave() {
   return encodeBase64(JSON.stringify({ version: SAVE_VERSION, run, meta }));
 }
 
-// Загружает сохранение из текста. Возвращает { ok: true } или { ok: false, reason: "..." }
+// Загружает сохранение из текста в выбранную ячейку. Возвращает { ok: true } или { ok: false, reason: "..." }
 export function importSave(code) {
   let raw;
   try {

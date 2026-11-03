@@ -122,6 +122,7 @@ const FILES = [
   "./js/ui/screens/reward.js",
   "./js/ui/screens/runStats.js",
   "./js/ui/screens/saveTransfer.js",
+  "./js/ui/screens/saves.js",
   "./js/ui/screens/settings.js",
   "./js/ui/screens/shop.js",
   "./js/ui/screens/start.js",

@@ -1,8 +1,8 @@
-// Стартовый экран: продолжение забега, новый забег, коллекция, перенос сохранения и тест-режим.
+// Стартовый экран: продолжение забега, новый забег, ячейки сохранения, коллекция, перенос сохранения и тест-режим.
 // Город с заданиями открывается уже в забеге, с карты.
 import { TEXTS } from "../../data/texts.ru.js";
 import { getNextUnlock } from "../../engine/meta.js";
-import { loadMeta, loadRun } from "../../save.js";
+import { getActiveSlot, loadMeta, loadRun } from "../../save.js";
 import { state } from "../../state.js";
 import { LOGO_ART } from "../art.js";
 import { el } from "../dom.js";
@@ -23,7 +23,7 @@ export function renderStartScreen(root) {
   const screen = el("main", "center-screen");
   const logo = el("div", "start-logo");
   logo.innerHTML = LOGO_ART;
-  screen.append(logo, el("h1", "center-screen__title", TEXTS.gameTitle));
+  screen.append(logo, el("h1", "center-screen__title", TEXTS.gameTitle), el("p", "reward__line", TEXTS.saves.current(getActiveSlot())));
 
   // Опыт показываем, когда он уже есть: так видно, сколько осталось до открытия
   if (meta.xp > 0) {
@@ -46,6 +46,7 @@ export function renderStartScreen(root) {
   // Все кнопки одного размера и стоят парами: так меню помещается на экран телефона без прокрутки
   menu.append(
     createNewRunButton(savedRun !== null),
+    createButton(TEXTS.saves.button, "button--secondary", () => showScreen("saves")),
     createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
     createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
     createButton(TEXTS.saveTransferButton, "button--secondary", () => showScreen("saveTransfer")),

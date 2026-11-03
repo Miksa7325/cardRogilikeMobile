@@ -19,6 +19,7 @@ import { renderRestScreen, renderRestUpgradeScreen } from "./ui/screens/rest.js"
 import { renderResultScreen } from "./ui/screens/result.js";
 import { renderRewardScreen } from "./ui/screens/reward.js";
 import { renderSaveTransferScreen } from "./ui/screens/saveTransfer.js";
+import { renderSavesScreen } from "./ui/screens/saves.js";
 import { renderSettingsScreen } from "./ui/screens/settings.js";
 import { renderShopScreen } from "./ui/screens/shop.js";
 import { renderStartScreen } from "./ui/screens/start.js";
@@ -42,6 +43,7 @@ registerScreen("shop", renderShopScreen);
 registerScreen("event", renderEventScreen);
 registerScreen("result", renderResultScreen);
 registerScreen("saveTransfer", renderSaveTransferScreen);
+registerScreen("saves", renderSavesScreen);
 registerScreen("settings", renderSettingsScreen);
 registerScreen("testSetup", renderTestSetupScreen);
 

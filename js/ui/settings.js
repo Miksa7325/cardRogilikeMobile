@@ -1,12 +1,12 @@
-// Применяет настройки игрока: громкость и скорость анимаций. Сами настройки лежат в мета-прогрессе.
-import { loadMeta } from "../save.js";
+// Применяет настройки игрока: громкость и скорость анимаций. Настройки общие для всех ячеек сохранения.
+import { loadSettings } from "../save.js";
 import { setVolumes } from "./audio.js";
 
 const ANIMATION_MS = 300; // обычная длительность анимации
 let speedFactor = 1;
 
 export function applySettings() {
-  const { settings } = loadMeta();
+  const settings = loadSettings();
   setVolumes(settings.music, settings.effects);
   speedFactor = settings.fastAnimations ? 0.5 : 1;
   // Системная настройка «уменьшить движение» важнее: почти убираем анимации
@@ -26,5 +26,5 @@ export function isVibrationSupported() {
 }
 
 export function vibrate(milliseconds) {
-  if (isVibrationSupported() && loadMeta().settings.vibration) navigator.vibrate(milliseconds);
+  if (isVibrationSupported() && loadSettings().vibration) navigator.vibrate(milliseconds);
 }

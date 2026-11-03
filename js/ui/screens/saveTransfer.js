@@ -1,7 +1,7 @@
 // Экран переноса сохранения: экспорт и импорт текстом.
 // Браузер может очистить данные сайта, а текст останется у игрока.
 import { TEXTS } from "../../data/texts.ru.js";
-import { exportSave, importSave, loadRun } from "../../save.js";
+import { exportSave, getActiveSlot, importSave, loadRun } from "../../save.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -15,7 +15,8 @@ function createButton(text, modifier, onTap) {
 
 export function renderSaveTransferScreen(root) {
   const screen = el("main", "center-screen save-transfer");
-  screen.append(el("h1", "event__title", TEXTS.saveTransfer.title));
+  // Экспорт и загрузка работают с выбранной ячейкой
+  screen.append(el("h1", "event__title", TEXTS.saveTransfer.title), el("p", "reward__line", TEXTS.saves.current(getActiveSlot())));
   appendExport(screen);
   appendImport(screen);
   screen.append(createButton(TEXTS.saveTransfer.back, "button--secondary", () => showScreen("start")));

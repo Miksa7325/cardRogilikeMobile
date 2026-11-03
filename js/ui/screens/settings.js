@@ -1,6 +1,6 @@
 // Экран настроек: громкость, скорость анимаций, вибрация, обучение и сброс прогресса.
 import { TEXTS } from "../../data/texts.ru.js";
-import { loadMeta, resetProgress, saveMeta } from "../../save.js";
+import { loadMeta, loadSettings, resetProgress, saveMeta, saveSettings } from "../../save.js";
 import { playSound } from "../audio.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
@@ -15,14 +15,14 @@ function createButton(text, modifier, onTap) {
 }
 
 function changeSettings(change) {
-  const meta = loadMeta();
-  change(meta.settings);
-  saveMeta(meta);
+  const settings = loadSettings();
+  change(settings);
+  saveSettings(settings);
   applySettings();
 }
 
 export function renderSettingsScreen(root) {
-  const { settings } = loadMeta();
+  const settings = loadSettings();
   const screen = el("main", "center-screen settings");
   screen.append(
     el("h1", "event__title", TEXTS.settings.title),

@@ -327,6 +327,55 @@
   text-align: left;
 }
 
+/* Ячейки сохранения */
+.saves {
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.save-slot {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #4a3f58;
+  border-radius: 8px;
+  background: var(--panel-glass);
+  text-align: left;
+}
+
+.save-slot--active {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
+}
+
+.save-slot__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.save-slot__badge {
+  color: #ffe08a;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: normal;
+}
+
+.save-slot__line {
+  color: #d8cdb6;
+  font-size: 13px;
+}
+
+.save-slot .button-row {
+  margin-top: 6px;
+}
+
 /* Перенос сохранения. Размер шрифта 16 px: при меньшем iPhone приближает страницу при вводе */
 .save-transfer {
   justify-content: flex-start;
