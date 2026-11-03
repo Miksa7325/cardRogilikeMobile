@@ -1,6 +1,6 @@
 {
-  "name": "Карточная RPG",
-  "short_name": "Карточная RPG",
+  "name": "RPG 2",
+  "short_name": "RPG 2",
   "description": "Roguelike-декбилдер: пройди подземелье и собери свою колоду",
   "lang": "ru",
   "start_url": "./",
