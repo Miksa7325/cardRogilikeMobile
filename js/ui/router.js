@@ -11,7 +11,7 @@ const screens = {};
 const IDLE_CYCLE_MS = 12000;
 
 // На этих экранах фон меню, а не текущего акта
-const MENU_SCREENS = ["start", "heroSelect", "collection", "settings", "saveTransfer", "credits", "testSetup", "quests", "city"];
+const MENU_SCREENS = ["start", "heroSelect", "collection", "settings", "saveTransfer", "credits", "testSetup", "city"];
 
 // Запоминает функцию, которая рисует экран с этим именем
 export function registerScreen(name, render) {

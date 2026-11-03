@@ -1,6 +1,7 @@
-// Стартовый экран: продолжение забега, новый забег, город, задания, коллекция, перенос сохранения и тест-режим.
+// Стартовый экран: продолжение забега, новый забег, коллекция, перенос сохранения и тест-режим.
+// Город с заданиями открывается уже в забеге, с карты.
 import { TEXTS } from "../../data/texts.ru.js";
-import { countReadyQuests, getNextUnlock } from "../../engine/meta.js";
+import { getNextUnlock } from "../../engine/meta.js";
 import { loadMeta, loadRun } from "../../save.js";
 import { state } from "../../state.js";
 import { LOGO_ART } from "../art.js";
@@ -45,8 +46,6 @@ export function renderStartScreen(root) {
   // Все кнопки одного размера и стоят парами: так меню помещается на экран телефона без прокрутки
   menu.append(
     createNewRunButton(savedRun !== null),
-    createButton(TEXTS.city.button, "button--secondary", () => showScreen("city")),
-    createQuestsButton(meta),
     createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
     createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
     createButton(TEXTS.saveTransferButton, "button--secondary", () => showScreen("saveTransfer")),
@@ -55,14 +54,6 @@ export function renderStartScreen(root) {
   );
   screen.append(menu);
   root.append(screen);
-}
-
-// Кнопка заданий подсказывает, что есть награды, которые можно забрать
-function createQuestsButton(meta) {
-  const ready = countReadyQuests(meta);
-  const button = createButton(ready > 0 ? TEXTS.quests.buttonReady(ready) : TEXTS.quests.button, "button--secondary", () => showScreen("quests"));
-  if (ready > 0) button.classList.add("button--attention");
-  return button;
 }
 
 // Новый забег сотрёт сохранённый, поэтому при наличии сохранения просим нажать дважды

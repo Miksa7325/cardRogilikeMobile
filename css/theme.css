@@ -485,6 +485,12 @@
   text-shadow: 0 1px 2px #000;
 }
 
+/* Город на карте забега: ждут награды за задания */
+.map__stats--attention {
+  color: #ffe08a;
+  font-weight: bold;
+}
+
 /* Экраны со списками: читаемый фон поверх сцены */
 .picker {
   background: rgba(14, 11, 18, 0.97);
@@ -559,11 +565,15 @@
   box-shadow: 0 0 10px rgba(224, 184, 76, 0.65);
 }
 
-/* Город: карта с видом сверху. Она шире и выше экрана телефона только снизу и сверху, все здания в середине */
+/* Город: карта с видом сверху. Она выше экрана телефона, поэтому камера едет за героем: сдвиг задаёт city.js */
 .city {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  /* Касание ведёт героя, поэтому браузер не должен листать или масштабировать экран */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   background: #0f3a12 url("../assets/images/city/grass.png");
   background-size: 48px;
   image-rendering: pixelated;
@@ -571,12 +581,12 @@
 
 .city__map {
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 50%;
   width: min(100vw, calc(100dvh * 9 / 16));
   aspect-ratio: 360 / 780;
   background: url("../assets/images/city/map.png") center / 100% 100% no-repeat;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
 }
 
 .city__header {
@@ -621,6 +631,99 @@
   left: 16px;
   right: 16px;
   bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+/* Кнопка «Войти» появляется, когда герой стоит у входа или рядом со старейшиной */
+.city__prompt {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.city__prompt .button {
+  pointer-events: auto;
+  animation: preview-in calc(160ms * var(--anim-speed)) ease-out;
+}
+
+/* Герой в городе: точка на карте — его ноги */
+.city-hero {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.city-hero__sprite {
+  display: block;
+  width: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.6));
+}
+
+.city-hero--left .city-hero__sprite {
+  scale: -1 1;
+}
+
+.city-hero--walking .city-hero__sprite {
+  animation: city-walk 0.32s ease-in-out infinite;
+}
+
+@keyframes city-walk {
+  0%, 100% { translate: 0 0; rotate: -4deg; }
+  50% { translate: 0 -10%; rotate: 4deg; }
+}
+
+/* Старейшина у фонтана: как и герой, стоит ногами на своей точке */
+.city-npc {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+  transform: translate(-50%, -100%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.city-npc__art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 2px #ffe08a) drop-shadow(0 2px 1px rgba(0, 0, 0, 0.6));
+}
+
+.city-npc .building__label {
+  bottom: -12px;
+}
+
+/* Есть награды: над головой прыгает восклицательный знак */
+.city-npc__marker {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  color: #ffe08a;
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1;
+  text-shadow: 0 0 4px #000, 0 0 8px rgba(255, 200, 80, 0.9);
+  transform: translateX(-50%);
+  animation: npc-marker 0.9s ease-in-out infinite;
+}
+
+@keyframes npc-marker {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .city-hero--walking .city-hero__sprite,
+  .city-npc__marker {
+    animation: none;
+  }
 }
 
 /* Дом на карте: подсветка повторяет его контур и мягко пульсирует, поэтому его видно среди декора */
@@ -752,8 +855,43 @@
   filter: brightness(0.15);
 }
 
+/* Разговор со старейшиной: портрет, реплика и задания. Прокручивается только список */
+.quest-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  min-height: 0;
+  text-align: center;
+}
+
+.quest-dialog__portrait svg {
+  display: block;
+  width: 56px;
+  height: auto;
+}
+
+.quest-dialog__speech {
+  margin: 0;
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.3;
+}
+
+.quest-dialog__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* Задания */
-/* Подпись и подсказка на экране заданий */
+/* Баланс и подсказка в окне заданий */
 .quests__balance,
 .quests__hint {
   margin: 0;
@@ -769,11 +907,6 @@
 .quests__hint {
   color: #d8cdb6;
   font-size: 13px;
-}
-
-.quests {
-  gap: 10px;
-  justify-content: flex-start;
 }
 
 .quest {

@@ -2,7 +2,7 @@
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
-import { getLockedContent, mergeSeen } from "../../engine/meta.js";
+import { countReadyQuests, getLockedContent, mergeSeen } from "../../engine/meta.js";
 import { createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
 import { createShop } from "../../engine/shop.js";
 import { loadMeta, saveMeta, saveRun } from "../../save.js";
@@ -13,6 +13,7 @@ import { el } from "../dom.js";
 import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
 import { createTutorialBanner, notifyTutorial, startTutorial } from "../tutorial.js";
+import { openCity } from "./city.js";
 import { startNodeCombat } from "./combat.js";
 import { openRunStats } from "./runStats.js";
 
@@ -47,13 +48,16 @@ export function startNewRun(heroId, difficulty) {
 
 export function renderMapScreen(root) {
   const run = state.run;
+  const meta = loadMeta();
   const screen = el("main", "map");
   const scroller = el("div", "map__scroller");
   scroller.append(createMapContent(run));
   const statsButton = el("button", "map__stats", TEXTS.stats.button);
   statsButton.type = "button";
   statsButton.addEventListener("click", () => openRunStats(run));
-  screen.append(createRunBar(run, { allSaved: true }), el("p", "map__legend", TEXTS.mapLegend), statsButton, scroller);
+  const links = el("div", "map__links");
+  links.append(statsButton, createCityButton(meta));
+  screen.append(createRunBar(run, { allSaved: true }), el("p", "map__legend", TEXTS.mapLegend), links, scroller);
   const banner = createTutorialBanner("map");
   if (banner) screen.append(banner);
   root.append(screen);
@@ -61,13 +65,23 @@ export function renderMapScreen(root) {
   // На карту игрок попадает только между узлами, поэтому здесь и сохраняем забег
   trackPlayTime(run);
   run.savedCombat = null;
-  const meta = loadMeta();
   mergeSeen(meta, run);
   if (!saveRun(run) || !saveMeta(meta)) showTooltip(TEXTS.saveFailed);
 
   // Показываем ряд, куда можно идти: прокрутка работает, только когда карта уже на странице
   const firstAvailable = scroller.querySelector(".map-node--available");
   scroller.scrollTop = firstAvailable.offsetTop - scroller.clientHeight / 2;
+}
+
+// В город можно зайти между узлами: там строят дома и забирают награды за задания.
+// Если награды ждут, кнопка подсвечена
+function createCityButton(meta) {
+  const ready = countReadyQuests(meta);
+  const button = el("button", "map__stats", ready > 0 ? TEXTS.city.buttonReady(ready) : TEXTS.city.button);
+  button.type = "button";
+  if (ready > 0) button.classList.add("map__stats--attention");
+  button.addEventListener("click", openCity);
+  return button;
 }
 
 function createMapContent(run) {
