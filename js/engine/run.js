@@ -41,7 +41,9 @@ export function createRun({
     tutorialFight,
     savedCombat: null, // бой на начало текущего хода: так игра продолжается посреди боя
     currentNodeId: null,
-    visitedNodeIds: [],
+    visitedNodeIds: [], // пройденные комнаты акта: в них ничего не случается заново
+    trail: [], // путь героя по акту от начальной комнаты: по нему он возвращается назад
+    cityHeals: [], // комнаты, из которых герой уже поднимался в город и лечился
     pendingReward: null,
     shop: null, // магазин на текущем узле, его создаёт engine/shop.js
     activeEvent: null, // событие на текущем узле, его создаёт engine/events.js
@@ -93,12 +95,71 @@ export function getAvailableNodeIds(run) {
   return run.currentNodeId ? getCurrentNode(run).next : run.map.rows[0];
 }
 
-// Переходит на узел. Возвращает false, если туда нельзя
+// Переходит вперёд, на следующий узел. Возвращает false, если туда нельзя
 export function enterNode(run, nodeId) {
   if (!getAvailableNodeIds(run).includes(nodeId)) return false;
   run.currentNodeId = nodeId;
-  run.visitedNodeIds.push(nodeId);
+  run.trail.push(nodeId);
+  if (!run.visitedNodeIds.includes(nodeId)) run.visitedNodeIds.push(nodeId);
   return true;
+}
+
+// Пройдена ли комната: тогда в ней ничего не случается заново
+export function isNodeCleared(run, nodeId) {
+  return run.visitedNodeIds.includes(nodeId);
+}
+
+// Назад можно, пока герой не в начальной комнате
+export function canGoBack(run) {
+  return run.trail.length > 0;
+}
+
+// Возвращается в предыдущую комнату пути. Возвращает false, если герой уже в начальной комнате
+export function goBack(run) {
+  if (!canGoBack(run)) return false;
+  run.trail.pop();
+  run.currentNodeId = run.trail.at(-1) ?? null;
+  return true;
+}
+
+// Путь от начальной комнаты до пройденной комнаты только по пройденным: по нему герой быстро переходит по карте.
+// Возвращает список комнат или null, если знакомой дороги туда нет
+function findKnownPath(run, nodeId) {
+  const known = new Set(run.visitedNodeIds);
+  const parents = new Map();
+  const queue = run.map.rows[0].filter((id) => known.has(id));
+  for (const id of queue) parents.set(id, null);
+  for (let head = 0; head < queue.length && !parents.has(nodeId); head++) {
+    for (const nextId of run.map.nodes[queue[head]].next) {
+      if (!known.has(nextId) || parents.has(nextId)) continue;
+      parents.set(nextId, queue[head]);
+      queue.push(nextId);
+    }
+  }
+  if (!parents.has(nodeId)) return null;
+  const path = [];
+  for (let id = nodeId; id !== null; id = parents.get(id)) path.unshift(id);
+  return path;
+}
+
+// Быстрый переход в пройденную комнату или в начальную (nodeId — null). Возвращает false, если туда нельзя
+export function travelTo(run, nodeId) {
+  if (nodeId === null) {
+    run.trail = [];
+    run.currentNodeId = null;
+    return true;
+  }
+  if (!isNodeCleared(run, nodeId)) return false;
+  const path = findKnownPath(run, nodeId);
+  if (!path) return false;
+  run.trail = path;
+  run.currentNodeId = nodeId;
+  return true;
+}
+
+// Самый глубокий этаж акта, куда дошёл герой: по нему считаются опыт и кроны, даже если он вернулся назад
+export function getDeepestFloor(run) {
+  return Math.max(0, ...run.visitedNodeIds.map((id) => run.map.nodes[id].floor));
 }
 
 // Создаёт бой для текущего узла с HP, колодой, реликвиями и зельями забега
@@ -411,6 +472,7 @@ function finishAct(run) {
   run.map = generateActMap(run.seed, run.act);
   run.currentNodeId = null;
   run.visitedNodeIds = [];
+  run.trail = [];
 }
 
 // Сколько HP вылечит отдых прямо сейчас
@@ -424,9 +486,17 @@ export function restHeal(run) {
   run.hp += getRestHealAmount(run);
 }
 
+// Лечился ли герой в городе, поднявшись из этой комнаты: каждая комната лечит один раз,
+// иначе можно было бы возвращаться к комнате сохранения и лечиться без конца
+export function hasHealedHere(run) {
+  return run.cityHeals.includes(`${run.act}:${run.currentNodeId ?? "start"}`);
+}
+
 // В городе герой отдыхает: здоровье восстанавливается полностью. Возвращает, сколько HP вылечено
 export function healInCity(run) {
+  if (hasHealedHere(run)) return 0;
   const healed = run.maxHp - run.hp;
+  if (healed > 0) run.cityHeals.push(`${run.act}:${run.currentNodeId ?? "start"}`);
   run.hp = run.maxHp;
   return healed;
 }

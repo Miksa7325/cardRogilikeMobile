@@ -98,6 +98,6 @@ function createRemoveButton(run) {
 function createLeaveButton() {
   const button = el("button", "button button--large", TEXTS.shop.leave);
   button.type = "button";
-  button.addEventListener("click", () => showScreen("map"));
+  button.addEventListener("click", () => showScreen("dungeon"));
   return button;
 }

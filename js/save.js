@@ -24,7 +24,7 @@ function metaKey(slot) {
 
 // Меняешь формат сохранения: увеличь версию и добавь сюда функцию перевода со старой версии.
 // Например, MIGRATIONS[1] получает сохранение версии 1 и возвращает версию 2.
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 const MIGRATIONS = {
   // Версия 2: появились акты и статистика забега. Старый забег продолжается в акте 1
   1: (save) => (save.run ? { ...save, run: { ...save.run, act: 1, stats: { combats: [], playMs: 0 } } } : save),
@@ -54,6 +54,8 @@ const MIGRATIONS = {
   } : save),
   // Версия 6: зелья попали в коллекцию. Те, что уже в сумке, считаем встреченными
   5: (save) => (save.run ? { ...save, run: { ...save.run, seen: { ...save.run.seen, potions: [...save.run.potions] } } } : save),
+  // Версия 7: появились возвраты назад. Раньше назад не ходили, поэтому путь — это все пройденные комнаты по порядку
+  6: (save) => (save.run ? { ...save, run: { ...save.run, trail: [...save.run.visitedNodeIds], cityHeals: [] } } : save),
 };
 
 // Просит браузер не удалять данные сайта при нехватке места. Браузер может отказать, это не ошибка
@@ -157,6 +159,7 @@ function isValidRun(run) {
   if (!Array.isArray(run.lockedEventIds) || !Array.isArray(run.lockedPotionIds)) return false;
   if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics) || !Array.isArray(run.seen?.potions)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
+  if (!Array.isArray(run.trail) || !run.trail.every((id) => run.map.nodes[id]) || !Array.isArray(run.cityHeals)) return false;
   if (run.savedCombat && !isValidCombat(run.savedCombat)) return false;
 
   return run.deck.every((card) => CARDS[card.cardId])

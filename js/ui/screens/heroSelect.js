@@ -8,7 +8,7 @@ import { loadMeta } from "../../save.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { openCity } from "./city.js";
-import { startNewRun } from "./map.js";
+import { startNewRun } from "./dungeon.js";
 
 // Выбор живёт между перерисовками экрана, поэтому хранится вне функции
 let selectedHeroId = "warrior";

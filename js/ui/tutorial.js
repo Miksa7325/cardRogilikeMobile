@@ -10,7 +10,7 @@ import { showScreen } from "./router.js";
 
 // waitFor — действие, которое завершает шаг; без него показывается кнопка «Дальше»
 const STEPS = [
-  { id: "map", screen: "map", waitFor: "nodeEntered" },
+  { id: "dungeon", screen: "dungeon", waitFor: "nodeEntered" },
   { id: "intent", screen: "combat", highlight: "enemy" },
   { id: "energy", screen: "combat", highlight: "energy" },
   { id: "attack", screen: "combat", waitFor: "attackPlayed", highlight: "attack" },

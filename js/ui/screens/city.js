@@ -4,7 +4,7 @@ import { BUILDINGS } from "../../data/buildings.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { buyBuilding, countReadyQuests, isHeroUnlocked } from "../../engine/meta.js";
-import { canReturnToCity, getCurrentFloor, healInCity } from "../../engine/run.js";
+import { canReturnToCity, getCurrentFloor, hasHealedHere, healInCity } from "../../engine/run.js";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { ELDER_ART, GATE_ART, heroSprite } from "../art.js";
@@ -15,7 +15,7 @@ import { openQuestDialog } from "../components/questDialog.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
-import { continueRun } from "./map.js";
+import { continueRun } from "./dungeon.js";
 
 // Размеры в пикселях карты: положение на экране считаем в процентах от неё
 const MAP_WIDTH = 360;
@@ -100,15 +100,19 @@ function buildingSpot(building) {
 // "gate" — у входа в подземелье, когда он поднялся из забега
 export function openCity(entrance) {
   heroPosition = entrance === "home" ? buildingSpot(BUILDINGS.home) : { ...GATE_SPOT };
-  // Герой забега, поднявшийся в город, отдыхает: здоровье восстанавливается полностью
+  // Герой забега, поднявшийся в город, отдыхает: здоровье восстанавливается полностью.
+  // Но из каждой комнаты только раз: иначе можно было бы возвращаться к ней и лечиться снова
   const run = loadRun();
-  const healed = run && canReturnToCity(run) ? healInCity(run) : 0;
+  const fromDungeon = run !== null && canReturnToCity(run);
+  const restedBefore = fromDungeon && run.hp < run.maxHp && hasHealedHere(run);
+  const healed = fromDungeon ? healInCity(run) : 0;
   if (healed > 0) {
     state.run = run;
     if (!saveRun(run)) showTooltip(TEXTS.saveFailed);
   }
   showScreen("city");
   if (healed > 0) showTooltip(TEXTS.city.healed(healed));
+  else if (restedBefore) showTooltip(TEXTS.city.restedBefore);
 }
 
 export function renderCityScreen(root) {

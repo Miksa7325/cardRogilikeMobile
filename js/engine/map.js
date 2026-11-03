@@ -1,6 +1,6 @@
 // Генерация карты акта. Этот файл не трогает HTML: только создаёт данные карты.
 import { CONFIG } from "../config.js";
-import { nextInt, pickWeighted } from "./rng.js";
+import { nextFloat, nextInt, pickWeighted } from "./rng.js";
 
 // Узлы лежат в сетке из рядов и колонок. Каждый путь — это колонка на каждом этаже.
 // Колонки путей всегда отсортированы по порядку, поэтому линии между рядами не пересекаются.
@@ -28,28 +28,69 @@ export function generateMap(rng) {
     if (nextPaths) paths = nextPaths;
   }
 
-  // Босс один: в него ведут все узлы последнего этажа
-  const bossId = nodeId(floors + 1, "boss");
-  nodes[bossId] = { id: bossId, floor: floors + 1, column: (columns - 1) / 2, type: "boss", next: [] };
-  for (const id of rows[rows.length - 1]) nodes[id].next.push(bossId);
-  rows.push([bossId]);
-
   assignNodeTypes(rng, nodes, rows);
+  addDeadEnds(rng, nodes);
+  placeBoss(rng, nodes, rows);
   return { nodes, rows };
+}
+
+// Комната босса в каждом акте в случайном месте: туннель к ней отходит от случайной комнаты основных путей
+// не ниже bossMinFloor. Верхние комнаты, из которых больше никуда не ведёт, становятся тупиками — босса придётся искать
+function placeBoss(rng, nodes, rows) {
+  const { columns, maxTunnels, bossMinFloor } = CONFIG.map;
+  const hosts = rows.flat().map((id) => nodes[id]).filter((node) => node.floor >= bossMinFloor && node.next.length < maxTunnels);
+  const host = hosts[nextInt(rng, 0, hosts.length - 1)];
+  // Сдвиг в сторону нужен только карте: так комната босса не ляжет поверх соседней
+  const column = Math.max(-0.3, Math.min(columns - 0.7, host.column + nextInt(rng, -1, 1) * 0.5));
+  const boss = { id: nodeId(host.floor + 1, "boss"), floor: host.floor + 1, column, type: "boss", next: [] };
+  host.next.push(boss.id);
+  nodes[boss.id] = boss;
+}
+
+// Тупики: от некоторых развилок отходит боковой туннель. В нём одна комната, а за ней тупик —
+// иногда с сундуком, иногда пустой. Чтобы идти дальше, придётся вернуться к развилке.
+// Боковых комнат нет в rows: это ряды основных путей, по ним строится карта
+function addDeadEnds(rng, nodes) {
+  const { floors, columns, maxTunnels, deadEnds, deadEndChestChance, deadEndRoomWeights, eliteMinFloor } = CONFIG.map;
+  // Тупик заканчивается двумя этажами выше развилки и не должен дойти до этажа перед боссом
+  const forks = Object.values(nodes).filter((node) => node.floor >= 2 && node.floor <= floors - 3 && node.next.length < maxTunnels);
+  for (let index = 0; index < deadEnds && forks.length > 0; index++) {
+    const fork = forks.splice(nextInt(rng, 0, forks.length - 1), 1)[0];
+    // Боковой туннель уходит к ближнему краю карты, между колонками основных путей
+    const side = fork.column <= (columns - 1) / 2 ? -1 : 1;
+    const column = Math.max(-0.3, Math.min(columns - 0.7, fork.column + side * 0.5));
+
+    const weights = { ...deadEndRoomWeights };
+    if (fork.floor + 1 < eliteMinFloor) delete weights.elite;
+    const room = { id: `${fork.floor + 1}-dead${index}`, floor: fork.floor + 1, column, type: pickWeighted(rng, weights), next: [] };
+    const end = {
+      id: `${fork.floor + 2}-dead${index}`,
+      floor: fork.floor + 2,
+      column,
+      type: nextFloat(rng) < deadEndChestChance ? "chest" : "deadEnd",
+      next: [],
+    };
+    room.next.push(end.id);
+    fork.next.push(room.id);
+    nodes[room.id] = room;
+    nodes[end.id] = end;
+  }
 }
 
 function nodeId(floor, column) {
   return `${floor}-${column}`;
 }
 
-// Стартовые колонки путей: минимум две разные
+// Стартовые колонки путей: минимум две разные. Из начальной комнаты ведут не больше трёх туннелей,
+// а дальше больше трёх и не бывает: путь шагает только прямо или на колонку в сторону
 function rollStartColumns(rng, pathCount, columns) {
+  const { minNodesInRow, maxTunnels } = CONFIG.map;
   let result;
   do {
     result = [];
     for (let i = 0; i < pathCount; i++) result.push(nextInt(rng, 0, columns - 1));
     result.sort((a, b) => a - b);
-  } while (countDistinct(result) < CONFIG.map.minNodesInRow);
+  } while (countDistinct(result) < minNodesInRow || countDistinct(result) > maxTunnels);
   return result;
 }
 

@@ -9,7 +9,7 @@ import { LOGO_ART } from "../art.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { openCity } from "./city.js";
-import { continueRun } from "./map.js";
+import { continueRun } from "./dungeon.js";
 
 function createButton(text, modifier, onTap) {
   const button = el("button", `button ${modifier}`, text);

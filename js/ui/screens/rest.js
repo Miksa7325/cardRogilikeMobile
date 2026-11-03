@@ -24,7 +24,7 @@ export function renderRestScreen(root) {
 
   const healButton = createButton(TEXTS.rest.heal(healAmount), () => {
     restHeal(run);
-    showScreen("map");
+    showScreen("dungeon");
   });
   healButton.disabled = healAmount === 0;
 
@@ -47,7 +47,7 @@ export function renderRestUpgradeScreen(root) {
       selected: false,
       onTap: () => {
         restUpgrade(run, card.uid);
-        showScreen("map");
+        showScreen("dungeon");
       },
       onHold: () => openCardPreview(upgraded, HERO_OUTSIDE_COMBAT),
     }));

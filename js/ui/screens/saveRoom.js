@@ -28,7 +28,7 @@ export function renderSaveRoomScreen(root) {
     el("h1", "center-screen__title", TEXTS.saveRoom.title),
     el("p", "reward__line", TEXTS.saveRoom.text),
     createButton(TEXTS.saveRoom.toCity, "button--large", () => openCity("gate")),
-    createButton(TEXTS.saveRoom.onward, "button--secondary", () => showScreen("map")),
+    createButton(TEXTS.saveRoom.onward, "button--secondary", () => showScreen("dungeon")),
   );
   root.append(screen);
 }

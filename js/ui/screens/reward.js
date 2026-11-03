@@ -73,5 +73,5 @@ function createCardChoices(cardIds) {
 
 function finishReward(cardId) {
   completeReward(state.run, cardId);
-  showScreen(state.run.status === "won" ? "result" : "map");
+  showScreen(state.run.status === "won" ? "result" : "dungeon");
 }

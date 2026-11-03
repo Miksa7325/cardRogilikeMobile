@@ -45,7 +45,7 @@ function createNextButton(run) {
   button.type = "button";
   button.addEventListener("click", () => {
     finishEvent(run);
-    showScreen("map");
+    showScreen("dungeon");
   });
   return button;
 }

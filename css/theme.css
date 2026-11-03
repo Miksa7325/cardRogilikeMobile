@@ -465,6 +465,14 @@
   filter: drop-shadow(0 0 3px var(--gold));
 }
 
+/* Неизведанный туннель: обрывок у развилки, к концу уходит во тьму */
+.map__line--unknown {
+  stroke: #8a7a5c;
+  stroke-width: 3;
+  stroke-dasharray: 3 4;
+  opacity: 0.8;
+}
+
 .map-node {
   border-color: #5e5240;
   background: radial-gradient(circle at 35% 30%, #4a4257, #1d1824);
@@ -483,6 +491,338 @@
 .map__legend,
 .map__stats {
   text-shadow: 0 1px 2px #000;
+}
+
+.map-node--current {
+  border-color: #fff4cc;
+  box-shadow: 0 0 14px 4px var(--gold);
+}
+
+/* Коридор от первого лица. Коробка в перспективе: стены, пол и потолок повёрнуты вглубь на --depth,
+   дальняя стена с туннелями стоит в её конце. Стены из той же текстуры, что и фон акта */
+.corridor {
+  --depth: 240px;
+  --wall: url("../assets/images/textures/scene-act1.png");
+  --stone: #2a2620;
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  margin: 8px 12px;
+  overflow: hidden;
+  border: 2px solid #3a3040;
+  border-radius: 10px;
+  background: #050407;
+  perspective: 420px;
+  box-shadow: inset 0 0 30px #000, 0 4px 12px rgba(0, 0, 0, 0.7);
+  image-rendering: pixelated;
+}
+
+.corridor[data-act="2"] {
+  --wall: url("../assets/images/textures/scene-act2.png");
+  --stone: #262a2a;
+}
+
+.corridor[data-act="3"] {
+  --wall: url("../assets/images/textures/scene-act3.png");
+  --stone: #2c2024;
+}
+
+/* Комната короче коридора: дальняя стена ближе и крупнее */
+.corridor--room {
+  --depth: 140px;
+}
+
+.corridor__world {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.corridor__wall,
+.corridor__floor,
+.corridor__ceiling,
+.corridor__end {
+  position: absolute;
+  backface-visibility: hidden;
+}
+
+/* Кладка — верхняя часть текстуры акта: растягиваем картинку так, чтобы она заняла всю высоту стены */
+.corridor__wall {
+  top: 0;
+  width: var(--depth);
+  height: 100%;
+  background: var(--wall) 0 0 / auto 170% repeat-x;
+  filter: brightness(0.75);
+}
+
+.corridor__wall--left {
+  left: 0;
+  transform-origin: left center;
+  transform: rotateY(90deg);
+}
+
+.corridor__wall--right {
+  right: 0;
+  transform-origin: right center;
+  transform: rotateY(-90deg);
+}
+
+/* Отсвет факела на стенах */
+.corridor__wall::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 22% 40% at 45% 38%, rgba(255, 150, 60, 0.45), transparent);
+  animation: corridor-torch 2.4s ease-in-out infinite;
+}
+
+.corridor__wall--right::after {
+  animation-delay: -1.1s;
+}
+
+@keyframes corridor-torch {
+  0%, 100% { opacity: 0.85; }
+  30% { opacity: 1; }
+  60% { opacity: 0.65; }
+}
+
+.corridor__floor {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: var(--depth);
+  transform-origin: bottom center;
+  transform: rotateX(90deg);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0 2px, transparent 2px 48px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.5) 0 2px, transparent 2px 40px),
+    var(--stone);
+}
+
+.corridor__ceiling {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: var(--depth);
+  transform-origin: top center;
+  transform: rotateX(-90deg);
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0 6px, transparent 6px 60px),
+    #121016;
+}
+
+.corridor__end {
+  inset: 0;
+  transform: translateZ(calc(var(--depth) * -1));
+  background: var(--wall) 0 0 / auto 170% repeat-x;
+  filter: brightness(0.6);
+}
+
+/* Темнота по краям, а при шаге в туннель — затемнение всего коридора */
+.corridor__shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 65% at 50% 55%, transparent 40%, rgba(0, 0, 0, 0.8));
+}
+
+.corridor__shade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  transition: opacity calc(720ms * var(--anim-speed)) ease-in;
+}
+
+/* В начальной комнате сверху, с лестницы, падает дневной свет */
+.corridor__light {
+  position: absolute;
+  top: 0;
+  left: 30%;
+  width: 40%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 236, 180, 0.35), rgba(255, 236, 180, 0.08) 70%, transparent);
+  clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+}
+
+/* Вход в туннель: каменная арка с тьмой внутри, над ней знак того, что ждёт впереди */
+.tunnel {
+  position: absolute;
+  bottom: 0;
+  width: 26%;
+  height: 66%;
+  padding: 0;
+  border: 7px solid #4f463c;
+  border-bottom: none;
+  border-radius: 50% 50% 0 0 / 34% 34% 0 0;
+  background: radial-gradient(ellipse 60% 70% at 50% 75%, #000 45%, #17131c);
+  box-shadow: inset 0 0 22px #000, 0 0 0 2px #1a1420;
+  transform: translateX(-50%);
+  cursor: pointer;
+  filter: brightness(1.6);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tunnel:hover,
+.tunnel:focus-visible,
+.tunnel--chosen {
+  border-color: var(--gold);
+}
+
+.tunnel__sign {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  padding: 2px 8px;
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  background: rgba(10, 8, 14, 0.9);
+  font-size: 30px;
+  line-height: 1.2;
+  transform: translate(-50%, -8px);
+  animation: tunnel-sign 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes tunnel-sign {
+  to { box-shadow: 0 0 14px 2px rgba(255, 200, 80, 0.7); }
+}
+
+/* Шаг в туннель: мир надвигается на камеру и сдвигается к выбранному входу, всё темнеет */
+.corridor__world {
+  transition: transform calc(720ms * var(--anim-speed)) ease-in;
+}
+
+.corridor--walking .corridor__world {
+  transform: translate3d(var(--walk-x, 0%), 0, calc(var(--depth) * 0.85));
+}
+
+.corridor--walking .corridor__shade::after,
+.corridor--retreating .corridor__shade::after {
+  opacity: 1;
+}
+
+/* Шаг назад: коридор отдаляется, будто герой пятится к повороту */
+.corridor--retreating .corridor__world {
+  transform: translate3d(0, 0, calc(var(--depth) * -0.6));
+}
+
+/* Пройденный туннель: знак тусклый и с галочкой */
+.tunnel--cleared .tunnel__sign {
+  filter: grayscale(0.8) brightness(0.7);
+  animation: none;
+}
+
+.tunnel--cleared .tunnel__sign::after {
+  content: "✔";
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  color: #9cf0a0;
+  font-size: 18px;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Дорога назад: на полу у самого края коридора светятся стрелки к игроку, будто начерченные мелом.
+   Они бегут вниз, к герою, — туда, откуда он пришёл */
+.corridor__back {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 10px;
+  border: none;
+  background: none;
+  color: #ffd98a;
+  transform: translateX(-50%);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.corridor__back-arrows {
+  width: 54px;
+  height: 32px;
+  filter: drop-shadow(0 0 4px rgba(255, 190, 90, 0.9));
+}
+
+.corridor__back-arrows polyline {
+  animation: floor-arrow 1.2s ease-in-out infinite;
+}
+
+.corridor__back-arrows polyline:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.corridor__back-arrows polyline:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes floor-arrow {
+  0%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+
+.corridor__back-label {
+  font-family: var(--font-title);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 4px #000, 0 1px 2px #000;
+}
+
+.corridor__back:hover .corridor__back-arrows,
+.corridor__back:focus-visible .corridor__back-arrows {
+  filter: drop-shadow(0 0 8px #ffbe5a);
+}
+
+/* Кнопка «Назад» под коридором: каменная табличка с вырезанной стрелкой разворота */
+.back-button {
+  border: 2px solid #6a5a45;
+  border-radius: 6px 6px 14px 14px;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #4a4238, #2a2520);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.18), inset 0 -3px 6px rgba(0, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.6);
+  color: #ffd98a;
+  font-family: var(--font-title);
+  text-shadow: 0 1px 2px #000;
+}
+
+.back-button__icon {
+  filter: drop-shadow(0 1px 1px #000);
+}
+
+.back-button:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* Быстрый переход: пройденные комнаты на карте нажимаются */
+.map-node--travel:hover,
+.map-node--travel:focus-visible {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px 2px rgba(224, 184, 76, 0.6);
+}
+
+.corridor--walking,
+.corridor--retreating {
+  animation: corridor-steps calc(240ms * var(--anim-speed)) ease-in-out 3;
+}
+
+@keyframes corridor-steps {
+  50% { translate: 0 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .corridor__wall::after,
+  .tunnel__sign,
+  .corridor--walking,
+  .corridor--retreating,
+  .corridor__back-arrows polyline {
+    animation: none;
+  }
 }
 
 /* Город на карте забега: ждут награды за задания */

@@ -1,35 +1,33 @@
-// Экран карты акта: узлы, линии между ними и выбор следующего узла.
-import { CONFIG } from "../../config.js";
+// Подземелье от первого лица: герой стоит в комнате или коридоре и выбирает, в какой туннель идти.
+// Туннелей от одного до трёх, над входом видно, что ждёт впереди. Карта акта открывается отдельной кнопкой.
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
 import { countReadyQuests, getLockedContent, mergeSeen } from "../../engine/meta.js";
-import { canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
+import {
+  canGoBack, canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, goBack, isNodeCleared, openChest, travelTo,
+} from "../../engine/run.js";
 import { createShop } from "../../engine/shop.js";
 import { loadMeta, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
+import { NODE_ICONS, openDungeonMap } from "../components/dungeonMap.js";
 import { createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
+import { animationMs } from "../settings.js";
 import { createTutorialBanner, notifyTutorial, startTutorial } from "../tutorial.js";
 import { openCity } from "./city.js";
 import { resumeCombat, startNodeCombat } from "./combat.js";
 import { openRunStats } from "./runStats.js";
 
-const ROW_HEIGHT = 64; // расстояние между этажами на карте, px
-const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const WALK_ANIMATIONS = 2.4; // шаг в туннель длится столько обычных анимаций
 
-const NODE_ICONS = {
-  battle: "⚔️",
-  elite: "👹",
-  event: "❓",
-  shop: "🛒",
-  rest: "🔥",
-  chest: "🎁",
-  save: "🌀",
-  boss: "💀",
-};
+// Стрелка разворота для кнопки «Назад»
+const BACK_ICON = `<svg class="back-button__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 4 9l5 5M4 9h9.5a6 6 0 0 1 0 12H10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+// Три стрелки на полу коридора, направленные к игроку: туда, откуда он пришёл
+const FLOOR_ARROWS = `<svg class="corridor__back-arrows" viewBox="0 0 60 36" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,4 30,12 50,4"/><polyline points="10,14 30,22 50,14"/><polyline points="10,24 30,32 50,24"/></g></svg>`;
 
 // Запускает новый забег. Время как seed задаём здесь: в логике случайность только через rng.js
 export function startNewRun(heroId, difficulty) {
@@ -44,120 +42,221 @@ export function startNewRun(heroId, difficulty) {
   state.test.enabled = false;
   if (!meta.tutorialDone) startTutorial();
   resetPlayTimer();
-  showScreen("map");
+  showScreen("dungeon");
 }
 
-// Продолжает сохранённый забег там, где игрок остановился: на награде, в бою или на карте
+// Продолжает сохранённый забег там, где игрок остановился: на награде, в бою или в подземелье
 export function continueRun(run) {
   state.run = run;
   state.test.enabled = false;
   resetPlayTimer();
   if (run.pendingReward) showScreen("reward");
   else if (run.savedCombat) resumeCombat();
-  else showScreen("map");
+  else showScreen("dungeon");
 }
 
-export function renderMapScreen(root) {
+export function renderDungeonScreen(root) {
   const run = state.run;
   const meta = loadMeta();
-  const screen = el("main", "map");
-  const scroller = el("div", "map__scroller");
-  scroller.append(createMapContent(run));
-  const statsButton = el("button", "map__stats", TEXTS.stats.button);
-  statsButton.type = "button";
-  statsButton.addEventListener("click", () => openRunStats(run));
-  const links = el("div", "map__links");
-  links.append(statsButton);
-  if (canReturnToCity(run)) links.append(createCityButton(meta));
-  screen.append(createRunBar(run, { allSaved: true }), el("p", "map__legend", TEXTS.mapLegend), links, scroller);
-  const banner = createTutorialBanner("map");
+  const screen = el("main", "dungeon");
+  const place = describePlace(run);
+  // Туннели слева направо в том же порядке, что узлы на карте
+  const tunnels = getAvailableNodeIds(run).map((id) => run.map.nodes[id]).sort((a, b) => a.column - b.column);
+
+  // Пока герой идёт, второй выбор не принимаем
+  let walking = false;
+  const move = (start) => {
+    if (walking) return;
+    walking = true;
+    start();
+  };
+  const choose = (index) => move(() => walkInto(corridor, index, tunnels.length, () => enterTunnel(run, tunnels[index].id)));
+  const back = canGoBack(run)
+    ? () => move(() => walkBack(corridor, () => {
+      goBack(run);
+      showScreen("dungeon");
+    }))
+    : null;
+  const corridor = createCorridor(run, tunnels, choose, back);
+
+  const heading = el("div", "dungeon__place");
+  heading.append(el("h1", "dungeon__title", place.title), el("p", "dungeon__hint", describeWay(place, tunnels.length)));
+
+  screen.append(
+    createRunBar(run, { allSaved: true }),
+    heading,
+    corridor,
+    createTunnelButtons(run, tunnels, choose, back),
+    createLinks(run, meta),
+  );
+  const banner = createTutorialBanner("dungeon");
   if (banner) screen.append(banner);
   root.append(screen);
 
-  // На карту игрок попадает только между узлами, поэтому здесь и сохраняем забег
+  // Сюда игрок попадает только между узлами, поэтому здесь и сохраняем забег
   trackPlayTime(run);
   run.savedCombat = null;
   mergeSeen(meta, run);
   if (!saveRun(run) || !saveMeta(meta)) showTooltip(TEXTS.saveFailed);
+}
 
-  // Показываем ряд, куда можно идти: прокрутка работает, только когда карта уже на странице
-  const firstAvailable = scroller.querySelector(".map-node--available");
-  scroller.scrollTop = firstAvailable.offsetTop - scroller.clientHeight / 2;
+// Где стоит герой: в начальной комнате акта, в комнате сохранения или в коридоре
+function describePlace(run) {
+  if (!run.currentNodeId) {
+    return run.act === 1
+      ? { title: TEXTS.dungeon.startRoom, hint: TEXTS.dungeon.startHint, room: true }
+      : { title: TEXTS.dungeon.actStart(run.act), hint: TEXTS.dungeon.hint, room: true };
+  }
+  const type = getCurrentNode(run).type;
+  if (type === "save") return { title: TEXTS.saveRoom.title, hint: TEXTS.dungeon.hint, room: true };
+  if (type === "deadEnd") return { title: TEXTS.dungeon.nodes.deadEnd, hint: TEXTS.dungeon.deadEndHint, room: false };
+  return { title: TEXTS.dungeon.corridor, hint: TEXTS.dungeon.hint, room: false };
+}
+
+// Подсказка под названием: сколько дальше дорог и есть ли они вообще
+function describeWay(place, tunnelCount) {
+  if (tunnelCount === 0) return TEXTS.dungeon.deadEndHint;
+  if (tunnelCount === 1) return TEXTS.dungeon.oneTunnel;
+  return place.hint;
+}
+
+// Коридор в перспективе: стены, пол и потолок — грани коробки, на дальней стене входы в туннели.
+// В комнате коробка короче и шире на вид, а сверху падает свет. В тупике на стене нет ни одного входа
+function createCorridor(run, tunnels, onChoose, onBack) {
+  const corridor = el("div", "corridor");
+  corridor.dataset.act = String(run.act);
+  if (describePlace(run).room) corridor.classList.add("corridor--room");
+
+  const end = el("div", "corridor__end");
+  tunnels.forEach((node, index) => end.append(createTunnel(run, node, index, tunnels.length, onChoose)));
+
+  const world = el("div", "corridor__world");
+  world.append(
+    el("div", "corridor__wall corridor__wall--left"),
+    el("div", "corridor__wall corridor__wall--right"),
+    el("div", "corridor__floor"),
+    el("div", "corridor__ceiling"),
+    end,
+  );
+  corridor.append(world, el("div", "corridor__shade"));
+  if (!run.currentNodeId) corridor.append(el("div", "corridor__light"));
+  // Назад — туда, откуда герой пришёл: за спиной, поэтому на полу у самого края светятся стрелки к игроку
+  if (onBack) {
+    const back = el("button", "corridor__back");
+    back.type = "button";
+    back.setAttribute("aria-label", TEXTS.dungeon.back);
+    back.innerHTML = FLOOR_ARROWS;
+    back.append(el("span", "corridor__back-label", TEXTS.dungeon.back));
+    back.addEventListener("click", onBack);
+    corridor.append(back);
+  }
+  return corridor;
+}
+
+// Середина туннеля на дальней стене, в процентах её ширины: входы стоят равномерно
+function tunnelPosition(index, count) {
+  return ((index + 0.5) / count) * 100;
+}
+
+// Что за новым туннелем, не видно: знак висит только над пройденным, с галочкой — там уже пусто
+function createTunnel(run, node, index, count, onChoose) {
+  const tunnel = el("button", "tunnel");
+  tunnel.type = "button";
+  tunnel.style.left = `${tunnelPosition(index, count)}%`;
+  tunnel.setAttribute("aria-label", describeTunnel(run, node, index, count));
+  if (isNodeCleared(run, node.id)) {
+    tunnel.classList.add("tunnel--cleared");
+    tunnel.append(el("span", "tunnel__sign", NODE_ICONS[node.type]));
+  }
+  tunnel.addEventListener("click", () => onChoose(index));
+  return tunnel;
+}
+
+// Герой идёт в выбранный туннель: коридор надвигается и темнеет, потом открывается то, что там ждёт
+function walkInto(corridor, index, count, onArrive) {
+  corridor.style.setProperty("--walk-x", `${50 - tunnelPosition(index, count)}%`);
+  corridor.classList.add("corridor--walking");
+  corridor.querySelectorAll(".tunnel")[index].classList.add("tunnel--chosen");
+  // Пока герой шёл, игрок мог уйти в меню: тогда в туннель не входим
+  setTimeout(() => {
+    if (corridor.isConnected) onArrive();
+  }, animationMs(WALK_ANIMATIONS));
+}
+
+// Герой разворачивается и уходит назад: коридор отдаляется и темнеет
+function walkBack(corridor, onArrive) {
+  corridor.classList.add("corridor--retreating");
+  setTimeout(() => {
+    if (corridor.isConnected) onArrive();
+  }, animationMs(WALK_ANIMATIONS));
+}
+
+// Новый туннель называем по направлению, пройденный — по тому, что в нём было
+function describeTunnel(run, node, index, count) {
+  if (isNodeCleared(run, node.id)) return TEXTS.dungeon.cleared(`${NODE_ICONS[node.type]} ${TEXTS.dungeon.nodes[node.type]}`);
+  return TEXTS.dungeon.directions[count]?.[index] ?? TEXTS.dungeon.tunnel(index + 1);
+}
+
+// Те же туннели кнопками под коридором. Первой стоит дорога назад: каменная табличка со стрелкой разворота
+function createTunnelButtons(run, tunnels, choose, back) {
+  const row = el("div", "dungeon__tunnels");
+  if (back) {
+    const button = el("button", "back-button");
+    button.type = "button";
+    button.innerHTML = BACK_ICON;
+    button.append(el("span", "back-button__label", TEXTS.dungeon.back));
+    button.addEventListener("click", back);
+    row.append(button);
+  }
+  tunnels.forEach((node, index) => {
+    const button = el("button", "button button--secondary", describeTunnel(run, node, index, tunnels.length));
+    button.type = "button";
+    button.addEventListener("click", () => choose(index));
+    row.append(button);
+  });
+  return row;
+}
+
+function createLink(text, onTap) {
+  const button = el("button", "map__stats", text);
+  button.type = "button";
+  button.addEventListener("click", onTap);
+  return button;
+}
+
+function createLinks(run, meta) {
+  const links = el("div", "map__links");
+  links.append(
+    createLink(TEXTS.dungeon.mapButton, () => openDungeonMap(run, (nodeId) => {
+      if (!travelTo(run, nodeId)) return;
+      showScreen("dungeon");
+      showTooltip(TEXTS.dungeon.traveled);
+    })),
+    createLink(TEXTS.stats.button, () => openRunStats(run)),
+  );
+  if (canReturnToCity(run)) links.append(createCityButton(meta));
+  return links;
 }
 
 // Подняться в город можно только из комнаты сохранения: там строят дома и забирают награды за задания.
 // Если награды ждут, кнопка подсвечена
 function createCityButton(meta) {
   const ready = countReadyQuests(meta);
-  const button = el("button", "map__stats", ready > 0 ? TEXTS.city.buttonReady(ready) : TEXTS.city.button);
-  button.type = "button";
+  const button = createLink(ready > 0 ? TEXTS.city.buttonReady(ready) : TEXTS.city.button, () => openCity("gate"));
   if (ready > 0) button.classList.add("map__stats--attention");
-  button.addEventListener("click", () => openCity("gate"));
   return button;
 }
 
-function createMapContent(run) {
-  const content = el("div", "map__content");
-  content.style.height = `${run.map.rows.length * ROW_HEIGHT}px`;
-  content.append(createLines(run));
-
-  const available = getAvailableNodeIds(run);
-  for (const node of Object.values(run.map.nodes)) {
-    content.append(createNode(run, node, available.includes(node.id)));
-  }
-  return content;
-}
-
-function getNodeX(node) {
-  return `${((node.column + 0.5) / CONFIG.map.columns) * 100}%`;
-}
-
-// Этаж 1 внизу, босс наверху
-function getNodeY(run, node) {
-  return (run.map.rows.length - node.floor) * ROW_HEIGHT + ROW_HEIGHT / 2;
-}
-
-function createLines(run) {
-  const svg = document.createElementNS(SVG_NAMESPACE, "svg");
-  svg.classList.add("map__lines");
-
-  for (const node of Object.values(run.map.nodes)) {
-    for (const nextId of node.next) {
-      const next = run.map.nodes[nextId];
-      const line = document.createElementNS(SVG_NAMESPACE, "line");
-      line.setAttribute("x1", getNodeX(node));
-      line.setAttribute("y1", getNodeY(run, node));
-      line.setAttribute("x2", getNodeX(next));
-      line.setAttribute("y2", getNodeY(run, next));
-      const walked = run.visitedNodeIds.includes(node.id) && run.visitedNodeIds.includes(nextId);
-      line.classList.add(walked ? "map__line--walked" : "map__line");
-      svg.append(line);
-    }
-  }
-  return svg;
-}
-
-function createNode(run, node, isAvailable) {
-  const button = el("button", "map-node", NODE_ICONS[node.type]);
-  button.type = "button";
-  button.style.left = getNodeX(node);
-  button.style.top = `${getNodeY(run, node)}px`;
-
-  if (isAvailable) {
-    button.classList.add("map-node--available");
-    button.addEventListener("click", () => onNodeTap(run, node.id));
-  } else if (run.visitedNodeIds.includes(node.id)) {
-    button.classList.add("map-node--visited");
-  }
-  return button;
-}
-
-function onNodeTap(run, nodeId) {
+// Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там
+function enterTunnel(run, nodeId) {
+  const cleared = isNodeCleared(run, nodeId);
   if (!enterNode(run, nodeId)) return;
   notifyTutorial("nodeEntered");
 
   const type = getCurrentNode(run).type;
-  if (type === "rest") {
+  if (cleared || type === "deadEnd") {
+    showScreen("dungeon");
+  } else if (type === "rest") {
     showScreen("rest");
   } else if (type === "save") {
     showScreen("saveRoom");

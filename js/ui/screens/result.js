@@ -2,7 +2,7 @@
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { applyRunToMeta, getNextUnlock } from "../../engine/meta.js";
-import { getCurrentFloor } from "../../engine/run.js";
+import { getDeepestFloor } from "../../engine/run.js";
 import { clearRun, loadMeta, saveMeta } from "../../save.js";
 import { state } from "../../state.js";
 import { playSound } from "../audio.js";
@@ -27,13 +27,14 @@ export function renderResultScreen(root) {
   // Итог записываем один раз, даже если экран нарисуют повторно
   if (!run.metaResult) {
     const meta = loadMeta();
-    run.metaResult = applyRunToMeta(meta, run, getCurrentFloor(run));
+    // Опыт и кроны за самый глубокий этаж: герой мог погибнуть, возвращаясь назад
+    run.metaResult = applyRunToMeta(meta, run, getDeepestFloor(run));
     saveMeta(meta);
     playSound(run.status === "won" ? "victory" : "defeat");
   }
 
   const title = run.status === "won" ? TEXTS.victoryTitle : TEXTS.defeatTitle;
-  const summary = TEXTS.runSummary(run.act, getCurrentFloor(run), run.gold);
+  const summary = TEXTS.runSummary(run.act, getDeepestFloor(run), run.gold);
   renderResult(root, title, [summary, ...formatMetaResult(run.metaResult)], TEXTS.city.toCity, () => openCity("gate"));
 
   const statsButton = el("button", "button button--secondary", TEXTS.stats.button);

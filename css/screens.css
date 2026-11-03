@@ -171,8 +171,8 @@
   line-height: 1.3;
 }
 
-/* На карте нижний ряд узлов — самый важный, поэтому подсказка стоит сверху */
-.map .tutorial {
+/* В подземелье внизу туннели и кнопки, поэтому подсказка стоит сверху */
+.dungeon .tutorial {
   top: calc(52px + env(safe-area-inset-top));
   bottom: auto;
 }
@@ -448,7 +448,105 @@
   padding: 8px 16px;
 }
 
-/* Экран карты: панель сверху, ниже прокручиваемая карта */
+/* Подземелье: панель сверху, ниже коридор от первого лица, под ним туннели кнопками и ссылки */
+.dungeon {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.dungeon__place {
+  flex-shrink: 0;
+  padding: 6px 16px 0;
+  text-align: center;
+}
+
+.dungeon__title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.dungeon__hint {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.dungeon__tunnels {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.dungeon__tunnels .button {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+/* Назад — узкая каменная табличка слева, туннели шире */
+.back-button {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  min-width: 64px;
+  min-height: 52px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.back-button__icon {
+  width: 22px;
+  height: 22px;
+}
+
+.back-button__label {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Подсказка про быстрый переход */
+.dungeon-map__hint {
+  padding-top: 0;
+}
+
+.map-node--travel {
+  cursor: pointer;
+}
+
+/* Карта акта поверх подземелья: заголовок, легенда, прокручиваемая карта и кнопка внизу */
+.dungeon-map {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  gap: 4px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: #08060b;
+  animation: preview-in calc(160ms * var(--anim-speed)) ease-out;
+}
+
+.dungeon-map__title {
+  text-align: center;
+}
+
+.dungeon-map__close {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Карта: заголовок сверху, ниже прокручиваемая карта */
 .map {
   display: flex;
   flex-direction: column;
@@ -468,7 +566,7 @@
   text-align: center;
 }
 
-/* Ссылки под легендой: статистика и город */
+/* Ссылки под туннелями: карта, статистика и город */
 .map__links {
   display: flex;
   flex-shrink: 0;
@@ -527,6 +625,9 @@
 /* Узел карты: круг 44×44 px, центр стоит точно в координатах узла */
 .map-node {
   position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 44px;
   height: 44px;
   margin: -22px 0 0 -22px;
@@ -545,12 +646,18 @@
   filter: none;
 }
 
-/* Куда можно пойти: узел пульсирует */
+/* Куда ведут туннели: узел пульсирует */
 .map-node--available {
   border-color: var(--color-highlight);
   filter: none;
-  cursor: pointer;
   animation: map-node-pulse 1s infinite alternate;
+}
+
+/* Где стоит герой */
+.map-node--current {
+  border-width: 3px;
+  border-color: #fff;
+  filter: none;
 }
 
 @keyframes map-node-pulse {
