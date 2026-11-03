@@ -4,7 +4,8 @@ import { nextFloat, nextInt, pickWeighted } from "./rng.js";
 
 // Узлы лежат в сетке из рядов и колонок. Каждый путь — это колонка на каждом этаже.
 // Колонки путей всегда отсортированы по порядку, поэтому линии между рядами не пересекаются.
-export function generateMap(rng) {
+// mechanic — особенность акта из data/acts.js: deadEnds меняет число тупиков, noRest убирает отдых
+export function generateMap(rng, mechanic = {}) {
   const { floors, columns, pathCount } = CONFIG.map;
   const nodes = {};
   const rows = [];
@@ -28,8 +29,8 @@ export function generateMap(rng) {
     if (nextPaths) paths = nextPaths;
   }
 
-  assignNodeTypes(rng, nodes, rows);
-  addDeadEnds(rng, nodes);
+  assignNodeTypes(rng, nodes, rows, mechanic);
+  addDeadEnds(rng, nodes, mechanic.deadEnds ?? CONFIG.map.deadEnds);
   placeBoss(rng, nodes, rows);
   return { nodes, rows };
 }
@@ -50,8 +51,8 @@ function placeBoss(rng, nodes, rows) {
 // Тупики: от некоторых развилок отходит боковой туннель. В нём одна комната, а за ней тупик —
 // иногда с сундуком, иногда пустой. Чтобы идти дальше, придётся вернуться к развилке.
 // Боковых комнат нет в rows: это ряды основных путей, по ним строится карта
-function addDeadEnds(rng, nodes) {
-  const { floors, columns, maxTunnels, deadEnds, deadEndChestChance, deadEndRoomWeights, eliteMinFloor } = CONFIG.map;
+function addDeadEnds(rng, nodes, deadEnds) {
+  const { floors, columns, maxTunnels, deadEndChestChance, deadEndRoomWeights, eliteMinFloor } = CONFIG.map;
   // Тупик заканчивается двумя этажами выше развилки и не должен дойти до этажа перед боссом
   const forks = Object.values(nodes).filter((node) => node.floor >= 2 && node.floor <= floors - 3 && node.next.length < maxTunnels);
   for (let index = 0; index < deadEnds && forks.length > 0; index++) {
@@ -113,7 +114,7 @@ function countDistinct(items) {
 }
 
 // Типы назначаем снизу вверх: так у каждого узла уже известны типы узлов перед ним
-function assignNodeTypes(rng, nodes, rows) {
+function assignNodeTypes(rng, nodes, rows, mechanic) {
   const parents = {};
   for (const node of Object.values(nodes)) {
     for (const nextId of node.next) (parents[nextId] ??= []).push(node);
@@ -123,19 +124,21 @@ function assignNodeTypes(rng, nodes, rows) {
     for (const id of row) {
       const node = nodes[id];
       if (node.type) continue;
-      node.type = pickNodeType(rng, node.floor, parents[id] ?? []);
+      node.type = pickNodeType(rng, node.floor, parents[id] ?? [], mechanic);
     }
   }
 }
 
-function pickNodeType(rng, floor, parentNodes) {
+// В акте без передышки отдыха нет: верхний этаж отдыха становится событием
+function pickNodeType(rng, floor, parentNodes, mechanic) {
   const { chestFloor, saveFloors, restFloor, eliteMinFloor, nodeWeights } = CONFIG.map;
   if (floor === 1) return "battle";
   if (floor === chestFloor) return "chest";
   if (saveFloors.includes(floor)) return "save";
-  if (floor === restFloor) return "rest";
+  if (floor === restFloor) return mechanic.noRest ? "event" : "rest";
 
   const weights = { ...nodeWeights };
+  if (mechanic.noRest) delete weights.rest;
   if (floor < eliteMinFloor) delete weights.elite;
   // Отдых не стоит два раза подряд на одном пути
   if (floor + 1 === restFloor) delete weights.rest;

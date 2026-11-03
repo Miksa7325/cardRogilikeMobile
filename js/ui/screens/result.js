@@ -42,11 +42,10 @@ export function renderResultScreen(root) {
   root.querySelector(".center-screen").append(statsButton);
 }
 
-// Добыча, сданная в казну, выполненные задания и открытая сложность
+// Добыча, сданная в казну, и выполненные задания
 function formatMetaResult(result) {
   const lines = [TEXTS.meta.banked(result.goldGained, result.essencesGained)];
   for (const title of result.questsReady) lines.push(TEXTS.meta.questReady(title));
-  if (result.difficultyJustUnlocked) lines.push(TEXTS.meta.difficultyUnlocked);
   return lines;
 }
 

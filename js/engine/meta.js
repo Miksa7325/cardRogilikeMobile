@@ -1,6 +1,7 @@
 // Мета-прогресс: казна города, постройки, задания, выбранный герой и коллекция. Этот файл не трогает хранилище и HTML:
 // сохраняет данные save.js, а показывает их интерфейс.
 import { CONFIG } from "../config.js";
+import { ACTS } from "../data/acts.js";
 import { BUILDINGS } from "../data/buildings.js";
 import { POTIONS } from "../data/potions.js";
 import { QUESTS } from "../data/quests.js";
@@ -18,6 +19,7 @@ export function createMeta() {
     runsPlayed: 0,
     wins: 0,
     bestFloor: 0, // самый дальний этаж за все забеги, считая этажи всех актов
+    bestAct: 1, // самый дальний акт, куда доходил герой: с начала любого из них можно начать забег
     heroStats: {}, // { warrior: { runs: 3, wins: 1 } }
     seen: { cards: [], enemies: [], relics: [], potions: [] }, // коллекция: всё, что игрок встретил
     tutorialDone: false, // пройдено ли обучение в первом бою
@@ -64,8 +66,27 @@ export function exchangeEssences(meta) {
   return gold;
 }
 
+// Запоминает, что герой дошёл до этого акта
+function reachAct(meta, act) {
+  meta.bestAct = Math.max(meta.bestAct, act);
+}
+
+// С каких актов можно начать забег: с первого и со всех, до которых уже доходил
+export function getStartableActs(meta) {
+  return ACTS.slice(0, meta.bestAct).map((act, index) => ({ number: index + 1, ...act }));
+}
+
+// Начало забега с акта: первый бесплатно, остальные за золото из казны. Возвращает false, если нельзя или не хватает
+export function payForActStart(meta, actNumber) {
+  const act = ACTS[actNumber - 1];
+  if (!act || actNumber > meta.bestAct || meta.gold < act.startPrice) return false;
+  meta.gold -= act.startPrice;
+  return true;
+}
+
 // Сдаёт в казну добычу, которую герой несёт из подземелья. Возвращает, сколько сдано
 export function bankLoot(meta, run) {
+  reachAct(meta, run.act);
   const loot = { gold: run.gold, essences: run.essences };
   meta.gold += run.gold;
   meta.essences += run.essences;
@@ -148,11 +169,6 @@ export function claimQuest(meta, questId) {
   return true;
 }
 
-// Уровни сложности открываются после первой победы
-export function isDifficultyUnlocked(meta) {
-  return meta.wins > 0;
-}
-
 // Этаж с учётом всех актов: босс не считается отдельным этажом
 export function getTotalFloor(run, currentFloor) {
   const { floors } = CONFIG.map;
@@ -168,7 +184,6 @@ export function mergeSeen(meta, run) {
 
 // Записывает итог законченного забега. Добыча, которую герой нёс, уходит в казну. Возвращает, что игрок получил
 export function applyRunToMeta(meta, run, currentFloor) {
-  const wasDifficultyUnlocked = isDifficultyUnlocked(meta);
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
   const loot = bankLoot(meta, run);
 
@@ -196,6 +211,5 @@ export function applyRunToMeta(meta, run, currentFloor) {
     goldGained: loot.gold,
     essencesGained: loot.essences,
     questsReady: QUESTS.filter((quest) => isQuestReady(meta, quest) && !readyBefore.includes(quest.id)).map((quest) => quest.title),
-    difficultyJustUnlocked: !wasDifficultyUnlocked && isDifficultyUnlocked(meta),
   };
 }

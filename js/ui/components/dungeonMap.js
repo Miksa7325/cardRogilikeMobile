@@ -3,7 +3,7 @@
 // путь выбирают в туннелях на экране подземелья.
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { getLowerNodeIds } from "../../engine/run.js";
+import { getAct, getLowerNodeIds } from "../../engine/run.js";
 import { el } from "../dom.js";
 
 const ROW_HEIGHT = 64; // расстояние между этажами на карте, px
@@ -39,8 +39,9 @@ export function openDungeonMap(run, onTravel) {
   close.addEventListener("click", () => overlay.remove());
   overlay.append(
     el("h2", "event__title dungeon-map__title", TEXTS.dungeon.mapTitle(run.act)),
+    el("p", "map__legend dungeon-map__hint", TEXTS.dungeon.mapActMechanic(getAct(run).mechanic.name, getAct(run).mechanic.text)),
     el("p", "map__legend", TEXTS.mapLegend),
-    el("p", "map__legend dungeon-map__hint", TEXTS.dungeon.mapHint),
+    el("p", "map__legend dungeon-map__hint", TEXTS.dungeon.mapHint(CONFIG.teleportPrice)),
     scroller,
     close,
   );

@@ -75,7 +75,7 @@ const FILES = [
   "./js/data/cards.js",
   "./js/data/cardsAssassin.js",
   "./js/data/cardsWarlock.js",
-  "./js/data/difficulty.js",
+  "./js/data/acts.js",
   "./js/data/enemies.js",
   "./js/data/events.js",
   "./js/data/heroes.js",

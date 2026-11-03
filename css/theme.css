@@ -36,6 +36,18 @@
   background-image: url("../assets/images/textures/scene-act3.png");
 }
 
+/* Своих текстур у актов 4 и 5 нет: перекрашиваем текстуры актов 2 и 3 — ядовитые топи и багровая цитадель */
+#scene[data-act="4"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act2.png");
+  filter: hue-rotate(60deg) saturate(1.4) brightness(0.85);
+}
+
+#scene[data-act="5"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act3.png");
+  /* Текстура почти серая: сепия даёт ей цвет, который потом сдвигаем в багровый */
+  filter: sepia(0.7) hue-rotate(-40deg) saturate(2.4) brightness(0.75);
+}
+
 .scene__torches {
   position: absolute;
   inset: 0;
@@ -503,6 +515,7 @@
   --depth: 240px;
   --wall: url("../assets/images/textures/scene-act1.png");
   --stone: #2a2620;
+  --tint: hue-rotate(0deg); /* перекраска стен для актов без своей текстуры */
   position: relative;
   flex: 1;
   min-height: 200px;
@@ -520,6 +533,18 @@
 .corridor[data-act="3"] {
   --wall: url("../assets/images/textures/scene-act3.png");
   --stone: #2c2024;
+}
+
+.corridor[data-act="4"] {
+  --wall: url("../assets/images/textures/scene-act2.png");
+  --stone: #1f2a1c;
+  --tint: hue-rotate(60deg) saturate(1.4);
+}
+
+.corridor[data-act="5"] {
+  --wall: url("../assets/images/textures/scene-act3.png");
+  --stone: #2e1a1c;
+  --tint: sepia(0.7) hue-rotate(-40deg) saturate(2.4);
 }
 
 /* Комната короче коридора: дальняя стена ближе и крупнее */
@@ -555,7 +580,7 @@
   width: var(--depth);
   height: 100%;
   background: var(--wall) 0 0 / auto 170% repeat-x;
-  filter: brightness(0.75);
+  filter: brightness(0.75) var(--tint);
 }
 
 .corridor__wall--left {
@@ -620,7 +645,7 @@
   inset: 0;
   transform: translateZ(calc(var(--depth) * -1));
   background: var(--wall) 0 0 / auto 170% repeat-x;
-  filter: brightness(0.6);
+  filter: brightness(0.6) var(--tint);
 }
 
 /* Темнота по краям, а при шаге в туннель — затемнение всего коридора */

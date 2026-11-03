@@ -3,11 +3,10 @@
 // У фонтана стоит старейшина с заданиями, а в конце южной дороги — вход в подземелье. Остальное нарисовано на карте как декор.
 import { CONFIG } from "../../config.js";
 import { BUILDINGS } from "../../data/buildings.js";
-import { DIFFICULTY_LEVELS } from "../../data/difficulty.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import {
-  bankLoot, buyBuilding, buyFromTrader, countReadyQuests, exchangeEssences, getTraderGoods, isDifficultyUnlocked, isTraderGoodOwned,
+  bankLoot, buyBuilding, buyFromTrader, countReadyQuests, exchangeEssences, getStartableActs, getTraderGoods, isTraderGoodOwned,
   selectHero,
 } from "../../engine/meta.js";
 import { canReturnToCity, getCurrentFloor, hasHealedHere, healInCity } from "../../engine/run.js";
@@ -78,9 +77,6 @@ const MOVE_KEYS = {
   KeyD: { x: 1, y: 0 },
 };
 const ACTION_KEYS = ["Enter", "Space", "KeyE"];
-
-// Какой уровень сложности выбран у входа в подземелье. Живёт, пока открыта игра
-let selectedDifficulty = 0;
 
 // Где стоит герой. Живёт между перерисовками: после покупки дома или награды герой остаётся на месте
 let heroPosition = { ...GATE_SPOT };
@@ -249,72 +245,61 @@ function createGatePlace() {
   };
 }
 
-// Окно входа: продолжить сохранённый забег или спуститься героем, которого выбрали в доме героев
+// Окно входа: продолжить сохранённый забег или начать новый с начала любого акта, до которого герой уже доходил.
+// Первый акт бесплатно, остальные за золото из казны. Комнаты в начатом акте каждый раз новые
 function openGate() {
   const run = loadRun();
   const meta = loadMeta();
-  if (!isDifficultyUnlocked(meta)) selectedDifficulty = 0;
   const overlay = el("div", "card-preview");
-  const details = el("div", "building-details");
+  const dialog = el("div", "quest-dialog");
   const art = el("div", "building__art");
   art.innerHTML = GATE_ART;
-  details.append(
-    art,
-    el("h2", "event__title", TEXTS.city.gateTitle),
-    el("p", "building-details__text", TEXTS.city.gateText),
-  );
+  dialog.append(art, el("h2", "event__title", TEXTS.city.gateTitle), el("p", "quest-dialog__speech", TEXTS.city.gateText));
 
   if (run) {
     const hero = (HEROES[run.heroId] ?? HEROES.warrior).name;
-    details.append(
+    dialog.append(
       el("p", "building-details__note", TEXTS.city.gateRun(hero, TEXTS.floorLabel(run.act, getCurrentFloor(run)))),
       createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run)),
-      createNewRunButton(meta),
     );
-  } else {
-    details.append(el("p", "building-details__note", TEXTS.city.gateHero(HEROES[meta.selectedHero].name)));
-    if (isDifficultyUnlocked(meta)) details.append(createDifficultyPicker(overlay));
-    details.append(createButton(TEXTS.city.descend, "button--large", () => startNewRun(meta.selectedHero, selectedDifficulty)));
   }
-  details.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+  dialog.append(
+    createBalance(meta),
+    el("p", "quests__hint", run ? TEXTS.city.newRunOverRun(HEROES[meta.selectedHero].name) : TEXTS.city.gateHero(HEROES[meta.selectedHero].name)),
+  );
+  const list = el("div", "quest-dialog__list");
+  for (const act of getStartableActs(meta)) list.append(createActChoice(meta, act, run !== null));
+  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 
-  overlay.append(details);
+  overlay.append(dialog);
   document.getElementById("app").append(overlay);
 }
 
-// Уровень сложности выбирают у входа: он открывается после первой победы
-function createDifficultyPicker(overlay) {
-  const picker = el("div", "hero-select__difficulty");
-  const change = (step) => {
-    selectedDifficulty += step;
-    overlay.remove();
-    openGate();
-  };
-  const lower = createButton("−", "button--secondary", () => change(-1));
-  lower.disabled = selectedDifficulty === 0;
-  const raise = createButton("+", "button--secondary", () => change(1));
-  raise.disabled = selectedDifficulty === CONFIG.difficulty.maxLevel;
-
-  const controls = el("div", "hero-select__controls");
-  controls.append(lower, el("span", "hero-select__level", TEXTS.heroSelect.difficulty(selectedDifficulty)), raise);
-  // Показываем, что добавляет именно выбранный уровень: остальные уже включены в него
-  const level = DIFFICULTY_LEVELS.find((item) => item.level === selectedDifficulty);
-  picker.append(controls, el("p", "hero-select__details", level ? level.description : TEXTS.heroSelect.noDifficulty));
-  return picker;
-}
-
-// Новый забег сотрёт сохранённый, поэтому просим нажать дважды. Спускается герой из дома героев
-function createNewRunButton(meta) {
-  let confirmed = false;
-  const button = createButton(TEXTS.newRun, "button--secondary", () => {
-    if (confirmed) {
-      startNewRun(meta.selectedHero, selectedDifficulty);
+// Начало акта: его название, особенность и цена. Если забег уже идёт, новый его сотрёт — просим нажать дважды
+function createActChoice(meta, act, replacesRun) {
+  const row = el("div", "quest");
+  row.append(
+    el("div", "quest__title", TEXTS.city.actTitle(act.number, act.name)),
+    el("div", "quest__description", TEXTS.city.actMechanic(act.mechanic.name, act.mechanic.text)),
+  );
+  let confirmed = !replacesRun;
+  const price = act.startPrice > 0 ? TEXTS.city.actPrice(act.startPrice) : TEXTS.city.actFree;
+  const button = createButton(price, "", () => {
+    if (!confirmed) {
+      confirmed = true;
+      button.textContent = TEXTS.confirmNewRun;
       return;
     }
-    confirmed = true;
-    button.textContent = TEXTS.confirmNewRun;
+    if (!startNewRun(meta.selectedHero, act.number)) {
+      shakeCard(button);
+      showTooltip(TEXTS.trader.notEnoughGold);
+    }
   });
-  return button;
+  button.disabled = meta.gold < act.startPrice;
+  const actions = el("div", "quest__row");
+  actions.append(button);
+  row.append(actions);
+  return row;
 }
 
 // Дом на карте, где работает гильдия или торговец: его контур светится, над ним подпись

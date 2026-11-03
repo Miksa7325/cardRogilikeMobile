@@ -4,9 +4,9 @@
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
-import { countReadyQuests, getLockedContent, mergeSeen, takeSupplies } from "../../engine/meta.js";
+import { countReadyQuests, getLockedContent, mergeSeen, payForActStart, takeSupplies } from "../../engine/meta.js";
 import {
-  canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId,
+  canReturnToCity, createRun, enterNode, getAct, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId, getStepCost,
   isNodeCleared, isNodeRevealed, openChest, rechargeFireflies, releaseFireflies, travelTo,
 } from "../../engine/run.js";
 import { loadMeta, saveMeta, saveRun } from "../../save.js";
@@ -28,16 +28,18 @@ const WALK_ANIMATIONS = 2.4; // шаг в туннель длится столь
 // Сложенная карта для кнопки карты: три листа и пунктир пути с крестиком
 const MAP_ICON = `<svg class="map-button__icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 8l8-3 10 3 8-3v19l-8 3-10-3-8 3z" fill="#e8d3a2" stroke="#5a3d1e" stroke-width="2" stroke-linejoin="round"/><path d="M11 5v19M21 8v19" stroke="#5a3d1e" stroke-width="1.5" opacity=".55"/><path d="M6 21c3-1 4-6 8-6s4 4 9-1" fill="none" stroke="#8a2a1e" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M22 10l3 3m0-3-3 3" stroke="#b0281a" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-// Запускает новый забег. Время как seed задаём здесь: в логике случайность только через rng.js.
-// Припасы, купленные у торговца, герой берёт с собой: из казны они уходят
-export function startNewRun(heroId, difficulty) {
+// Запускает новый забег с начала акта: первый бесплатно, остальные за золото из казны. Комнаты каждый раз новые.
+// Время как seed задаём здесь: в логике случайность только через rng.js.
+// Припасы, купленные у торговца, герой берёт с собой: из казны они уходят. Возвращает false, если не хватило золота
+export function startNewRun(heroId, startAct = 1) {
   const meta = loadMeta();
+  if (!payForActStart(meta, startAct)) return false;
   const supplies = takeSupplies(meta);
   state.run = createRun({
     heroId,
     seed: Date.now(),
-    difficulty,
-    tutorialFight: !meta.tutorialDone,
+    startAct,
+    tutorialFight: !meta.tutorialDone && startAct === 1,
     ...getLockedContent(meta),
     potions: supplies.potions,
     hasMap: supplies.hasMap,
@@ -45,9 +47,10 @@ export function startNewRun(heroId, difficulty) {
   });
   saveMeta(meta);
   state.test.enabled = false;
-  if (!meta.tutorialDone) startTutorial();
+  if (state.run.tutorialFight) startTutorial();
   resetPlayTimer();
   showScreen("dungeon");
+  return true;
 }
 
 // Продолжает сохранённый забег там, где игрок остановился: на награде, в бою или в подземелье
@@ -112,11 +115,11 @@ export function renderDungeonScreen(root) {
 }
 
 // Где стоит герой: в начальной комнате акта, в комнате сохранения или в коридоре
+// В начальной комнате акта видно его название и особенность: игрок узнаёт, к чему готовиться
 function describePlace(run) {
   if (!run.currentNodeId) {
-    return run.act === 1
-      ? { title: TEXTS.dungeon.startRoom, hint: TEXTS.dungeon.startHint, room: true }
-      : { title: TEXTS.dungeon.actStart(run.act), hint: TEXTS.dungeon.hint, room: true };
+    const act = getAct(run);
+    return { title: TEXTS.dungeon.actTitle(run.act, act.name), hint: TEXTS.dungeon.actMechanic(act.mechanic.name, act.mechanic.text), room: true };
   }
   const type = getCurrentNode(run).type;
   if (type === "save") return { title: TEXTS.saveRoom.title, hint: TEXTS.dungeon.hint, room: true };
@@ -302,9 +305,13 @@ function createMapButton(run) {
   button.innerHTML = MAP_ICON;
   button.append(el("span", "map-button__label", TEXTS.dungeon.mapButton));
   button.addEventListener("click", () => openDungeonMap(run, (nodeId) => {
-    if (!travelTo(run, nodeId)) return;
+    const result = travelTo(run, nodeId);
+    if (!result.ok) {
+      if (result.reason === "notEnoughGold") showTooltip(TEXTS.dungeon.teleportNoGold(CONFIG.teleportPrice));
+      return;
+    }
     showScreen("dungeon");
-    showTooltip(TEXTS.dungeon.traveled);
+    showTooltip(TEXTS.dungeon.traveled(CONFIG.teleportPrice));
   }));
   return button;
 }
@@ -324,9 +331,16 @@ function createCityButton(meta) {
 // Магазины остались только в старых сохранениях: теперь торговец в городе, и такая комната пуста
 function enterTunnel(run, nodeId) {
   const cleared = isNodeCleared(run, nodeId);
+  const chill = getStepCost(run, nodeId);
   if (!enterNode(run, nodeId)) return;
   notifyTutorial("nodeEntered");
+  showRoom(run, cleared);
+  // Ледяная вода: подсказку показываем, когда новая комната уже на экране
+  if (chill > 0) showTooltip(TEXTS.dungeon.coldWater(chill));
+}
 
+// Показывает, что в комнате: бой, событие, отдых и так далее. В пройденной ничего не случается заново
+function showRoom(run, cleared) {
   // В начальной комнате узла нет, но она всегда пройдена: тип не нужен
   const type = cleared ? null : getCurrentNode(run).type;
   // На отдыхе и в комнате сохранения светлячки снова собираются в банку

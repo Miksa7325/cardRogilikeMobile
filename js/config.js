@@ -37,8 +37,7 @@ export const CONFIG = {
     bossEssences: [24, 30], // эссенции за босса
     relicFallbackGold: 25, // золото вместо реликвии, если новых реликвий не осталось
     cardChoices: 3, // сколько карт предлагается на выбор
-    rarityWeights: { common: 60, uncommon: 30, rare: 10 }, // шансы редкости карт в награде
-    potionChance: 0.4, // шанс зелья после боя
+    // Множитель эссенций, шансы редкости карт и зелий у каждого акта свои — в data/acts.js
   },
 
   maxPotions: 3, // сколько зелий можно носить с собой
@@ -49,22 +48,9 @@ export const CONFIG = {
   },
 
   restHealShare: 0.3, // какую долю максимального HP лечит отдых
+  teleportPrice: 5, // сколько золота, которое несёт герой, стоит телепорт по карте в пройденную комнату
   cityHealShare: 0.4, // какую долю максимального HP лечит подъём в город из комнаты сохранения
 
   // Все враги крепче на столько: карты и реликвии открыты с самого начала, и герой сильнее, чем раньше
   enemyHpMultiplier: 1.15,
-
-  // Числа уровней сложности. Описание уровней — в data/difficulty.js
-  difficulty: {
-    maxLevel: 10,
-    normalHpMultiplier: 1.1, // уровень 1
-    eliteHpMultiplier: 1.15, // уровень 2
-    bossHpMultiplier: 1.1, // уровень 3
-    eliteStrength: 1, // уровень 4
-    restHealShare: 0.25, // уровень 5
-    essenceMultiplier: 0.75, // уровень 6
-    maxHpLoss: 10, // уровень 7
-    potionChanceMultiplier: 0.5, // уровень 9
-    enemyStrength: 1, // уровень 10
-  },
 };

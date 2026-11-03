@@ -13,9 +13,11 @@ const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];
 
 // Создаёт бой. hp, maxHp, deck, relics и potions приходят из забега; в тестовом режиме их нет,
 // тогда берём стартовые значения героя, а реликвий и зелий у него нет.
-// enemyHpMultiplier и enemyStrength усиливают врагов на высокой сложности
+// enemyHpMultiplier, enemyStrength и enemyBlock усиливают врагов, heroStatuses — статусы героя с начала боя:
+// так работают особенности актов
 export function createCombat({
-  heroId, enemyIds, seed, hp, maxHp, deck, relics = [], potions = [], enemyHpMultiplier = 1, enemyStrength = 0,
+  heroId, enemyIds, seed, hp, maxHp, deck, relics = [], potions = [], enemyHpMultiplier = 1, enemyStrength = 0, enemyBlock = 0,
+  heroStatuses = {},
 }) {
   const rng = createRng(seed);
   const heroData = HEROES[heroId];
@@ -31,10 +33,10 @@ export function createCombat({
       hp: hp ?? heroData.maxHp,
       maxHp: maxHp ?? heroData.maxHp,
       block: 0,
-      statuses: {},
+      statuses: { ...heroStatuses },
       powers: [], // разыгранные карты-силы с триггерами
     },
-    enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng, enemyHpMultiplier, enemyStrength)),
+    enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng, enemyHpMultiplier, enemyStrength, enemyBlock)),
     piles: createPiles(deck ?? startingDeck, rng),
     relics: [...relics],
     relicCounters: {}, // счётчики реликвий «каждый N-й раз»
@@ -48,7 +50,7 @@ export function createCombat({
   return combat;
 }
 
-function createEnemy(enemyId, index, rng, hpMultiplier, strength) {
+function createEnemy(enemyId, index, rng, hpMultiplier, strength, block) {
   const data = ENEMIES[enemyId];
   const hp = Math.floor(nextInt(rng, data.hp[0], data.hp[1]) * hpMultiplier);
   return {
@@ -56,7 +58,7 @@ function createEnemy(enemyId, index, rng, hpMultiplier, strength) {
     enemyId,
     hp,
     maxHp: hp,
-    block: 0,
+    block,
     statuses: strength > 0 ? { strength } : {},
     patternIndex: 0, // какой ход из pattern сейчас показан как намерение
   };

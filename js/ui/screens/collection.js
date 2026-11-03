@@ -1,6 +1,7 @@
 // Экран коллекции: значки всего, что игрок открыл, и статистика забегов. Нажатие на значок показывает параметры.
 import { CARDS } from "../../data/cards.js";
-import { ACTS, ENEMIES } from "../../data/enemies.js";
+import { ACTS } from "../../data/acts.js";
+import { ENEMIES } from "../../data/enemies.js";
 import { HEROES } from "../../data/heroes.js";
 import { POTIONS } from "../../data/potions.js";
 import { RELICS } from "../../data/relics.js";
