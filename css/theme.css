@@ -635,17 +635,6 @@
 
 /* Кнопка «Войти» появляется, когда герой стоит у входа или рядом со старейшиной */
 .city__prompt {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: calc(76px + env(safe-area-inset-bottom));
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.city__prompt .button {
-  pointer-events: auto;
   animation: preview-in calc(160ms * var(--anim-speed)) ease-out;
 }
 
@@ -699,6 +688,30 @@
   bottom: -12px;
 }
 
+/* Вход в подземелье: подпись над аркой, потому что под ней край карты */
+.city-gate {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+  transform: translate(-50%, -100%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.city-gate__art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: building-glow 2.2s ease-in-out infinite;
+}
+
+.city-gate .building__label {
+  top: -16px;
+  bottom: auto;
+}
+
 /* Есть награды: над головой прыгает восклицательный знак */
 .city-npc__marker {
   position: absolute;
@@ -721,7 +734,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .city-hero--walking .city-hero__sprite,
-  .city-npc__marker {
+  .city-npc__marker,
+  .city-gate__art svg {
     animation: none;
   }
 }

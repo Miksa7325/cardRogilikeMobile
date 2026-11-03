@@ -81,6 +81,13 @@ export function getCurrentFloor(run) {
   return run.currentNodeId ? getCurrentNode(run).floor : 0;
 }
 
+// Подняться в город можно только из комнаты сохранения. Ещё — у самого входа, пока забег не начался:
+// герой только что спустился. В начале следующих актов вход уже далеко, там нельзя
+export function canReturnToCity(run) {
+  if (!run.currentNodeId) return run.act === 1;
+  return getCurrentNode(run).type === "save";
+}
+
 // На какие узлы можно перейти: в начале это весь нижний ряд
 export function getAvailableNodeIds(run) {
   return run.currentNodeId ? getCurrentNode(run).next : run.map.rows[0];
@@ -415,6 +422,13 @@ export function getRestHealAmount(run) {
 
 export function restHeal(run) {
   run.hp += getRestHealAmount(run);
+}
+
+// В городе герой отдыхает: здоровье восстанавливается полностью. Возвращает, сколько HP вылечено
+export function healInCity(run) {
+  const healed = run.maxHp - run.hp;
+  run.hp = run.maxHp;
+  return healed;
 }
 
 // Карты колоды, которые можно улучшить на отдыхе

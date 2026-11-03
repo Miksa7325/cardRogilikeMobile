@@ -90,3 +90,33 @@ export const ELDER_ART = pixelArt([
   g: "#e0b84c",
   t: "#8a5a2a",
 });
+
+// Вход в подземелье: каменная арка с факелами. Рисунок симметричный, поэтому задана левая половина
+const GATE_HALF = [
+  "......kkkk",
+  "....kkssss",
+  "...kssdsss",
+  "..kssdkkkk",
+  "..ksdkbbbb",
+  ".ksskbbbbb",
+  ".ksdkbbbbb",
+  "oksskbbbbb",
+  "fksdkbbbbb",
+  "tksskbbbbb",
+  "tksdkbbbbb",
+  ".ksskbbbbb",
+  ".ksdkbbbbb",
+  "kssskbbbbb",
+  "kddskbbbbb",
+  "kkkkkkkkkk",
+];
+
+export const GATE_ART = pixelArt(GATE_HALF.map((row) => row + [...row].reverse().join("")), {
+  k: "#1a1420",
+  s: "#8a8478",
+  d: "#5e5850",
+  b: "#0a0810",
+  o: "#ff6a20",
+  f: "#ffb040",
+  t: "#6a4a2a",
+});

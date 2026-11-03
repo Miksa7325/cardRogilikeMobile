@@ -9,6 +9,7 @@ import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
+import { openCity } from "./city.js";
 import { openRunStats } from "./runStats.js";
 
 export function renderResultScreen(root) {
@@ -33,7 +34,7 @@ export function renderResultScreen(root) {
 
   const title = run.status === "won" ? TEXTS.victoryTitle : TEXTS.defeatTitle;
   const summary = TEXTS.runSummary(run.act, getCurrentFloor(run), run.gold);
-  renderResult(root, title, [summary, ...formatMetaResult(run.metaResult)], TEXTS.newRun, () => showScreen("heroSelect"));
+  renderResult(root, title, [summary, ...formatMetaResult(run.metaResult)], TEXTS.city.toCity, () => openCity("gate"));
 
   const statsButton = el("button", "button button--secondary", TEXTS.stats.button);
   statsButton.type = "button";

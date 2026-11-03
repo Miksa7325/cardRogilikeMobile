@@ -1,8 +1,7 @@
 // Все строки интерфейса на русском. Английский позже появится в отдельном файле.
 export const TEXTS = {
   gameTitle: "Карточная RPG", // временное название, окончательное ещё не выбрано
-  startButton: "Начать",
-  continueButton: "Продолжить",
+  startButton: "Играть",
   mainMenu: "Главное меню",
   menuConfirm: "Прогресс на этом узле пропадёт. Нажми 🏠 ещё раз",
   menuConfirmCombat: "Вернёшься к началу этого хода. Нажми 🏠 ещё раз",
@@ -70,7 +69,7 @@ export const TEXTS = {
     buttonReady: (count) => `Город: наград ${count}`,
     title: "Город",
     balance: (amount) => `Кроны: 👑 ${amount}`,
-    hint: "Нажми, куда идти. Подойди к дому или к старейшине у фонтана",
+    hint: "Нажми, куда идти. Вход в подземелье — в конце южной дороги",
     enter: (name) => `Войти: ${name}`,
     locked: (price) => `👑 ${price}`,
     buy: (price) => `Построить за 👑 ${price}`,
@@ -86,7 +85,15 @@ export const TEXTS = {
     homeTotals: (runs, wins, floor, kills) => `Забегов: ${runs} · Побед: ${wins} · Лучший этаж: ${floor} · Убито врагов: ${kills}`,
     heroRow: (runs, wins) => `Забегов: ${runs} · Побед: ${wins}`,
     heroLocked: "Ещё не открыт",
-    back: "В подземелье",
+    gate: "Подземелье",
+    gateEnter: "Спуститься в подземелье",
+    gateTitle: "Вход в подземелье",
+    gateText: "Ступени уходят во тьму. Внизу ждут чудовища, золото и слава.",
+    gateRun: (hero, floor) => `Твой забег: ${hero}, ${floor}`,
+    continueRun: "Продолжить забег",
+    chooseHero: "Выбрать героя",
+    toCity: "Вернуться в город",
+    healed: (amount) => `Герой отдохнул в городе: +${amount} HP`,
   },
   quests: {
     elder: "Старейшина",
@@ -209,7 +216,7 @@ export const TEXTS = {
     row: (floor, enemies, turns, hpBefore, hpAfter) => `Этаж ${floor}: ${enemies} — ходов ${turns}, HP ${hpBefore} → ${hpAfter}`,
     back: "Назад",
   },
-  mapLegend: "⚔️ бой · 👹 элита · ❓ событие · 🛒 магазин · 🔥 отдых · 🎁 сундук · 💀 босс",
+  mapLegend: "⚔️ бой · 👹 элита · ❓ событие · 🛒 магазин · 🔥 отдых · 🎁 сундук · 🌀 комната сохранения · 💀 босс",
   itemDescription: (name, description) => `${name}: ${description}`,
   reward: {
     title: "Награда",
@@ -223,6 +230,12 @@ export const TEXTS = {
     chooseCard: "Выбери карту в колоду",
     skip: "Пропустить",
     next: "Дальше",
+  },
+  saveRoom: {
+    title: "Комната сохранения",
+    text: "Над кругом из рун дрожит портал. Отсюда можно подняться в город и отдохнуть там до полного здоровья, а потом вернуться сюда же и идти дальше.",
+    toCity: "Подняться в город",
+    onward: "Идти дальше",
   },
   rest: {
     title: "Отдых",

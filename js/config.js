@@ -20,6 +20,7 @@ export const CONFIG = {
     pathCount: 6, // сколько путей идёт снизу вверх
     minNodesInRow: 2,
     chestFloor: 8, // этаж, где всегда сундук
+    saveFloors: [5, 11], // этажи, где всегда комната сохранения: только из неё можно подняться в город
     restFloor: 15, // этаж перед боссом, где всегда отдых
     eliteMinFloor: 6, // раньше этого этажа элиты нет
     nodeWeights: { battle: 45, event: 22, rest: 12, elite: 8, shop: 5 }, // доли узлов

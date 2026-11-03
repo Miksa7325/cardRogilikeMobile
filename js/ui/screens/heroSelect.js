@@ -7,6 +7,7 @@ import { getHeroUnlockXp, isDifficultyUnlocked, isHeroUnlocked } from "../../eng
 import { loadMeta } from "../../save.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
+import { openCity } from "./city.js";
 import { startNewRun } from "./map.js";
 
 // Выбор живёт между перерисовками экрана, поэтому хранится вне функции
@@ -33,7 +34,7 @@ export function renderHeroSelectScreen(root) {
 
   screen.append(
     createButton(TEXTS.heroSelect.start, "button--large", () => startNewRun(selectedHeroId, selectedDifficulty)),
-    createButton(TEXTS.heroSelect.back, "button--secondary", () => showScreen("start")),
+    createButton(TEXTS.heroSelect.back, "button--secondary", () => openCity("gate")),
   );
   root.append(screen);
 }

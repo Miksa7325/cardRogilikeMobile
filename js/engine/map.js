@@ -88,9 +88,10 @@ function assignNodeTypes(rng, nodes, rows) {
 }
 
 function pickNodeType(rng, floor, parentNodes) {
-  const { chestFloor, restFloor, eliteMinFloor, nodeWeights } = CONFIG.map;
+  const { chestFloor, saveFloors, restFloor, eliteMinFloor, nodeWeights } = CONFIG.map;
   if (floor === 1) return "battle";
   if (floor === chestFloor) return "chest";
+  if (saveFloors.includes(floor)) return "save";
   if (floor === restFloor) return "rest";
 
   const weights = { ...nodeWeights };

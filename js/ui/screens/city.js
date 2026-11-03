@@ -1,12 +1,13 @@
-// Город: карта с видом сверху, по которой ходит герой забега. Подсвеченные дома можно открыть,
-// у фонтана стоит старейшина с заданиями. Остальное нарисовано на карте как декор.
+// Город: с него начинается игра. Карта с видом сверху, по которой ходит герой. Подсвеченные дома можно открыть,
+// у фонтана стоит старейшина с заданиями, а в конце южной дороги — вход в подземелье. Остальное нарисовано на карте как декор.
 import { BUILDINGS } from "../../data/buildings.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { buyBuilding, countReadyQuests, isHeroUnlocked } from "../../engine/meta.js";
-import { loadMeta, saveMeta } from "../../save.js";
+import { canReturnToCity, getCurrentFloor, healInCity } from "../../engine/run.js";
+import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
-import { ELDER_ART, heroSprite } from "../art.js";
+import { ELDER_ART, GATE_ART, heroSprite } from "../art.js";
 import { playSound } from "../audio.js";
 import { BUILDING_ART } from "../cardArt.js";
 import { shakeCard } from "../components/card.js";
@@ -14,6 +15,7 @@ import { openQuestDialog } from "../components/questDialog.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
+import { continueRun } from "./map.js";
 
 // Размеры в пикселях карты: положение на экране считаем в процентах от неё
 const MAP_WIDTH = 360;
@@ -22,6 +24,7 @@ const BUILDING_WIDTH = 88;
 const BUILDING_HEIGHT = 76;
 const HERO_WIDTH = 30;
 const ELDER_WIDTH = 26;
+const GATE_WIDTH = 44;
 
 const HERO_SPEED = 120; // пикселей карты в секунду
 const ARRIVE_DISTANCE = 2; // ближе этого герой уже дошёл до точки
@@ -33,8 +36,9 @@ const COLUMNS = MAP_WIDTH / CELL;
 const ROWS = MAP_HEIGHT / CELL;
 const LINE_STEP = 2; // через столько пикселей проверяем, свободна ли прямая
 
-const START = { x: 180, y: 750 }; // герой приходит в город по южной дороге из подземелья
 const ELDER = { x: 236, y: 420 }; // старейшина стоит у фонтана; это точка его ног
+const GATE = { x: 180, y: 778 }; // вход в подземелье в конце южной дороги; это середина его нижнего края
+const GATE_SPOT = { x: 180, y: 734 }; // где стоит герой у входа в подземелье
 
 // Куда нельзя зайти: дома, колодец и лоток, нарисованные на карте, и фонтан. x и y — левый верхний угол
 const DECOR_OBSTACLES = [
@@ -68,7 +72,7 @@ const MOVE_KEYS = {
 const ACTION_KEYS = ["Enter", "Space", "KeyE"];
 
 // Где стоит герой. Живёт между перерисовками: после покупки дома или награды герой остаётся на месте
-let heroPosition = { ...START };
+let heroPosition = { ...GATE_SPOT };
 
 function createButton(text, modifier, onTap) {
   const button = el("button", `button ${modifier}`, text);
@@ -87,19 +91,37 @@ function percent(value, total) {
   return `${(value / total) * 100}%`;
 }
 
-// Вход в город из забега: герой появляется на южной дороге
-export function openCity() {
-  heroPosition = { ...START };
+// Вход под серединой дома
+function buildingSpot(building) {
+  return { x: building.x + BUILDING_WIDTH / 2, y: building.y + BUILDING_HEIGHT + 6 };
+}
+
+// Открывает город. entrance — где появится герой: "home" — у своего дома, когда игра только началась,
+// "gate" — у входа в подземелье, когда он поднялся из забега
+export function openCity(entrance) {
+  heroPosition = entrance === "home" ? buildingSpot(BUILDINGS.home) : { ...GATE_SPOT };
+  // Герой забега, поднявшийся в город, отдыхает: здоровье восстанавливается полностью
+  const run = loadRun();
+  const healed = run && canReturnToCity(run) ? healInCity(run) : 0;
+  if (healed > 0) {
+    state.run = run;
+    if (!saveRun(run)) showTooltip(TEXTS.saveFailed);
+  }
   showScreen("city");
+  if (healed > 0) showTooltip(TEXTS.city.healed(healed));
 }
 
 export function renderCityScreen(root) {
   const meta = loadMeta();
   const screen = el("main", "city");
 
-  // Места, к которым можно подойти: дома и старейшина
-  const places = [...Object.values(BUILDINGS).map((building) => createBuildingPlace(meta, building)), createElderPlace(meta)];
-  const hero = createHero();
+  // Места, к которым можно подойти: дома, старейшина и вход в подземелье
+  const places = [
+    ...Object.values(BUILDINGS).map((building) => createBuildingPlace(meta, building)),
+    createElderPlace(meta),
+    createGatePlace(),
+  ];
+  const hero = createHero(loadRun()?.heroId ?? "warrior");
   const map = el("div", "city__map");
   map.append(...places.map((place) => place.element), hero);
 
@@ -109,21 +131,21 @@ export function renderCityScreen(root) {
     el("p", "city__balance", TEXTS.city.balance(meta.crowns)),
     el("p", "city__hint", TEXTS.city.hint),
   );
-  const prompt = el("div", "city__prompt");
   const actions = el("div", "button-row city__actions");
-  actions.append(createButton(TEXTS.city.back, "button--secondary", () => showScreen("map")));
-  screen.append(map, header, prompt, actions);
+  actions.append(createButton(TEXTS.mainMenu, "button--secondary", () => showScreen("start")));
+  screen.append(map, header, actions);
   root.append(screen);
 
-  const walker = startWalking({ screen, map, hero, header, prompt, actions, places });
+  const walker = startWalking({ screen, map, hero, header, actions, places });
   for (const place of places) place.element.addEventListener("click", () => walker.walkTo(place));
 }
 
-function createHero() {
+// По городу ходит герой сохранённого забега, а если забега нет — Воин
+function createHero(heroId) {
   const hero = el("div", "city-hero");
   hero.style.width = percent(HERO_WIDTH, MAP_WIDTH);
   const image = el("img", "city-hero__sprite");
-  image.src = heroSprite(state.run?.heroId ?? "warrior");
+  image.src = heroSprite(heroId);
   image.alt = "";
   image.draggable = false;
   hero.append(image);
@@ -134,8 +156,8 @@ function createBuildingPlace(meta, building) {
   return {
     element: createBuildingTile(meta, building),
     action: TEXTS.city.enter(building.name),
-    // Вход — под серединой дома. Непроходима только нижняя часть дома: за крышу герой заходит, и она его заслоняет
-    spot: { x: building.x + BUILDING_WIDTH / 2, y: building.y + BUILDING_HEIGHT + 6 },
+    // Непроходима только нижняя часть дома: за крышу герой заходит, и она его заслоняет
+    spot: buildingSpot(building),
     obstacle: { x: building.x + 6, y: building.y + 30, width: BUILDING_WIDTH - 12, height: BUILDING_HEIGHT - 34 },
     open: () => openBuilding(building),
   };
@@ -183,6 +205,70 @@ function createElderPlace(meta) {
     obstacle: { x: ELDER.x - 8, y: ELDER.y - 8, width: 16, height: 10 },
     open: openElder,
   };
+}
+
+// Вход в подземелье: каменная арка в конце южной дороги
+function createGatePlace() {
+  const gate = el("button", "city-gate");
+  gate.type = "button";
+  gate.style.left = percent(GATE.x, MAP_WIDTH);
+  gate.style.top = percent(GATE.y, MAP_HEIGHT);
+  gate.style.width = percent(GATE_WIDTH, MAP_WIDTH);
+  gate.style.zIndex = GATE.y;
+  const art = el("div", "city-gate__art");
+  art.innerHTML = GATE_ART;
+  gate.append(art, el("span", "building__label", TEXTS.city.gate));
+
+  return {
+    element: gate,
+    action: TEXTS.city.gateEnter,
+    spot: GATE_SPOT,
+    obstacle: { x: GATE.x - GATE_WIDTH / 2, y: GATE.y - 34, width: GATE_WIDTH, height: 34 },
+    open: openGate,
+  };
+}
+
+// Окно входа: продолжить сохранённый забег или начать новый
+function openGate() {
+  const run = loadRun();
+  const overlay = el("div", "card-preview");
+  const details = el("div", "building-details");
+  const art = el("div", "building__art");
+  art.innerHTML = GATE_ART;
+  details.append(
+    art,
+    el("h2", "event__title", TEXTS.city.gateTitle),
+    el("p", "building-details__text", TEXTS.city.gateText),
+  );
+
+  if (run) {
+    const hero = (HEROES[run.heroId] ?? HEROES.warrior).name;
+    details.append(
+      el("p", "building-details__note", TEXTS.city.gateRun(hero, TEXTS.floorLabel(run.act, getCurrentFloor(run)))),
+      createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run)),
+      createNewRunButton(),
+    );
+  } else {
+    details.append(createButton(TEXTS.city.chooseHero, "button--large", () => showScreen("heroSelect")));
+  }
+  details.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+
+  overlay.append(details);
+  document.getElementById("app").append(overlay);
+}
+
+// Новый забег сотрёт сохранённый, поэтому просим нажать дважды
+function createNewRunButton() {
+  let confirmed = false;
+  const button = createButton(TEXTS.newRun, "button--secondary", () => {
+    if (confirmed) {
+      showScreen("heroSelect");
+      return;
+    }
+    confirmed = true;
+    button.textContent = TEXTS.confirmNewRun;
+  });
+  return button;
 }
 
 function openElder() {
@@ -290,7 +376,7 @@ function straightenPath(from, points, isFree) {
 // Движение героя. Касание земли ведёт героя туда, а если не отпускать палец, он идёт следом.
 // Касание дома или старейшины ведёт ко входу, и там окно открывается само.
 // На компьютере можно ходить стрелками или WASD, а Enter, пробел или E — войти
-function startWalking({ screen, map, hero, header, prompt, actions, places }) {
+function startWalking({ screen, map, hero, header, actions, places }) {
   const obstacles = [...DECOR_OBSTACLES, ...places.map((place) => place.obstacle)];
   const isFree = (point) => !obstacles.some((rect) => isInside(point, rect));
   // Герой не выходит за край карты: ноги не ниже нижнего края, голова не выше верхнего
@@ -401,11 +487,14 @@ function startWalking({ screen, map, hero, header, prompt, actions, places }) {
     return distance(before, position) > 0.01;
   };
 
+  // Кнопка «Войти» встаёт в нижний ряд рядом с меню: так она не закрывает карту
+  let promptButton = null;
   const showPrompt = (place) => {
     if (place === nearest) return;
     nearest = place;
-    prompt.replaceChildren();
-    if (place) prompt.append(createButton(place.action, "button--attention", () => place.open()));
+    promptButton?.remove();
+    promptButton = place ? createButton(place.action, "button--attention city__prompt", () => place.open()) : null;
+    if (promptButton) actions.prepend(promptButton);
   };
 
   // Камера держит героя посередине между шапкой и кнопками, но не уходит за край карты

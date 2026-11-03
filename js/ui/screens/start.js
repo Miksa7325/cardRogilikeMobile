@@ -1,14 +1,15 @@
-// Стартовый экран: продолжение забега, новый забег, ячейки сохранения, коллекция, перенос сохранения и тест-режим.
-// Город с заданиями открывается уже в забеге, с карты.
+// Стартовый экран: вход в город, ячейки сохранения, коллекция, перенос сохранения и тест-режим.
+// Игра начинается в городе: оттуда герой спускается в подземелье, там же продолжается сохранённый забег.
+// Но если герой в подземелье не в комнате сохранения, в город ему нельзя: «Играть» сразу продолжает забег.
 import { TEXTS } from "../../data/texts.ru.js";
 import { getNextUnlock } from "../../engine/meta.js";
+import { canReturnToCity } from "../../engine/run.js";
 import { getActiveSlot, loadMeta, loadRun } from "../../save.js";
-import { state } from "../../state.js";
 import { LOGO_ART } from "../art.js";
 import { el } from "../dom.js";
-import { resetPlayTimer } from "../playTime.js";
 import { showScreen } from "../router.js";
-import { resumeCombat } from "./combat.js";
+import { openCity } from "./city.js";
+import { continueRun } from "./map.js";
 
 function createButton(text, modifier, onTap) {
   const button = el("button", `button ${modifier}`, text);
@@ -18,8 +19,9 @@ function createButton(text, modifier, onTap) {
 }
 
 export function renderStartScreen(root) {
-  const savedRun = loadRun();
   const meta = loadMeta();
+  const run = loadRun();
+  const inDungeon = run !== null && !canReturnToCity(run);
   const screen = el("main", "center-screen");
   const logo = el("div", "start-logo");
   logo.innerHTML = LOGO_ART;
@@ -31,21 +33,12 @@ export function renderStartScreen(root) {
     screen.append(el("p", "reward__line", next ? TEXTS.meta.progress(meta.xp, next.xp) : TEXTS.meta.allUnlocked(meta.xp)));
   }
 
-  const menu = el("div", "start-menu");
-  if (savedRun) {
-    menu.append(createButton(TEXTS.continueButton, "button--large", () => {
-      state.run = savedRun;
-      state.test.enabled = false;
-      resetPlayTimer();
-      // Возвращаем игрока туда, где он остановился: на награду, в бой или на карту
-      if (savedRun.pendingReward) showScreen("reward");
-      else if (savedRun.savedCombat) resumeCombat();
-      else showScreen("map");
-    }));
-  }
   // Все кнопки одного размера и стоят парами: так меню помещается на экран телефона без прокрутки
+  const menu = el("div", "start-menu");
   menu.append(
-    createNewRunButton(savedRun !== null),
+    inDungeon
+      ? createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run))
+      : createButton(TEXTS.startButton, "button--large", () => openCity("home")),
     createButton(TEXTS.saves.button, "button--secondary", () => showScreen("saves")),
     createButton(TEXTS.collection.title, "button--secondary", () => showScreen("collection")),
     createButton(TEXTS.settings.button, "button--secondary", () => showScreen("settings")),
@@ -55,18 +48,4 @@ export function renderStartScreen(root) {
   );
   screen.append(menu);
   root.append(screen);
-}
-
-// Новый забег сотрёт сохранённый, поэтому при наличии сохранения просим нажать дважды
-function createNewRunButton(hasSavedRun) {
-  let confirmed = !hasSavedRun;
-  const button = createButton(TEXTS.startButton, hasSavedRun ? "button--secondary" : "button--large", () => {
-    if (confirmed) {
-      showScreen("heroSelect");
-      return;
-    }
-    confirmed = true;
-    button.textContent = TEXTS.confirmNewRun;
-  });
-  return button;
 }

@@ -3,7 +3,7 @@ import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
 import { countReadyQuests, getLockedContent, mergeSeen } from "../../engine/meta.js";
-import { createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
+import { canReturnToCity, createRun, enterNode, getAvailableNodeIds, getCurrentNode, openChest } from "../../engine/run.js";
 import { createShop } from "../../engine/shop.js";
 import { loadMeta, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
@@ -14,7 +14,7 @@ import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
 import { createTutorialBanner, notifyTutorial, startTutorial } from "../tutorial.js";
 import { openCity } from "./city.js";
-import { startNodeCombat } from "./combat.js";
+import { resumeCombat, startNodeCombat } from "./combat.js";
 import { openRunStats } from "./runStats.js";
 
 const ROW_HEIGHT = 64; // расстояние между этажами на карте, px
@@ -27,6 +27,7 @@ const NODE_ICONS = {
   shop: "🛒",
   rest: "🔥",
   chest: "🎁",
+  save: "🌀",
   boss: "💀",
 };
 
@@ -46,6 +47,16 @@ export function startNewRun(heroId, difficulty) {
   showScreen("map");
 }
 
+// Продолжает сохранённый забег там, где игрок остановился: на награде, в бою или на карте
+export function continueRun(run) {
+  state.run = run;
+  state.test.enabled = false;
+  resetPlayTimer();
+  if (run.pendingReward) showScreen("reward");
+  else if (run.savedCombat) resumeCombat();
+  else showScreen("map");
+}
+
 export function renderMapScreen(root) {
   const run = state.run;
   const meta = loadMeta();
@@ -56,7 +67,8 @@ export function renderMapScreen(root) {
   statsButton.type = "button";
   statsButton.addEventListener("click", () => openRunStats(run));
   const links = el("div", "map__links");
-  links.append(statsButton, createCityButton(meta));
+  links.append(statsButton);
+  if (canReturnToCity(run)) links.append(createCityButton(meta));
   screen.append(createRunBar(run, { allSaved: true }), el("p", "map__legend", TEXTS.mapLegend), links, scroller);
   const banner = createTutorialBanner("map");
   if (banner) screen.append(banner);
@@ -73,14 +85,14 @@ export function renderMapScreen(root) {
   scroller.scrollTop = firstAvailable.offsetTop - scroller.clientHeight / 2;
 }
 
-// В город можно зайти между узлами: там строят дома и забирают награды за задания.
+// Подняться в город можно только из комнаты сохранения: там строят дома и забирают награды за задания.
 // Если награды ждут, кнопка подсвечена
 function createCityButton(meta) {
   const ready = countReadyQuests(meta);
   const button = el("button", "map__stats", ready > 0 ? TEXTS.city.buttonReady(ready) : TEXTS.city.button);
   button.type = "button";
   if (ready > 0) button.classList.add("map__stats--attention");
-  button.addEventListener("click", openCity);
+  button.addEventListener("click", () => openCity("gate"));
   return button;
 }
 
@@ -147,6 +159,8 @@ function onNodeTap(run, nodeId) {
   const type = getCurrentNode(run).type;
   if (type === "rest") {
     showScreen("rest");
+  } else if (type === "save") {
+    showScreen("saveRoom");
   } else if (type === "chest") {
     openChest(run);
     showScreen("reward");
