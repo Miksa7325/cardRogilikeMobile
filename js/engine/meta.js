@@ -16,7 +16,7 @@ export function createMeta() {
     wins: 0,
     bestFloor: 0, // самый дальний этаж за все забеги, считая этажи всех актов
     heroStats: {}, // { warrior: { runs: 3, wins: 1 } }
-    seen: { cards: [], enemies: [], relics: [] }, // коллекция: всё, что игрок встретил
+    seen: { cards: [], enemies: [], relics: [], potions: [] }, // коллекция: всё, что игрок встретил
     tutorialDone: false, // пройдено ли обучение в первом бою
     // Настройки лежат здесь же: они живут между забегами и остаются после сброса прогресса
     settings: { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true },
@@ -124,7 +124,7 @@ export function calculateRunXp(run, currentFloor) {
 
 // Переносит встреченное в забеге в коллекцию
 export function mergeSeen(meta, run) {
-  for (const kind of ["cards", "enemies", "relics"]) {
+  for (const kind of ["cards", "enemies", "relics", "potions"]) {
     meta.seen[kind] = [...new Set([...meta.seen[kind], ...run.seen[kind]])];
   }
 }

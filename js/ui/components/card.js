@@ -174,6 +174,13 @@ export function fillCardFace(element, instance, hero) {
   element.append(name, art, createEffects(card, hero));
 }
 
+// Значок карты для коллекции: только рисунок на цвете её типа, рамка показывает редкость
+export function createCardIcon(card) {
+  const icon = el("div", `collection-tile__icon collection-tile__icon--card card--${card.type} card--${card.rarity}`);
+  icon.innerHTML = `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${CARD_ART[card.id]}"/></svg>`;
+  return icon;
+}
+
 export function createCardElement(instance, hero, { playable, selected, onTap, onHold = null }) {
   const card = getCardData(instance);
   const element = el("div", `card card--${card.type} card--${card.rarity}`);

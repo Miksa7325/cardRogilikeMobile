@@ -36,7 +36,8 @@
   text-align: center;
   cursor: pointer;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
-  touch-action: none;
+  /* Вне боя список карт листают прямо по картам */
+  touch-action: pan-y;
   transform: translateY(var(--fan-drop, 0)) rotate(var(--fan-angle, 0deg));
   transition: transform 150ms;
 }
@@ -44,6 +45,11 @@
 .card-row .card {
   height: 156px;
   font-size: 13px;
+}
+
+/* В руке карту перетаскивают: браузер не должен принимать это за прокрутку */
+.hand .card {
+  touch-action: none;
 }
 
 /* Обычно между картами 2 px; если все не помещаются, отступ становится отрицательным и карты наезжают друг на друга */

@@ -3,7 +3,7 @@ import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
 import { shuffle } from "./rng.js";
 import {
-  addCardToDeck, addRelic, canCarryPotion, getPotionPool, getRelicPool, hasDifficulty, markRelicSeen, nodeRng, removeCardFromDeck, rollCardChoices,
+  addCardToDeck, addRelic, canCarryPotion, getPotionPool, getRelicPool, hasDifficulty, markPotionSeen, markRelicSeen, nodeRng, removeCardFromDeck, rollCardChoices,
 } from "./run.js";
 
 // Заполняет магазин на текущем узле. Товары зависят только от seed забега и узла
@@ -20,11 +20,13 @@ export function createShop(run) {
 
   const relics = relicPool.slice(0, relicCount);
   for (const relic of relics) markRelicSeen(run, relic.id);
+  const potions = potionPool.slice(0, potionCount);
+  for (const potionId of potions) markPotionSeen(run, potionId);
 
   run.shop = {
     cards: rollCardChoices(run, rng, null, cardCount).map((id) => ({ id, price: price(cardPrices[CARDS[id].rarity]), sold: false })),
     relics: relics.map((relic) => ({ id: relic.id, price: price(relicPrices[relic.rarity]), sold: false })),
-    potions: potionPool.slice(0, potionCount).map((id) => ({ id, price: price(potionPrice), sold: false })),
+    potions: potions.map((id) => ({ id, price: price(potionPrice), sold: false })),
     removePrice: price(removePrice),
     removeUsed: false,
   };

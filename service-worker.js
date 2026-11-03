@@ -93,6 +93,7 @@ const FILES = [
   "./js/data/buildings.js",
   "./js/ui/screens/quests.js",
   "./js/ui/screens/city.js",
+  "./js/ui/components/itemDetails.js",
   "./js/ui/screens/credits.js",
   "./js/data/credits.js",
   "./js/ui/cardArt.js",

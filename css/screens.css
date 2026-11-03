@@ -307,10 +307,19 @@
   font-size: 14px;
 }
 
+/* Пять вкладок не помещаются в ряд на телефоне: лишние переходят на вторую строку */
 .collection__tabs {
   display: flex;
   flex-shrink: 0;
-  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.collection__tabs .button {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
 }
 
 .collection__tab {

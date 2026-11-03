@@ -198,7 +198,7 @@ export const RELICS = {
   steel_pauldron: {
     id: "steel_pauldron",
     name: "Стальной наплечник",
-    icon: "🛡",
+    icon: "🦾",
     rarity: "uncommon",
     description: "Теряя HP от атаки, получить 4 блока.",
     trigger: "onDamageTaken",

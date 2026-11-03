@@ -6,11 +6,17 @@ const MOVE_TOLERANCE_PX = 10; // палец сдвинулся дальше — 
 const HOLD_LIMIT_MS = 400; // палец держали дольше — это удержание, а не нажатие
 const WAIT_FOR_CLICK_MS = 60; // столько ждём настоящего click от браузера
 const LATE_CLICK_WINDOW_MS = 350; // опоздавший настоящий click в этот промежуток не должен сработать второй раз
+const SCROLL_PAUSE_MS = 300; // только что листали: касание останавливает прокрутку, это не нажатие
 
 export function enableReliableTaps() {
   let press = null;
   let clickSeen = false;
   let ignoreClicksUntil = 0;
+  let lastScrollTime = -Infinity;
+
+  document.addEventListener("scroll", () => {
+    lastScrollTime = performance.now();
+  }, { capture: true, passive: true });
 
   document.addEventListener("pointerdown", (event) => {
     press = {
@@ -29,6 +35,7 @@ export function enableReliableTaps() {
     const target = press.target;
     press = null;
     if (moved > MOVE_TOLERANCE_PX || heldFor > HOLD_LIMIT_MS) return;
+    if (performance.now() - lastScrollTime < SCROLL_PAUSE_MS) return;
 
     setTimeout(() => {
       // Экран мог смениться: тогда кнопки уже нет, и нажимать нечего

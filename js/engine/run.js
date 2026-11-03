@@ -37,7 +37,7 @@ export function createRun({
     potions: [],
     map: generateActMap(seed, 1),
     stats: { combats: [], playMs: 0, totals: {} }, // статистика забега и счётчики для заданий
-    seen: { cards: [], enemies: [], relics: [] }, // что игрок встретил: это пойдёт в коллекцию
+    seen: { cards: [], enemies: [], relics: [], potions: [] }, // что игрок встретил: это пойдёт в коллекцию
     tutorialFight,
     savedCombat: null, // бой на начало текущего хода: так игра продолжается посреди боя
     currentNodeId: null,
@@ -282,6 +282,11 @@ export function markRelicSeen(run, relicId) {
   markSeen(run, "relics", relicId);
 }
 
+// То же для зелий: и показанное в магазине, и полученное
+export function markPotionSeen(run, potionId) {
+  markSeen(run, "potions", potionId);
+}
+
 // Золото с учётом уровня сложности
 function rollGold(run, rng, range) {
   const gold = nextInt(rng, ...range);
@@ -314,6 +319,7 @@ function grantRandomPotion(run, rng) {
   if (!canCarryPotion(run)) return null;
   const potionId = pickRandom(rng, getPotionPool(run));
   run.potions.push(potionId);
+  markPotionSeen(run, potionId);
   return potionId;
 }
 

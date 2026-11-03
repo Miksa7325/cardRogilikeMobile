@@ -8,7 +8,7 @@ import { hideTooltip } from "./tooltip.js";
 // Числа и термины в тексте выделяются. Текст собираем из узлов, поэтому разметка в него не попадёт
 const HIGHLIGHT = /(\d+|Сжечь|Сжечь Раны|Яд[а-я]*|Уязвимост[а-я]*|Слабост[а-я]*|Сил[а-я]*|Ловкост[а-я]*|Хрупкост[а-я]*|Ран[а-я]*|блок[а-я]*)/g;
 
-function createRichText(className, text) {
+export function createRichText(className, text) {
   const paragraph = el("p", className);
   let last = 0;
   for (const match of text.matchAll(HIGHLIGHT)) {
@@ -22,7 +22,7 @@ function createRichText(className, text) {
 }
 
 // Какие термины встречаются в описании
-function createGlossary(text) {
+export function createGlossary(text) {
   const entries = Object.entries(TEXTS.glossary).filter(([word]) => text.includes(word));
   if (entries.length === 0) return null;
   const list = el("div", "preview__glossary");
@@ -63,9 +63,13 @@ export function openCardPreview(instance, hero) {
   details.append(el("p", "preview__close", TEXTS.preview.close));
 
   overlay.append(big, details);
+  closeOnTap(overlay);
+  document.getElementById("app").append(overlay);
+}
 
-  // Закрываем только касанием, которое началось уже на большой карте.
-  // Иначе карта, открытая удержанием, закрылась бы сразу, как только игрок отпустит палец
+// Закрываем только касанием, которое началось уже на окне.
+// Иначе карта, открытая удержанием, закрылась бы сразу, как только игрок отпустит палец
+export function closeOnTap(overlay) {
   let pressedHere = false;
   overlay.addEventListener("pointerdown", () => {
     pressedHere = true;
@@ -73,5 +77,4 @@ export function openCardPreview(instance, hero) {
   overlay.addEventListener("click", () => {
     if (pressedHere) overlay.remove();
   });
-  document.getElementById("app").append(overlay);
 }
