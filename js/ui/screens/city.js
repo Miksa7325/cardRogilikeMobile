@@ -235,7 +235,10 @@ function createBuildingPlace(meta, building) {
     // Непроходима только нижняя часть дома: за крышу герой заходит, и она его заслоняет
     spot: buildingSpot(building),
     obstacle: { x: buildingOrigin(building).x + 6, y: building.y + 30, width: BUILDING_WIDTH - 12, height: BUILDING_HEIGHT - 34 },
-    open: () => openBuilding(building),
+    open: () => {
+      playSound("door");
+      openBuilding(building);
+    },
   };
 }
 

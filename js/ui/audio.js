@@ -1,27 +1,43 @@
-// Звук и музыка: всё синтезируется в браузере, файлы не нужны.
+// Звук и музыка. Короткие звуки — записи из assets/sounds/sfx, музыка — петли из assets/sounds/music.
+// Все записи — CC0 с OpenGameArt, авторы перечислены на экране «Авторы».
 // Браузеры запрещают автозапуск звука, поэтому звук включается только после первого нажатия.
 let context = null;
 let musicGain = null;
 let effectsGain = null;
-let musicTimer = null;
-let nextBeatTime = 0;
-let beatIndex = 0;
-let mood = "calm";
 let volumes = { music: 0.5, effects: 0.8 };
 
-const BEAT_SECONDS = { calm: 0.75, combat: 0.42 };
-const SCHEDULE_AHEAD_SECONDS = 0.6;
-
-// Ноты в герцах. 0 — пауза. Мелодии в миноре: подходит тёмному фэнтези
-const MELODIES = {
-  calm: [220, 0, 261.6, 0, 329.6, 0, 261.6, 0, 196, 0, 246.9, 0, 293.7, 0, 246.9, 0],
-  combat: [110, 0, 110, 130.8, 0, 110, 164.8, 0, 98, 0, 98, 123.5, 0, 98, 146.8, 0],
+// Сколько вариантов у звука: каждый раз играет случайный, чтобы удары не звучали одинаково.
+// Файлы называются имя-1.mp3, имя-2.mp3…; у джинглов вариант один и номера нет
+const SOUND_VARIANTS = {
+  click: 2, error: 2, swing: 3, skill: 3, power: 2, hit: 4, claw: 3, magicCast: 2, magicHit: 2,
+  block: 3, shield: 2, heal: 2, poison: 3, death: 2, enemyCast: 3, draw: 2, potion: 2, buy: 3,
+  gem: 2, cardPick: 2, step: 2, chest: 2, door: 2, stone: 2, victory: 0, defeat: 0,
 };
 
-// Вызывается на первом нажатии: только теперь браузер разрешает звук
+// Громкость отдельных звуков относительно остальных: щелчки и шаги звучат часто, поэтому тише
+const SOUND_GAIN = { click: 0.45, step: 0.6, draw: 0.7, skill: 0.8, victory: 1.1, defeat: 1.1 };
+
+// Звуки, которым не меняем высоту: у мелодий и щелчков она должна быть одинаковой
+const FIXED_PITCH = ["victory", "defeat", "click"];
+
+// Музыка по настроению экрана. silence — тишина, например пока играет джингл победы
+const MUSIC_MOODS = ["menu", "town", "dungeon", "combat", "boss"];
+const CROSSFADE_SECONDS = 1.2;
+
+const buffers = {}; // имя звука → массив AudioBuffer
+const lastVariant = {};
+const lastPlayedAt = {};
+const musicUrls = {}; // настроение → blob: URL сжатого файла
+let mood = "menu";
+let music = null; // { mood, element, gain }
+let musicRequest = 0;
+
+// Вызывается на каждом нажатии: первое включает звук, остальные возобновляют его, если браузер его приостановил
 export function unlockAudio() {
   if (context) {
-    context.resume();
+    if (context.state !== "running") context.resume();
+    // Если браузер не дал запустить музыку без нажатия, запускаем её сейчас
+    if (music?.element.paused && !document.hidden) music.element.play().catch(() => {});
     return;
   }
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
@@ -33,95 +49,120 @@ export function unlockAudio() {
   musicGain.connect(context.destination);
   effectsGain.connect(context.destination);
   applyVolumes();
-  startMusic();
+  loadSounds();
+  switchMusic(mood);
 
   // Свернули игру — звук молчит и не тратит батарею
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) context.suspend();
-    else context.resume();
+    if (document.hidden) {
+      context.suspend();
+      music?.element.pause();
+    } else {
+      context.resume();
+      music?.element.play().catch(() => {});
+    }
   });
 }
 
 function applyVolumes() {
   if (!context) return;
-  musicGain.gain.value = volumes.music * 0.25;
-  effectsGain.gain.value = volumes.effects * 0.6;
+  musicGain.gain.value = volumes.music * 0.55;
+  effectsGain.gain.value = volumes.effects * 0.9;
 }
 
-export function setVolumes(music, effects) {
-  volumes = { music, effects };
+export function setVolumes(musicVolume, effectsVolume) {
+  volumes = { music: musicVolume, effects: effectsVolume };
   applyVolumes();
 }
 
-export function setMusicMood(newMood) {
-  mood = newMood;
-}
-
-function startMusic() {
-  nextBeatTime = context.currentTime + 0.1;
-  musicTimer = setInterval(scheduleMusic, 200);
-}
-
-// Планируем ноты немного вперёд: так музыка не сбивается, если страница занята
-function scheduleMusic() {
-  if (context.state !== "running") return;
-  while (nextBeatTime < context.currentTime + SCHEDULE_AHEAD_SECONDS) {
-    const melody = MELODIES[mood];
-    const note = melody[beatIndex % melody.length];
-    const beat = BEAT_SECONDS[mood];
-    if (note > 0 && volumes.music > 0) {
-      playTone(note, beat * 1.6, "triangle", 0.5, musicGain, nextBeatTime);
-      // Низкая нота в начале такта делает музыку плотнее
-      if (beatIndex % 8 === 0) playTone(note / 2, beat * 6, "sine", 0.6, musicGain, nextBeatTime);
+// Загружает все короткие звуки. Они маленькие, поэтому хранятся уже раскодированными и играют без задержки
+function loadSounds() {
+  for (const [name, count] of Object.entries(SOUND_VARIANTS)) {
+    const files = count === 0 ? [`${name}.mp3`] : Array.from({ length: count }, (_, index) => `${name}-${index + 1}.mp3`);
+    buffers[name] = [];
+    for (const file of files) {
+      fetch(`assets/sounds/sfx/${file}`)
+        .then((response) => response.arrayBuffer())
+        .then((data) => context.decodeAudioData(data))
+        .then((buffer) => buffers[name].push(buffer))
+        .catch(() => {});
     }
-    nextBeatTime += beat;
-    beatIndex += 1;
   }
 }
 
-function playTone(frequency, duration, type, volume, output, startAt = context.currentTime, slideTo = null) {
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, startAt);
-  if (slideTo) oscillator.frequency.exponentialRampToValueAtTime(slideTo, startAt + duration);
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-  oscillator.connect(gain);
-  gain.connect(output);
-  oscillator.start(startAt);
-  oscillator.stop(startAt + duration + 0.02);
-}
+export function playSound(name) {
+  if (!context || context.state !== "running" || volumes.effects === 0) return;
+  const variants = buffers[name];
+  if (!variants?.length) return;
+  // Один и тот же звук не чаще раза в 40 мс: многоударная карта не должна сливаться в треск
+  const now = context.currentTime;
+  if (now - (lastPlayedAt[name] ?? -1) < 0.04) return;
+  lastPlayedAt[name] = now;
 
-// Короткий шум: удар и взмах
-function playNoise(duration, volume) {
-  const samples = Math.floor(context.sampleRate * duration);
-  const buffer = context.createBuffer(1, samples, context.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < samples; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / samples);
+  // Случайный вариант, но не тот же, что в прошлый раз
+  let index = Math.floor(Math.random() * variants.length);
+  if (variants.length > 1 && index === lastVariant[name]) index = (index + 1) % variants.length;
+  lastVariant[name] = index;
+
   const source = context.createBufferSource();
+  source.buffer = variants[index];
+  // Чуть другая высота каждый раз: так повторы звучат живее
+  if (!FIXED_PITCH.includes(name)) source.playbackRate.value = 0.94 + Math.random() * 0.12;
   const gain = context.createGain();
-  gain.gain.value = volume;
-  source.buffer = buffer;
+  gain.gain.value = SOUND_GAIN[name] ?? 1;
   source.connect(gain);
   gain.connect(effectsGain);
   source.start();
 }
 
-const SOUNDS = {
-  card: () => playTone(520, 0.09, "triangle", 0.5, effectsGain, undefined, 760),
-  hit: () => { playNoise(0.14, 0.7); playTone(150, 0.14, "square", 0.3, effectsGain, undefined, 60); },
-  block: () => playTone(880, 0.12, "sine", 0.5, effectsGain, undefined, 1200),
-  heal: () => playTone(440, 0.28, "sine", 0.5, effectsGain, undefined, 880),
-  error: () => playTone(140, 0.16, "square", 0.3, effectsGain, undefined, 110),
-  click: () => playTone(640, 0.04, "sine", 0.3, effectsGain),
-  buy: () => { playTone(780, 0.08, "triangle", 0.5, effectsGain); playTone(1040, 0.14, "triangle", 0.5, effectsGain, context.currentTime + 0.08); },
-  victory: () => [392, 523, 659, 784].forEach((note, index) => playTone(note, 0.3, "triangle", 0.5, effectsGain, context.currentTime + index * 0.12)),
-  defeat: () => [330, 262, 196, 131].forEach((note, index) => playTone(note, 0.45, "sawtooth", 0.25, effectsGain, context.currentTime + index * 0.2)),
-};
+// Звук по типу разыгранной карты: атака — взмах, навык — шорох, сила — заклинание
+export function playCardSound(type) {
+  playSound(type === "attack" ? "swing" : type === "power" ? "power" : "skill");
+}
 
-export function playSound(name) {
-  if (!context || context.state !== "running" || volumes.effects === 0) return;
-  SOUNDS[name]();
+export function setMusicMood(newMood) {
+  if (newMood === mood) return;
+  mood = newMood;
+  if (context) switchMusic(mood);
+}
+
+// Плавно сменяет музыку. Файл берём целиком через fetch (его кэширует service worker) и играем из памяти:
+// так музыка работает и без сети, а в памяти лежит только сжатый файл
+async function switchMusic(newMood) {
+  if (music?.mood === newMood) return;
+  const request = ++musicRequest;
+  fadeOutMusic();
+  if (!MUSIC_MOODS.includes(newMood)) return;
+
+  try {
+    musicUrls[newMood] ??= URL.createObjectURL(await (await fetch(`assets/sounds/music/${newMood}.mp3`)).blob());
+  } catch {
+    return;
+  }
+  // Пока файл грузился, игрок мог уйти на другой экран
+  if (request !== musicRequest) return;
+
+  const element = new Audio(musicUrls[newMood]);
+  element.loop = true;
+  const gain = context.createGain();
+  gain.gain.value = 0.0001;
+  context.createMediaElementSource(element).connect(gain);
+  gain.connect(musicGain);
+  gain.gain.exponentialRampToValueAtTime(1, context.currentTime + CROSSFADE_SECONDS);
+  music = { mood: newMood, element, gain };
+  if (!document.hidden) element.play().catch(() => {});
+}
+
+function fadeOutMusic() {
+  if (!music) return;
+  const { element, gain } = music;
+  music = null;
+  const now = context.currentTime;
+  gain.gain.cancelScheduledValues(now);
+  gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + CROSSFADE_SECONDS);
+  setTimeout(() => {
+    element.pause();
+    gain.disconnect();
+  }, CROSSFADE_SECONDS * 1000 + 100);
 }

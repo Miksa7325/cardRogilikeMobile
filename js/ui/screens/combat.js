@@ -20,6 +20,7 @@ import { createHpBar } from "../components/hpBar.js";
 import { createCombatItems, createMenuButton, createRunBar } from "../components/runBar.js";
 import { createStatusIcons } from "../components/statusIcons.js";
 import { showTooltip } from "../components/tooltip.js";
+import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 import { animationMs } from "../settings.js";
@@ -347,6 +348,7 @@ function playDroppedCard(instance, targetId, ghost) {
 function useSelectedPotion(targetId) {
   const before = captureCombatView(state.combat);
   usePotion(state.combat, state.selectedPotionIndex, targetId);
+  playSound("potion");
   clearSelection();
   showCurrentScreen(before);
 }

@@ -1,0 +1,790 @@
+/* Яркий объёмный стиль: подключается после theme.css и перекрашивает игру поверх неё.
+   Объём держится на трёх приёмах: свет сверху-слева (светлая кромка и блик), толщина снизу (тёмный край под
+   предметом) и тень на полу. Цвет — насыщенные градиенты вместо плоских тёмных заливок.
+   Рисунки карт заливаются металлическими градиентами из <svg class="art-gradients"> в index.html. */
+:root {
+  --gold: #ffc940;
+  --gold-dark: #b5781a;
+  --gold-frame: linear-gradient(145deg, #fff6c2, #ffcf3f 28%, #b4780f 55%, #ffe27a 80%, #8a5a08);
+  --panel-glass: rgba(34, 22, 58, 0.86);
+  --color-hp: #e8322b;
+  --color-block: #2f8fff;
+  --color-highlight: #ffc940;
+  /* Свет акта: им подсвечены сцена, коридор и туман. Задаётся на #scene и .corridor по data-act */
+  --act-light: rgba(110, 120, 255, 0.32);
+}
+
+/* ---------- Сцена: цветной свет факелов, свет акта сверху, туман ---------- */
+#scene {
+  filter: saturate(1.55) contrast(1.1);
+}
+
+#scene[data-act="1"], .corridor[data-act="1"] { --act-light: rgba(90, 170, 255, 0.34); }
+#scene[data-act="2"], .corridor[data-act="2"] { --act-light: rgba(40, 220, 230, 0.34); }
+#scene[data-act="3"], .corridor[data-act="3"] { --act-light: rgba(150, 255, 170, 0.28); }
+#scene[data-act="4"], .corridor[data-act="4"] { --act-light: rgba(120, 255, 60, 0.32); }
+#scene[data-act="5"], .corridor[data-act="5"] { --act-light: rgba(255, 50, 70, 0.34); }
+#scene[data-act="6"], .corridor[data-act="6"] { --act-light: rgba(60, 90, 255, 0.36); }
+#scene[data-act="7"], .corridor[data-act="7"] { --act-light: rgba(255, 110, 20, 0.4); }
+#scene[data-act="8"], .corridor[data-act="8"] { --act-light: rgba(170, 255, 60, 0.32); }
+#scene[data-act="9"], .corridor[data-act="9"] { --act-light: rgba(255, 230, 150, 0.3); }
+#scene[data-act="10"], .corridor[data-act="10"] { --act-light: rgba(200, 60, 255, 0.4); }
+
+.scene__tint {
+  background:
+    radial-gradient(ellipse 60% 42% at 0% 42%, rgba(255, 140, 40, 0.34), transparent 70%),
+    radial-gradient(ellipse 60% 42% at 100% 42%, rgba(255, 140, 40, 0.34), transparent 70%),
+    radial-gradient(ellipse 90% 55% at 50% -5%, var(--act-light), transparent 72%),
+    radial-gradient(ellipse 110% 70% at 50% 40%, transparent 35%, rgba(6, 3, 14, 0.78) 100%),
+    rgba(12, 8, 24, 0.34);
+}
+
+/* Туман медленно плывёт: в нём видна глубина зала */
+.scene__tint::after {
+  content: "";
+  position: absolute;
+  inset: -20% -40%;
+  background:
+    radial-gradient(ellipse 35% 18% at 30% 70%, var(--act-light), transparent 70%),
+    radial-gradient(ellipse 30% 14% at 70% 82%, var(--act-light), transparent 70%),
+    radial-gradient(ellipse 40% 20% at 50% 95%, rgba(255, 255, 255, 0.07), transparent 70%);
+  opacity: 0.8;
+  animation: fog-drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes fog-drift {
+  from { transform: translateX(-8%); }
+  to { transform: translateX(8%); }
+}
+
+.scene__ember {
+  width: 4px;
+  height: 4px;
+  background: #ffd27a;
+  box-shadow: 0 0 6px 2px #ff7a1e, 0 0 14px 4px rgba(255, 90, 20, 0.5);
+}
+
+/* ---------- Заголовки: золото с объёмом ---------- */
+.center-screen__title,
+.event__title,
+.city__title {
+  background: linear-gradient(180deg, #fffbe6 0%, #ffe07a 38%, #f0a020 62%, #ffe9a8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 0 #5a2a00) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 14px rgba(255, 190, 60, 0.35));
+}
+
+.start-logo {
+  filter: drop-shadow(0 4px 0 rgba(60, 20, 0, 0.8)) drop-shadow(0 0 22px rgba(255, 190, 60, 0.75)) saturate(1.5);
+}
+
+/* ---------- Кнопки: выпуклые плиты с толщиной снизу. Нажатие вдавливает плиту ---------- */
+.button {
+  border: 1px solid #ff9a6a;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ff8a55 0%, #ec4430 42%, #b01c22 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.22),
+    0 4px 0 #640c14,
+    0 7px 12px rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 1px 0 #6d0b0b, 0 2px 4px rgba(0, 0, 0, 0.55);
+  transition: transform 70ms, box-shadow 70ms, filter 70ms;
+}
+
+.button:active {
+  background: linear-gradient(180deg, #ec4430 0%, #c2262a 60%, #8e1520 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.35),
+    0 1px 0 #640c14,
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  transform: translateY(3px);
+}
+
+.button--secondary {
+  border-color: #b4a2ff;
+  background: linear-gradient(180deg, #8f7cf0 0%, #5843bf 45%, #33247e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.22),
+    0 4px 0 #1b1250,
+    0 7px 12px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 0 #1b1250, 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.button--secondary:active {
+  background: linear-gradient(180deg, #5843bf 0%, #3d2c94 100%);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.35), 0 1px 0 #1b1250, 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.button--attention {
+  border-color: #fff0a0;
+  background: linear-gradient(180deg, #ffe27a 0%, #ffb21e 45%, #c56d00 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.2),
+    0 4px 0 #6e3a00,
+    0 7px 12px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(255, 190, 50, 0.6);
+  color: #3a1a00;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.button:disabled {
+  filter: grayscale(0.65) brightness(0.72);
+  opacity: 0.8;
+}
+
+/* ---------- Панели: фиолетовое стекло в золотой оправе ---------- */
+.run-bar,
+.combat__top-bar {
+  border-bottom: none;
+  background: linear-gradient(180deg, #4a3576 0%, #2a1c4a 55%, #170f2a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 2px 0 #d39a2e,
+    0 3px 0 #5a3a08,
+    0 8px 16px rgba(0, 0, 0, 0.6);
+}
+
+.combat__bottom-bar {
+  border-top: none;
+  background: linear-gradient(0deg, #170f2a 0%, #2a1c4a 50%, #4a3576 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 -2px 0 #d39a2e,
+    0 -3px 0 #5a3a08,
+    0 -8px 16px rgba(0, 0, 0, 0.55);
+}
+
+.quest-dialog,
+.building-details {
+  padding: 16px 14px 18px;
+  border: 2px solid #e2ad3a;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 55% at 50% 0%, rgba(150, 100, 255, 0.4), transparent 62%),
+    radial-gradient(80% 40% at 50% 100%, rgba(255, 120, 60, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(52, 36, 84, 0.97), rgba(22, 14, 38, 0.97));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 170, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 3px rgba(20, 10, 0, 0.7),
+    0 6px 0 rgba(90, 55, 0, 0.9),
+    0 20px 40px rgba(0, 0, 0, 0.75),
+    0 0 40px rgba(170, 110, 255, 0.3);
+}
+
+.card-preview {
+  background: radial-gradient(circle at 50% 38%, rgba(70, 36, 110, 0.86), rgba(6, 3, 12, 0.95) 75%);
+}
+
+.tooltip {
+  border: 1px solid #ffd36a;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(74, 52, 120, 0.97), rgba(30, 20, 52, 0.97));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 0 rgba(60, 35, 0, 0.9), 0 10px 22px rgba(0, 0, 0, 0.6);
+  color: #fff8e6;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Строки списков в окнах: выпуклые плашки */
+.quest {
+  border: 1px solid rgba(255, 210, 120, 0.45);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(92, 66, 150, 0.6), rgba(40, 26, 70, 0.75));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 3px 0 rgba(10, 5, 25, 0.8), 0 6px 10px rgba(0, 0, 0, 0.35);
+}
+
+.quest--ready {
+  border-color: #ffe27a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 0 rgba(10, 5, 25, 0.8), 0 0 16px rgba(255, 200, 70, 0.55);
+}
+
+.quest__fill {
+  background: linear-gradient(180deg, #fff1a0, #ffb21e 45%, #c56d00);
+}
+
+/* ---------- Значки зелий и реликвий: самоцветы ---------- */
+.bar-icon,
+.bar-icon--potion,
+.item-column .bar-icon {
+  border: 1px solid rgba(255, 215, 120, 0.55);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.4), transparent 38%),
+    radial-gradient(circle at 50% 60%, rgba(140, 90, 230, 0.75), rgba(36, 20, 66, 0.95) 75%);
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.5), 0 3px 0 rgba(10, 5, 25, 0.85), 0 5px 8px rgba(0, 0, 0, 0.45);
+  filter: saturate(1.3);
+}
+
+.bar-icon--potion {
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.45), transparent 38%),
+    radial-gradient(circle at 50% 60%, rgba(40, 190, 170, 0.7), rgba(8, 40, 52, 0.95) 75%);
+}
+
+.bar-icon--selected {
+  outline: none;
+  border-color: #fff3b0;
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.5), 0 3px 0 rgba(10, 5, 25, 0.85), 0 0 14px 3px rgba(255, 210, 90, 0.85);
+}
+
+/* ---------- Энергия и цена карты: светящиеся шары с бликом ---------- */
+.combat__energy {
+  position: relative;
+  border: 2px solid #ffe08a;
+  background: radial-gradient(circle at 40% 28%, #eaf8ff 0%, #6cc4ff 22%, #1f6fe0 55%, #0b2770 100%);
+  box-shadow:
+    inset 0 -4px 8px rgba(0, 10, 50, 0.6),
+    0 3px 0 #6e4a0a,
+    0 0 16px 3px rgba(70, 160, 255, 0.75);
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 1px 0 #0b2770, 0 0 6px #003;
+  animation: energy-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes energy-pulse {
+  50% { box-shadow: inset 0 -4px 8px rgba(0, 10, 50, 0.6), 0 3px 0 #6e4a0a, 0 0 26px 6px rgba(90, 180, 255, 0.95); }
+}
+
+.card__cost {
+  border: 1px solid #e6f6ff;
+  background: radial-gradient(circle at 38% 30%, #f4fbff 0%, #6cc4ff 26%, #1f6fe0 58%, #0a1f5c 100%);
+  box-shadow: 0 2px 0 #06143e, 0 3px 5px rgba(0, 0, 0, 0.7), 0 0 8px rgba(90, 180, 255, 0.85);
+}
+
+.card__cost::after {
+  content: "";
+  position: absolute;
+  top: 9%;
+  left: 20%;
+  width: 46%;
+  height: 30%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+/* ---------- Карты: толстые плиты с металлической рамкой, глянцем и цветом по типу ---------- */
+.card {
+  --frame-grad: linear-gradient(145deg, #ffe6b0, #c8914a 28%, #6e4520 55%, #e6b87a 80%, #5a3616);
+  --card-edge: #2a140a;
+  --type-light: rgba(255, 120, 70, 0.9);
+  --type-mid: rgba(200, 34, 34, 0.88);
+  --type-dark: rgba(70, 6, 14, 0.96);
+  --type-texture: url("../assets/images/textures/card-attack.png");
+  border: max(2px, 0.24em) solid transparent;
+  background:
+    radial-gradient(130% 85% at 50% 0%, var(--type-light), var(--type-mid) 45%, var(--type-dark)) padding-box,
+    var(--type-texture) 0 0 / 64px padding-box,
+    var(--frame-grad) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -0.3em 0.5em rgba(0, 0, 0, 0.45),
+    0 0.35em 0 -0.05em var(--card-edge),
+    0 0.7em 1em rgba(0, 0, 0, 0.6);
+}
+
+.card--attack {
+  --type-light: rgba(255, 130, 70, 0.9);
+  --type-mid: rgba(214, 36, 36, 0.86);
+  --type-dark: rgba(74, 6, 16, 0.96);
+  --type-texture: url("../assets/images/textures/card-attack.png");
+  --card-edge: #3a0710;
+}
+
+.card--skill {
+  --type-light: rgba(120, 220, 255, 0.9);
+  --type-mid: rgba(30, 112, 220, 0.86);
+  --type-dark: rgba(6, 26, 80, 0.96);
+  --type-texture: url("../assets/images/textures/card-skill.png");
+  --card-edge: #061a48;
+}
+
+.card--power {
+  --type-light: rgba(240, 150, 255, 0.9);
+  --type-mid: rgba(140, 50, 220, 0.86);
+  --type-dark: rgba(40, 8, 84, 0.96);
+  --type-texture: url("../assets/images/textures/card-power.png");
+  --card-edge: #22064a;
+}
+
+.card--status,
+.card--curse {
+  --type-light: rgba(190, 190, 205, 0.85);
+  --type-mid: rgba(86, 82, 104, 0.88);
+  --type-dark: rgba(24, 22, 32, 0.96);
+  --type-texture: url("../assets/images/textures/card-status.png");
+  --card-edge: #121018;
+}
+
+.card--uncommon {
+  --frame-grad: linear-gradient(145deg, #ffffff, #8fd8ff 26%, #2a70c0 55%, #c6ecff 80%, #1e5296);
+}
+
+.card--rare {
+  --frame-grad: var(--gold-frame);
+}
+
+/* Глянец: свет падает сверху-слева */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(90% 55% at var(--glare-x, 25%) var(--glare-y, 0%), rgba(255, 255, 255, 0.42), transparent 60%),
+    linear-gradient(180deg, transparent 70%, rgba(0, 0, 0, 0.25));
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.card--playable {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -0.3em 0.5em rgba(0, 0, 0, 0.45),
+    0 0.35em 0 -0.05em var(--card-edge),
+    0 0.7em 1em rgba(0, 0, 0, 0.6),
+    0 0 0.9em 0.15em rgba(255, 214, 90, 0.7);
+}
+
+.card__name {
+  color: #fff8e8;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.card--uncommon .card__name {
+  color: #c8ecff;
+}
+
+.card--rare .card__name {
+  color: #ffe58a;
+}
+
+/* Окно рисунка — углублённая ниша с цветным свечением за рисунком */
+.card__art {
+  --art-glow: rgba(255, 200, 120, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  background:
+    radial-gradient(circle at 50% 48%, var(--art-glow) 0%, transparent 62%),
+    radial-gradient(circle at 50% 35%, #3a2c48, #08050c 85%);
+  box-shadow: inset 0 0.2em 0.45em rgba(0, 0, 0, 0.85), inset 0 -1px 0 rgba(255, 255, 255, 0.18), 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.card__art path {
+  fill: url(#art-steel);
+}
+
+.card__art svg {
+  filter: drop-shadow(0 0.1em 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.35em var(--art-glow));
+}
+
+.card__art--sword path,
+.card__art--blades path { fill: url(#art-steel); }
+.card__art--sword,
+.card__art--blades { --art-glow: rgba(255, 150, 70, 0.6); }
+.card__art--wave path,
+.card__art--flame path { fill: url(#art-ember); }
+.card__art--wave,
+.card__art--flame { --art-glow: rgba(255, 110, 30, 0.7); }
+.card__art--shield path { fill: url(#art-frost); }
+.card__art--shield { --art-glow: rgba(80, 180, 255, 0.7); }
+.card__art--poison path { fill: url(#art-poison); }
+.card__art--poison { --art-glow: rgba(120, 255, 60, 0.6); }
+.card__art--star path,
+.card__art--hex path { fill: url(#art-arcane); }
+.card__art--star,
+.card__art--hex { --art-glow: rgba(210, 110, 255, 0.7); }
+.card__art--heart path { fill: url(#art-rose); }
+.card__art--heart { --art-glow: rgba(255, 80, 120, 0.65); }
+.card__art--bolt path,
+.card__art--scroll path { fill: url(#art-gold); }
+.card__art--bolt,
+.card__art--scroll { --art-glow: rgba(255, 220, 80, 0.65); }
+.card__art--skull path { fill: url(#art-bone); }
+.card__art--skull { --art-glow: rgba(160, 255, 200, 0.35); }
+
+.card__effects {
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.card__value {
+  color: #fff;
+  text-shadow: 0 1px 0 #000, 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+/* Рука лежит под наклоном, как на столе. Выбранная карта поднимается к игроку */
+.hand {
+  perspective: 700px;
+  perspective-origin: 50% 0%;
+}
+
+.hand .card {
+  transform-origin: 50% 100%;
+  transform: translateY(var(--fan-drop, 0)) rotate(var(--fan-angle, 0deg)) rotateX(12deg);
+  transition: transform 150ms, box-shadow 150ms;
+}
+
+.hand .card--selected {
+  z-index: 2;
+  transform: translateY(calc(var(--fan-drop, 0px) - 16px)) rotate(var(--fan-angle, 0deg)) rotateX(0deg) scale(1.08);
+}
+
+/* Карты вне руки и большая карта наклоняются вслед за пальцем или мышью (js/ui/tilt.js) */
+.card-row .card,
+.card--large {
+  transform: perspective(600px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 120ms ease-out, box-shadow 150ms;
+}
+
+.card--large {
+  animation: card-float 5s ease-in-out infinite;
+}
+
+@keyframes card-float {
+  0%, 100% { translate: 0 0; rotate: y -4deg; }
+  50% { translate: 0 -6px; rotate: y 4deg; }
+}
+
+.card--ghost {
+  box-shadow: 0 1.6em 2em rgba(0, 0, 0, 0.7), 0 0 1em rgba(255, 200, 80, 0.6);
+}
+
+.card--ghost-ready {
+  box-shadow: 0 1.6em 2em rgba(0, 0, 0, 0.7), 0 0 2em 0.5em rgba(255, 220, 110, 0.95);
+}
+
+/* ---------- Бойцы: яркие модели с подсветкой контура и тенью на полу ---------- */
+.unit__portrait {
+  filter:
+    saturate(1.6) contrast(1.12) brightness(1.06)
+    drop-shadow(0 0 1px rgba(0, 0, 0, 0.95))
+    drop-shadow(-2px -2px 0 rgba(255, 190, 110, 0.55))
+    drop-shadow(2px -1px 0 rgba(120, 180, 255, 0.5))
+    drop-shadow(0 9px 6px rgba(0, 0, 0, 0.5));
+}
+
+/* Пятно тени и светящийся круг под врагом */
+.combat__enemies .unit__portrait::before,
+.combat__enemies .unit__portrait::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 0;
+  height: 16%;
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.combat__enemies .unit__portrait::before {
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.45) 45%, transparent 72%);
+}
+
+.combat__enemies .unit__portrait::after {
+  border: 2px solid rgba(255, 120, 60, 0.6);
+  box-shadow: 0 0 10px rgba(255, 90, 40, 0.7), inset 0 0 10px rgba(255, 90, 40, 0.5);
+  animation: rune-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes rune-pulse {
+  50% { opacity: 0.45; transform: scale(1.06, 1.1); }
+}
+
+.unit--hero {
+  border: 1px solid rgba(255, 210, 120, 0.55);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 0% 50%, rgba(255, 150, 60, 0.25), transparent 60%),
+    linear-gradient(180deg, rgba(70, 48, 116, 0.92), rgba(28, 18, 48, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 0 rgba(12, 6, 28, 0.9), 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+.unit--targetable {
+  border-color: #ffd65a;
+  border-radius: 14px;
+  box-shadow: 0 0 14px 2px rgba(255, 200, 70, 0.6), inset 0 0 18px rgba(255, 200, 70, 0.2);
+}
+
+.unit--drop-target {
+  border-color: #fff6c0;
+  box-shadow: 0 0 26px 8px rgba(255, 220, 110, 0.9), inset 0 0 24px rgba(255, 220, 110, 0.35);
+}
+
+/* Портрет с фильтром рисуется отдельным слоем поверх соседей: имя поднимаем над ним */
+.unit__name {
+  position: relative;
+  z-index: 1;
+  color: #fff3d6;
+  text-shadow: 0 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 170, 60, 0.35);
+}
+
+/* Полоска здоровья — стеклянная трубка: блик сверху, тень снизу */
+.hp-bar {
+  border: 1px solid #000;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #0c0306, #2a0b12);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(255, 205, 110, 0.45), 0 3px 0 rgba(0, 0, 0, 0.6);
+}
+
+.hp-bar__fill {
+  position: relative;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ffb39e 0%, #ff4a3a 24%, #d81e2c 58%, #7a0816 100%);
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.3), 0 0 8px rgba(255, 60, 50, 0.6);
+}
+
+.hp-bar__fill::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  right: 4px;
+  height: 32%;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0));
+}
+
+.hp-bar--blocked .hp-bar__fill {
+  background: linear-gradient(180deg, #c8ecff 0%, #4ab0ff 24%, #1c6ae0 58%, #0a2a78 100%);
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.3), 0 0 8px rgba(60, 150, 255, 0.7);
+}
+
+.hp-bar__label {
+  color: #fff;
+  text-shadow: 0 1px 0 #000, 0 0 4px #000;
+}
+
+/* Намерение врага — стеклянный пузырь */
+.unit__intent {
+  border: 1px solid #ffb27a;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(150, 40, 60, 0.95), rgba(60, 10, 30, 0.95));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 0 rgba(30, 4, 12, 0.9), 0 0 12px rgba(255, 80, 60, 0.45);
+  color: #fff;
+  text-shadow: 0 1px 0 #000;
+}
+
+.number {
+  -webkit-text-stroke: 1.5px rgba(0, 0, 0, 0.85);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.7), 0 0 14px currentColor;
+}
+
+.impact--slash {
+  height: 9px;
+  box-shadow: 0 0 18px 4px #ff9a3a, 0 0 40px 8px rgba(255, 80, 20, 0.5);
+}
+
+.impact--burst {
+  background: radial-gradient(circle, #fff, rgba(140, 200, 255, 0.85) 30%, rgba(160, 80, 255, 0.4) 55%, transparent 72%);
+}
+
+/* ---------- Карта подземелья: комнаты — объёмные шары ---------- */
+.map-node {
+  border: 2px solid #6e5a8a;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.45), transparent 32%),
+    radial-gradient(circle at 50% 55%, #6a4fa0, #1c1030 78%);
+  box-shadow: inset -3px -4px 6px rgba(0, 0, 0, 0.5), 0 3px 0 rgba(0, 0, 0, 0.65), 0 6px 8px rgba(0, 0, 0, 0.5);
+}
+
+.map-node--visited,
+.map-node--available {
+  border-color: #ffd36a;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.6), transparent 32%),
+    radial-gradient(circle at 50% 55%, #ffb43a, #8a4a08 62%, #3a1a02 100%);
+}
+
+.map-node--current {
+  border-color: #fff;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.75), transparent 34%),
+    radial-gradient(circle at 50% 55%, #6cd0ff, #1d5fd0 62%, #0a1f5c 100%);
+  box-shadow: inset -3px -4px 6px rgba(0, 0, 0, 0.45), 0 3px 0 rgba(0, 0, 0, 0.65), 0 0 18px 5px rgba(90, 180, 255, 0.85);
+}
+
+.map__line--walked {
+  stroke: #ffd36a;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 4px #ffb43a);
+}
+
+/* ---------- Коридор: насыщенный камень, тёплые факелы, свет акта и блестящий пол ---------- */
+.corridor {
+  filter: saturate(1.5) contrast(1.1);
+}
+
+.corridor__wall::after {
+  background:
+    radial-gradient(ellipse 24% 42% at 45% 38%, rgba(255, 160, 50, 0.65), transparent),
+    radial-gradient(ellipse 60% 30% at 50% 100%, var(--act-light), transparent);
+}
+
+.corridor__floor {
+  background:
+    radial-gradient(ellipse 50% 70% at 50% 0%, var(--act-light), transparent 80%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.55) 0 2px, transparent 2px 48px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0 2px, rgba(255, 255, 255, 0.05) 2px 4px, transparent 4px 40px),
+    var(--stone);
+}
+
+.corridor__end::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 70%, var(--act-light), transparent 75%);
+}
+
+.corridor__shade {
+  background:
+    radial-gradient(ellipse 70% 65% at 50% 55%, transparent 45%, rgba(4, 2, 10, 0.78)),
+    linear-gradient(180deg, transparent 60%, rgba(255, 140, 50, 0.08));
+}
+
+.corridor__light {
+  background: linear-gradient(180deg, rgba(255, 240, 190, 0.55), rgba(255, 220, 140, 0.15) 70%, transparent);
+  filter: blur(2px);
+}
+
+/* Арки туннелей: тёсаный камень с выпуклой кромкой и мерцающей глубиной */
+.tunnel {
+  border-color: #9a8770 #5a4a3a #3a2f25;
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 85%, var(--act-light), transparent 75%),
+    radial-gradient(ellipse 60% 70% at 50% 75%, #000 45%, #1b1426);
+  box-shadow:
+    inset 0 0 26px #000,
+    inset 0 6px 10px rgba(0, 0, 0, 0.8),
+    0 0 0 2px #120c18,
+    -4px 0 10px rgba(255, 150, 60, 0.25);
+}
+
+.tunnel:hover,
+.tunnel:focus-visible,
+.tunnel--chosen {
+  border-color: #ffe59a #d49a2a #8a5a10;
+  box-shadow: inset 0 0 26px #000, 0 0 18px 4px rgba(255, 200, 80, 0.6);
+}
+
+.tunnel__sign,
+.hatch__sign {
+  border-color: #ffd36a;
+  background: linear-gradient(180deg, rgba(74, 52, 120, 0.96), rgba(26, 16, 46, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 0 rgba(60, 35, 0, 0.9);
+}
+
+.corridor__city,
+.map-button,
+.fireflies-button {
+  border: 1px solid #ffd36a;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #8f7cf0 0%, #5843bf 45%, #33247e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 4px 0 #1b1250, 0 7px 12px rgba(0, 0, 0, 0.55);
+  color: #fff6d8;
+}
+
+.corridor__city:active,
+.map-button:active,
+.fireflies-button:active {
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.35), 0 1px 0 #1b1250;
+  transform: translateY(3px);
+}
+
+/* ---------- Город: сочная трава, дома с тенью, подписи-таблички ---------- */
+.city {
+  filter: saturate(1.35) contrast(1.06);
+}
+
+.city__map::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(255, 230, 150, 0.22), transparent 70%),
+    radial-gradient(ellipse 120% 80% at 50% 50%, transparent 55%, rgba(10, 20, 40, 0.35));
+}
+
+.city__road {
+  border-top-color: rgba(255, 230, 170, 0.5);
+  border-bottom-color: rgba(60, 35, 10, 0.75);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 3px, transparent 3px 9px),
+    linear-gradient(180deg, #e0b878, #b98a4c 55%, #92693a);
+  box-shadow: 0 3px 4px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes building-glow {
+  0%, 100% { filter: drop-shadow(4px 6px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(255, 210, 90, 0)); }
+  50% { filter: drop-shadow(4px 6px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 6px rgba(255, 210, 90, 0.75)); }
+}
+
+.building__label,
+.city-gate .building__label,
+.city-npc .building__label {
+  border: 1px solid #ffd36a;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #6a4fb0, #34226e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 0 #160c3a, 0 4px 6px rgba(0, 0, 0, 0.45);
+  color: #fff8e0;
+  text-shadow: 0 1px 0 #000;
+}
+
+.building--affordable .building__label {
+  border-color: #fff0a0;
+  background: linear-gradient(180deg, #ffd24a, #c87a00);
+  color: #3a1a00;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.city-hero__sprite,
+.city-npc__art {
+  filter: saturate(1.5) drop-shadow(0 0 1px #000) drop-shadow(3px 5px 0 rgba(0, 0, 0, 0.35));
+}
+
+.city__header {
+  background: linear-gradient(180deg, rgba(74, 52, 120, 0.94), rgba(30, 20, 52, 0.7) 75%, transparent);
+}
+
+/* ---------- Коллекция и окна предметов ---------- */
+.collection-tile {
+  border: 1px solid rgba(255, 210, 120, 0.4);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(92, 66, 150, 0.55), rgba(32, 20, 56, 0.75));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 3px 0 rgba(10, 5, 25, 0.8);
+}
+
+.collection-tile__icon--card {
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 35%, var(--type-light, #c8914a), var(--type-dark, #2a140a));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.collection-tile__icon--card path {
+  fill: url(#art-gold);
+}
+
+.collection-tile__icon--sprite,
+.item-details__icon {
+  filter: saturate(1.5) drop-shadow(0 0 1px #000) drop-shadow(0 4px 3px rgba(0, 0, 0, 0.5));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene__tint::after,
+  .combat__energy,
+  .card--large,
+  .combat__enemies .unit__portrait::after {
+    animation: none !important;
+  }
+}

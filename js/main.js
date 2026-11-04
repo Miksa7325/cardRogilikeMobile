@@ -25,6 +25,7 @@ import { renderShopScreen } from "./ui/screens/shop.js";
 import { renderStartScreen } from "./ui/screens/start.js";
 import { renderTestSetupScreen } from "./ui/screens/testSetup.js";
 import { applySettings } from "./ui/settings.js";
+import { enableCardTilt } from "./ui/tilt.js";
 
 document.title = TEXTS.gameTitle;
 
@@ -48,6 +49,7 @@ registerScreen("shop", renderShopScreen);
 registerScreen("testSetup", renderTestSetupScreen);
 
 enableReliableTaps();
+enableCardTilt();
 applySettings();
 createScene();
 preloadSprites(Object.keys(ENEMIES), Object.keys(HEROES));

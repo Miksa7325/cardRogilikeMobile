@@ -2,7 +2,7 @@
 // а этот файл проигрывает их: удары врагов, вылетающие числа урона, изменение HP.
 import { TEXTS } from "../data/texts.ru.js";
 import { ATTACK_STYLES } from "./art.js";
-import { playSound } from "./audio.js";
+import { playCardSound, playSound } from "./audio.js";
 import { STATUS_ICONS } from "./components/statusIcons.js";
 import { hideTooltip } from "./components/tooltip.js";
 import { el } from "./dom.js";
@@ -140,6 +140,7 @@ function discardHandView() {
 }
 
 function castAnimation(enemyId) {
+  playSound("enemyCast");
   return animate(portraitOf(enemyId), [
     { transform: "none", filter: "none" },
     { transform: "translateY(-8px) scale(1.12)", filter: "brightness(1.8) drop-shadow(0 0 12px #c77dff)", offset: 0.5 },
@@ -182,6 +183,7 @@ async function strike(event, before) {
 
 // Маг откидывается назад, а снаряд летит к цели
 async function castProjectile(portrait, attacker, target, color) {
+  playSound("magicCast");
   animate(portrait, [
     { transform: "none", filter: "none" },
     { transform: "translateY(4px) scale(1.08)", filter: `brightness(1.7) drop-shadow(0 0 10px ${color})`, offset: 0.4 },
@@ -217,7 +219,7 @@ function showEvent(event, before) {
       { transform: "scale(1.1)", filter: "brightness(1.4) drop-shadow(0 0 10px #6db2ff)", offset: 0.4 },
       { transform: "none", filter: "none" },
     ], 300);
-    playSound("block");
+    playSound("shield");
   } else if (event.type === "heal") {
     if (event.amount <= 0) return;
     showNumber(target.rect, `+${event.amount}`, "number--heal");
@@ -226,11 +228,15 @@ function showEvent(event, before) {
   } else if (event.type === "poison" || event.type === "hpLoss") {
     showNumber(target.rect, `-${event.amount}`, event.type === "poison" ? "number--poison" : "number--damage", event.amount);
     updateUnitView(event, before);
+    playSound(event.type === "poison" ? "poison" : "hit");
     markDeadEnemy(event, target);
   } else if (event.type === "status") {
     showNumber(target.rect, `${STATUS_ICONS[event.status]}+${event.amount}`, "number--status");
   }
 }
+
+// Звук попадания по виду удара: клинок, когти или магия
+const IMPACT_SOUNDS = { slash: "hit", claw: "claw", burst: "magicHit" };
 
 // Удар достиг цели: след удара, числа, тряска и новое HP
 function showHit(event, before, impactKind) {
@@ -249,7 +255,7 @@ function showHit(event, before, impactKind) {
     { transform: "none", filter: "none" },
   ], 300);
 
-  playSound(event.hpLost > 0 ? "hit" : "block");
+  playSound(event.hpLost > 0 ? IMPACT_SOUNDS[impactKind] : "block");
   if (event.targetId === "hero" && event.hpLost > 0) {
     vibrate(60);
     animate(document.querySelector(".combat"), [
@@ -325,6 +331,7 @@ function animateHpBar(element, previous) {
 
 // Убитый враг уже исчез из боя, поэтому на его месте растворяется копия
 function showDyingEnemy(previous) {
+  playSound("death");
   if (!previous.clone || !previous.rect) return;
   const ghost = previous.clone.cloneNode(true);
   ghost.classList.add("unit--dying");
@@ -353,6 +360,7 @@ export function showDrawnCards(previousUids, combat) {
     }, { once: true });
     order += 1;
   });
+  if (order > 0) playSound("draw");
 }
 
 // Брошенная карта вспыхивает и растворяется там, где её отпустили
@@ -362,5 +370,5 @@ export function flyCardAway(ghost) {
   ghost.addEventListener("animationend", () => ghost.remove());
   // Запасной вариант: если анимации отключены, копия всё равно должна исчезнуть
   setTimeout(() => ghost.remove(), 800);
-  playSound("card");
+  playCardSound(["attack", "skill", "power"].find((type) => ghost.classList.contains(`card--${type}`)));
 }

@@ -1,5 +1,5 @@
 // Экран авторов: лицензии требуют указать, чьи рисунки использует игра.
-import { ICON_AUTHORS } from "../../data/credits.js";
+import { ICON_AUTHORS, SOUND_CREDITS } from "../../data/credits.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -34,10 +34,19 @@ export function renderCreditsScreen(root) {
     createLink(credits.ccBy, "https://creativecommons.org/licenses/by/3.0/"),
   );
 
+  const sounds = el("section", "credits__block");
+  sounds.append(
+    el("h2", "credits__heading", credits.soundsTitle),
+    el("p", "credits__text", credits.soundsText),
+    el("p", "credits__authors", SOUND_CREDITS.map(({ work, author }) => `«${work}» — ${author}`).join(", ")),
+    createLink(credits.soundsLink, "https://opengameart.org"),
+    createLink(credits.ccZero, "https://creativecommons.org/publicdomain/zero/1.0/"),
+  );
+
   const back = el("button", "button button--secondary", credits.back);
   back.type = "button";
   back.addEventListener("click", () => showScreen("start"));
 
-  screen.append(sprites, icons, back);
+  screen.append(sprites, icons, sounds, back);
   root.append(screen);
 }

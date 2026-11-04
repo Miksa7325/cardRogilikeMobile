@@ -10,6 +10,21 @@ const screens = {};
 // каждого действия, а фаза считается по часам: поэтому модели не дёргаются при перерисовке
 const IDLE_CYCLE_MS = 12000;
 
+// Музыка экранов. Остальные экраны — подземелье; у боя своя музыка, у боя с боссом — своя.
+// На экране итогов играет джингл победы или поражения, музыка молчит
+const MUSIC_BY_SCREEN = {
+  start: "menu", saves: "menu", settings: "menu", collection: "menu", credits: "menu", saveTransfer: "menu", testSetup: "menu",
+  city: "town",
+  result: "silence",
+};
+
+function getMusicMood(name) {
+  if (name !== "combat") return MUSIC_BY_SCREEN[name] ?? "dungeon";
+  const run = state.run;
+  const bossFight = !state.arena && !state.test.enabled && run?.currentNodeId && run.map.nodes[run.currentNodeId]?.type === "boss";
+  return bossFight ? "boss" : "combat";
+}
+
 // На этих экранах фон меню, а не текущего акта
 const MENU_SCREENS = ["start", "collection", "settings", "saveTransfer", "credits", "testSetup", "city", "saves"];
 
@@ -21,7 +36,7 @@ export function registerScreen(name, render) {
 export function showScreen(name) {
   const app = document.getElementById("app");
   hideTooltip();
-  setMusicMood(name === "combat" ? "combat" : "calm");
+  setMusicMood(getMusicMood(name));
   setSceneAct(MENU_SCREENS.includes(name) ? 0 : state.test.enabled ? 1 : state.run?.act ?? 0);
   document.documentElement.style.setProperty("--idle-phase", `-${Date.now() % IDLE_CYCLE_MS}ms`);
   app.replaceChildren();

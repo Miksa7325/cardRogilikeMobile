@@ -20,8 +20,22 @@
   <link rel="stylesheet" href="css/screens.css">
   <link rel="stylesheet" href="css/cards.css">
   <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/vivid.css">
 </head>
 <body>
+  <!-- Градиенты для рисунков карт: css/vivid.css заливает ими контуры, так рисунки выглядят металлическими и объёмными -->
+  <svg class="art-gradients" width="0" height="0" aria-hidden="true" style="position: absolute">
+    <defs>
+      <linearGradient id="art-steel" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.32" stop-color="#dbe9ff"/><stop offset="0.52" stop-color="#7f95bf"/><stop offset="0.7" stop-color="#eef4ff"/><stop offset="1" stop-color="#56688c"/></linearGradient>
+      <linearGradient id="art-gold" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#fffbe0"/><stop offset="0.3" stop-color="#ffe066"/><stop offset="0.55" stop-color="#d98a10"/><stop offset="0.75" stop-color="#fff0a0"/><stop offset="1" stop-color="#9a5a00"/></linearGradient>
+      <linearGradient id="art-ember" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset="0.3" stop-color="#ffb02e"/><stop offset="0.6" stop-color="#ff4a12"/><stop offset="1" stop-color="#8a1400"/></linearGradient>
+      <linearGradient id="art-frost" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.3" stop-color="#a8e4ff"/><stop offset="0.6" stop-color="#3a9cff"/><stop offset="0.8" stop-color="#c8f0ff"/><stop offset="1" stop-color="#1a4fa8"/></linearGradient>
+      <linearGradient id="art-poison" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#f4ffc0"/><stop offset="0.3" stop-color="#a8ff4a"/><stop offset="0.6" stop-color="#3fbf1a"/><stop offset="1" stop-color="#145a08"/></linearGradient>
+      <linearGradient id="art-arcane" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#fff0ff"/><stop offset="0.3" stop-color="#f0a8ff"/><stop offset="0.6" stop-color="#a24aff"/><stop offset="0.8" stop-color="#ffc8ff"/><stop offset="1" stop-color="#4a12a0"/></linearGradient>
+      <linearGradient id="art-rose" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#fff0f2"/><stop offset="0.3" stop-color="#ff9aae"/><stop offset="0.6" stop-color="#ff2a5a"/><stop offset="1" stop-color="#7a0828"/></linearGradient>
+      <linearGradient id="art-bone" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.35" stop-color="#e8e2cf"/><stop offset="0.65" stop-color="#9d957f"/><stop offset="1" stop-color="#4a463a"/></linearGradient>
+    </defs>
+  </svg>
   <!-- Фон подземелья: отдельный слой, он не перерисовывается вместе с экранами -->
   <div id="scene"></div>
   <!-- Сюда router.js выводит текущий экран -->

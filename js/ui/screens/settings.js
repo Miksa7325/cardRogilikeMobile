@@ -29,7 +29,7 @@ export function renderSettingsScreen(root) {
     createSlider(TEXTS.settings.music, settings.music, (value) => changeSettings((s) => { s.music = value; })),
     createSlider(TEXTS.settings.effects, settings.effects, (value) => {
       changeSettings((s) => { s.effects = value; });
-      playSound("card");
+      playSound("hit");
     }),
     createToggle(settings.fastAnimations ? TEXTS.settings.speedFast : TEXTS.settings.speedNormal, () => {
       changeSettings((s) => { s.fastAnimations = !s.fastAnimations; });

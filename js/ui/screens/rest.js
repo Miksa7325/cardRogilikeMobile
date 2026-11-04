@@ -5,6 +5,7 @@ import { state } from "../../state.js";
 import { createCardElement } from "../components/card.js";
 import { openCardPreview } from "../components/cardPreview.js";
 import { createRunBar } from "../components/runBar.js";
+import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
 
@@ -24,6 +25,7 @@ export function renderRestScreen(root) {
 
   const healButton = createButton(TEXTS.rest.heal(healAmount), () => {
     restHeal(run);
+    playSound("heal");
     showScreen("dungeon");
   });
   healButton.disabled = healAmount === 0;

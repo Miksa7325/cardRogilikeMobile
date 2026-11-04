@@ -65,6 +65,9 @@ export const TEXTS = {
     iconsText: "Иконки с game-icons.net, лицензия CC BY 3.0. Иконки перекрашены и обрезаны по контуру. Авторы:",
     iconsLink: "game-icons.net",
     ccBy: "Лицензия CC BY 3.0",
+    soundsTitle: "Звуки и музыка",
+    soundsText: "Записи с OpenGameArt, выпущенные авторами как общественное достояние (CC0). Звуки обрезаны и выровнены по громкости:",
+    soundsLink: "opengameart.org",
     back: "Назад",
   },
   city: {

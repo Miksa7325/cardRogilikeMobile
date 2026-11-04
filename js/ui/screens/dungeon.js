@@ -16,6 +16,7 @@ import { state } from "../../state.js";
 import { NODE_ICONS, openDungeonMap } from "../components/dungeonMap.js";
 import { createItemColumns, createRunBar } from "../components/runBar.js";
 import { showTooltip } from "../components/tooltip.js";
+import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { resetPlayTimer, trackPlayTime } from "../playTime.js";
 import { showScreen } from "../router.js";
@@ -242,6 +243,7 @@ function createTunnel(run, node, index, spot, previous, onChoose) {
 
 // Герой идёт в выбранный туннель: коридор надвигается и темнеет, потом открывается то, что там ждёт
 function walkInto(corridor, index, spot, onArrive) {
+  playSteps(3);
   corridor.style.setProperty("--walk-x", `${50 - spot.position}%`);
   corridor.classList.add("corridor--walking");
   corridor.querySelectorAll(".tunnel")[index].classList.add("tunnel--chosen");
@@ -249,6 +251,11 @@ function walkInto(corridor, index, spot, onArrive) {
   setTimeout(() => {
     if (corridor.isConnected) onArrive();
   }, animationMs(WALK_ANIMATIONS));
+}
+
+// Шаги героя по коридору: звучат, пока экран надвигается
+function playSteps(count) {
+  for (let step = 0; step < count; step++) setTimeout(() => playSound("step"), animationMs(step * 230));
 }
 
 // Люк в полу со ступенями вниз. Знаки над ним те же, что над туннелями
@@ -266,6 +273,8 @@ function createHatch(run, node, index, spot, previous, onChoose) {
 
 // Герой спускается в люк: коридор уходит вверх и надвигается, всё темнеет
 function walkDown(corridor, index, spot, onArrive) {
+  playSound("stone");
+  playSteps(3);
   corridor.style.setProperty("--walk-x", `${50 - spot.position}%`);
   corridor.classList.add("corridor--descending");
   corridor.querySelectorAll(".hatch")[index].classList.add("hatch--chosen");
@@ -384,6 +393,7 @@ function showRoom(run, cleared) {
   } else if (type === "save") {
     showScreen("saveRoom");
   } else if (type === "chest") {
+    playSound("chest");
     openChest(run);
     showScreen("reward");
   } else if (type === "event") {
