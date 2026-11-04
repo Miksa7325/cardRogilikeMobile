@@ -223,3 +223,19 @@ export const BUILDING_ART = {
   "forge": "M413.375 69.906L336.937 191.47l-8.25-32.69-30.218 88.97 62.655-29.375.22 29.438 127.03-50.938-70.813-1.97 47.782-68.686-73.47 39.25 21.5-95.564zM210.22 102.094l-32 14.406 16.874 55.656-177.813 80.03 12.564 27.876L207.656 200l30.406 49.47 49.313-22.19-21.344-70.343-55.81-54.843zM197.593 266.78v20.345h-88.906c15.994 38.807 51.225 65.43 88.906 74.28v32.97h58.562c-12.118 30.528-33.505 55.684-58.47 77.594H172.22v18.686H456.56V471.97h-27.406c-28.734-21.895-50.055-47.018-61.625-77.595h63.658v-29.188c19.748-6.995 39.5-19.51 59.25-36.687-19.812-17.523-39.23-27.25-59.25-31.938v-29.78H197.594z",
   "temple": "M256 26.2L52 135h408L256 26.2zM73 153v14h366v-14H73zm16 32v206h30V185H89zm101.334 0v206h30V185h-30zm101.332 0v206h30V185h-30zM393 185v206h30V185h-30zM73 409v30h366v-30H73zm-32 48v30h430v-30H41z"
 };
+
+// Новым картам механик классов достались рисунки похожих по смыслу карт и зданий
+const ART_ALIASES = {
+  rage_burst: "blood_rage", war_cry: "battle_cry", reckless_charge: "shoulder_charge", fury_shield: "shield_wall",
+  blood_rush: "blood_strike", rampage: "whirlwind", unstoppable: "iron_will", seething: "rage", execution: "executioner",
+  berserk_roar: "earthquake",
+  a_finisher: "finishing_blow", a_flourish: "a_swift_hands", a_eviscerate: "a_envenom", a_tempo: "a_quick_wit",
+  a_veil: "a_shadow_cloak", a_whirl: "a_blade_dance", a_chain: "a_thousand_blades", a_coup: "a_deathblow", a_execute: "a_perfect_kill",
+  w_dark_bolt: "w_doom_bolt", w_blood_offering: "w_blood_rite", w_night_wall: "w_shadow_wall", w_void_lance: "w_abyss_gaze",
+  w_dark_harvest: "w_soul_harvest", w_wound_feast: "w_consume", w_abyss: "w_nether_storm", w_eclipse: "w_dark_embrace",
+  al_toss: "a_throwing_knives", al_guard: "iron_skin", al_brew: "alchemist", al_catalyst: "w_hex_bolt", al_acid: "a_venom_nick",
+  al_bomb: "w_dark_wave", al_spark: "a_quick_cut", al_fumes: "poison_cloud", al_flask_wall: "fortress", al_quick_brew: "alchemist",
+  al_distill: "calculation", al_tincture: "bandage", al_mixture: "plague", al_double_brew: "alchemist", al_transmute: "adrenaline",
+  al_stoneskin: "thick_hide", al_lab: "forge", al_philosopher: "perfect_form", al_grand_brew: "alchemist", al_elixir_blast: "w_annihilate",
+};
+for (const [cardId, artId] of Object.entries(ART_ALIASES)) CARD_ART[cardId] = CARD_ART[artId] ?? BUILDING_ART[artId];

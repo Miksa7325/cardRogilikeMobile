@@ -19,4 +19,5 @@ export const QUESTS = [
   { id: "wins_1", title: "Герой подземелья", description: "Выиграй забег", stat: "wins", goal: 1, reward: 25 },
   { id: "assassin_1", title: "Тень в ночи", description: "Заверши забег Убийцей", stat: "runs_assassin", goal: 1, reward: 8 },
   { id: "warlock_1", title: "Цена силы", description: "Заверши забег Чернокнижником", stat: "runs_warlock", goal: 1, reward: 8 },
+  { id: "alchemist_1", title: "Первая варка", description: "Заверши забег Алхимиком", stat: "runs_alchemist", goal: 1, reward: 8 },
 ];

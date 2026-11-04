@@ -4,6 +4,7 @@ export const state = {
   combat: null, // текущий бой, его создаёт createCombat из engine/combat.js
   selectedPotionIndex: null, // какое зелье игрок выбрал
   tutorialStep: null, // номер шага обучения; null — обучения сейчас нет
+  arena: null, // бой на боевой арене города: { fightId, rewarded }; null — бой не на арене
   test: {
     enabled: false, // идёт ли сейчас бой в тестовом режиме
     heroId: "warrior", // каким героем идёт тестовый бой

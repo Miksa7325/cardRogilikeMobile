@@ -35,7 +35,7 @@ export const EVENTS = {
       {
         text: "Открыть (−6 HP, +35 золота)",
         result: "Игла вонзается в руку, зато внутри монеты.",
-        effects: [{ type: "loseHp", amount: 6 }, { type: "gainGold", amount: 35 }],
+        effects: [{ type: "loseHp", amount: 6 }, { type: "gainGold", amount: 15 }],
       },
       { text: "Не трогать", result: "Жадность губит чаще, чем чудовища.", effects: [] },
     ],
@@ -74,7 +74,7 @@ export const EVENTS = {
       {
         text: "Забрать (+60 золота, Рана в колоду)",
         result: "Идол твой, но рана от него не заживает.",
-        effects: [{ type: "gainGold", amount: 60 }, { type: "addCard", cardId: "wound" }],
+        effects: [{ type: "gainGold", amount: 30 }, { type: "addCard", cardId: "wound" }],
       },
       { text: "Оставить", result: "Идол смотрит тебе вслед.", effects: [] },
     ],
@@ -129,9 +129,9 @@ export const EVENTS = {
         effects: [{ type: "gainMaxHp", amount: 7 }, { type: "loseHp", amount: 4 }],
       },
       {
-        text: "Продать сборщику (+20 золота)",
+        text: "Продать сборщику (+10 золота)",
         result: "Сборщик платит не торгуясь.",
-        effects: [{ type: "gainGold", amount: 20 }],
+        effects: [{ type: "gainGold", amount: 10 }],
       },
     ],
   },
@@ -160,7 +160,7 @@ export const EVENTS = {
         result: "Синяки пройдут, а приём останется.",
         effects: [{ type: "loseHp", amount: 5 }, { type: "upgradeRandomCards", count: 1 }],
       },
-      { text: "Угостить и выслушать (+10 золота)", result: "Он дарит тебе горсть трофейных монет.", effects: [{ type: "gainGold", amount: 10 }] },
+      { text: "Угостить и выслушать (+5 золота)", result: "Он дарит тебе горсть трофейных монет.", effects: [{ type: "gainGold", amount: 5 }] },
     ],
   },
   lost_pilgrim: {
@@ -214,7 +214,7 @@ export const EVENTS = {
         result: "Ты понял больше, чем хотел бы.",
         effects: [{ type: "upgradeRandomCards", count: 2 }, { type: "addCard", cardId: "wound" }],
       },
-      { text: "Забрать чернила (+15 золота)", result: "Редкие чернила стоят немало.", effects: [{ type: "gainGold", amount: 15 }] },
+      { text: "Забрать чернила (+8 золота)", result: "Редкие чернила стоят немало.", effects: [{ type: "gainGold", amount: 8 }] },
     ],
   },
   mirror_hall: {
@@ -227,7 +227,7 @@ export const EVENTS = {
         result: "В зеркале теперь кто-то другой.",
         effects: [{ type: "removeRandomCard", rarity: "starter" }, { type: "loseHp", amount: 6 }],
       },
-      { text: "Разбить зеркало (+8 золота)", result: "Осколки серебра звенят под ногами.", effects: [{ type: "gainGold", amount: 8 }] },
+      { text: "Разбить зеркало (+4 золота)", result: "Осколки серебра звенят под ногами.", effects: [{ type: "gainGold", amount: 4 }] },
     ],
   },
   old_map: {
@@ -238,7 +238,7 @@ export const EVENTS = {
       {
         text: "Найти тайник (−7 HP, необычная карта и 15 золота)",
         result: "Ловушка сработала, но тайник того стоил.",
-        effects: [{ type: "loseHp", amount: 7 }, { type: "addCard", rarity: "uncommon" }, { type: "gainGold", amount: 15 }],
+        effects: [{ type: "loseHp", amount: 7 }, { type: "addCard", rarity: "uncommon" }, { type: "gainGold", amount: 8 }],
       },
       { text: "Сжечь карту (+5 HP)", result: "Ты греешься у огня и отдыхаешь.", effects: [{ type: "heal", amount: 5 }] },
     ],

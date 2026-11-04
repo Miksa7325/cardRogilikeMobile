@@ -2,7 +2,7 @@
 import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
 import { ACTS } from "../data/acts.js";
-import { HEROES } from "../data/heroes.js";
+import { HEROES, getMaxPotions } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
 import { createCombat } from "./combat.js";
@@ -13,17 +13,18 @@ import { createRng, deriveSeed, nextFloat, nextInt, pickRandom, pickWeighted, sh
 // startAct — с какого акта начинается забег: пройденные акты можно пропустить за золото.
 // locked...Ids — что ещё не открыто постройками: это не выпадет в забеге.
 // tutorialFight: первый бой забега — лёгкий и один на один, для обучения.
-// potions, hasMap, fireflies — припасы, купленные у торговца
+// equipment — снаряжение героя с прошлых забегов (getEquipment); без него герой идёт со стартовым набором.
+// potions, hasMap, fireflies, blessing — припасы, купленные в городе: blessing — реликвия от гадалки
 export function createRun({
   heroId, seed, startAct = 1, lockedCardIds = [], lockedRelicIds = [], lockedEventIds = [], lockedPotionIds = [], tutorialFight = false,
-  potions = [], hasMap = false, fireflies = false,
+  equipment = null, potions = [], hasMap = false, fireflies = false, blessing = false,
 }) {
   const hero = HEROES[heroId];
   const maxHp = hero.maxHp;
   const run = {
     seed,
     heroId,
-    startAct, // с этого акта забег начался: из его начальной комнаты можно вернуться в город
+    startAct, // с какого акта начался забег
     lockedCardIds,
     lockedRelicIds,
     lockedEventIds,
@@ -34,7 +35,7 @@ export function createRun({
     maxHp,
     gold: 0, // золото из событий: в подземелье его не потратить, оно уходит в казну города
     essences: 0, // эссенции с монстров: в городе их меняют на золото
-    hasMap: false, // куплена ли карта подземелья: без неё карту не открыть
+    hasMap: false, // куплена ли карта подземелья на этот акт: без неё карту не открыть, в новом акте нужна новая
     fireflies: null, // банка светлячков: { charged } — заряжена ли она до следующего отдыха или комнаты сохранения
     revealedNodeIds: [], // комнаты, которые осветили светлячки: видно, что там, хотя герой там не был
     deck: [],
@@ -50,19 +51,56 @@ export function createRun({
     visitedNodeIds: [], // пройденные комнаты акта: в них ничего не случается заново
     trail: [], // путь героя по акту от начальной комнаты: по нему он возвращается назад
     cityHeals: [], // комнаты, из которых герой уже поднимался в город и лечился
+    shopRemovals: [], // лавки, в которых герой уже избавился от карты: в каждой только раз
     pendingReward: null,
     activeEvent: null, // событие на текущем узле, его создаёт engine/events.js
     seenEventIds: [], // какие события уже были в этом забеге
   };
-  for (const cardId of hero.deck) addCardToDeck(run, cardId);
-  for (const relicId of hero.relics) addRelic(run, relicId);
-  for (const potionId of potions.slice(0, CONFIG.maxPotions)) {
+  if (equipment) {
+    takeEquipment(run, equipment);
+  } else {
+    for (const cardId of hero.deck) addCardToDeck(run, cardId);
+    for (const relicId of hero.relics) addRelic(run, relicId);
+  }
+  for (const potionId of potions) {
+    if (!canCarryPotion(run)) break;
     run.potions.push(potionId);
     markSeen(run, "potions", potionId);
   }
   run.hasMap = hasMap;
-  run.fireflies = fireflies ? { charged: true } : null;
+  run.fireflies = fireflies || equipment?.fireflies ? { charged: true } : null;
+  // Предсказание гадалки: случайная реликвия в начале спуска
+  if (blessing) grantRandomRelic(run, createRng(deriveSeed(seed, "blessing")), ["common", "uncommon"]);
   return run;
+}
+
+// Снаряжение героя, которое остаётся у него между забегами: колода с улучшениями, реликвии, зелья,
+// запас здоровья и банка светлячков. Здоровье не сохраняется: в город герой возвращается отдохнувшим
+export function getEquipment(run) {
+  return {
+    deck: run.deck.map((card) => ({ ...card })),
+    nextCardUid: run.nextCardUid,
+    relics: [...run.relics],
+    potions: [...run.potions],
+    maxHp: run.maxHp,
+    blessings: run.blessings ?? 0,
+    fireflies: Boolean(run.fireflies),
+  };
+}
+
+// Герой берёт снаряжение с прошлых забегов. Эффекты получения реликвий уже сработали, второй раз они не нужны.
+// Карты, реликвии и зелья, которых больше нет в игре, отбрасываем: иначе испорченные данные сломали бы бой
+function takeEquipment(run, equipment) {
+  run.deck = equipment.deck.filter((card) => CARDS[card.cardId]).map((card) => ({ ...card }));
+  run.nextCardUid = equipment.nextCardUid;
+  run.relics = equipment.relics.filter((relicId) => RELICS[relicId]);
+  run.potions = equipment.potions.filter((potionId) => POTIONS[potionId]).slice(0, getMaxPotions(run.heroId));
+  run.maxHp = equipment.maxHp;
+  run.hp = equipment.maxHp;
+  run.blessings = equipment.blessings ?? 0;
+  for (const card of run.deck) markSeen(run, "cards", card.cardId);
+  for (const relicId of run.relics) markSeen(run, "relics", relicId);
+  for (const potionId of run.potions) markSeen(run, "potions", potionId);
 }
 
 // Акт, в котором сейчас герой: его враги, особенность и награды
@@ -93,10 +131,10 @@ export function getCurrentFloor(run) {
   return run.currentNodeId ? getCurrentNode(run).floor : 0;
 }
 
-// Подняться в город можно только из комнаты сохранения. Ещё — у самого входа, пока забег не начался:
-// герой только что спустился. В начале следующих актов вход уже далеко, там нельзя
+// Подняться в город можно из комнаты сохранения и из начальной комнаты акта: у входа, пока забег не начался,
+// и после победы над боссом прошлого акта — это награда за босса
 export function canReturnToCity(run) {
-  if (!run.currentNodeId) return run.act === (run.startAct ?? 1);
+  if (!run.currentNodeId) return true;
   return getCurrentNode(run).type === "save";
 }
 
@@ -174,11 +212,19 @@ function findKnownPath(run, nodeId) {
 export function travelTo(run, nodeId) {
   const path = nodeId === null ? [] : isNodeCleared(run, nodeId) && findKnownPath(run, nodeId);
   if (!path) return { ok: false, reason: "noPath" };
-  if (run.gold < CONFIG.teleportPrice) return { ok: false, reason: "notEnoughGold" };
-  run.gold -= CONFIG.teleportPrice;
   run.trail = path;
   run.currentNodeId = nodeId;
-  return { ok: true };
+  // Переход бесплатный, но в пути может случиться событие. Счётчик переходов — чтобы шанс не зависел от комнаты
+  run.teleports = (run.teleports ?? 0) + 1;
+  const event = nextFloat(nodeRng(run, `teleport:${run.teleports}`)) < CONFIG.teleportEventChance;
+  return { ok: true, event };
+}
+
+// Сколько золота из казны стоит вернуться в подземелье. Из начальной комнаты акта — бесплатно,
+// из комнаты сохранения — плата растёт с актом
+export function getReturnPrice(run) {
+  if (!run.currentNodeId || getCurrentNode(run).type !== "save") return 0;
+  return CONFIG.returnPrice.base + CONFIG.returnPrice.perAct * run.act;
 }
 
 // Светлячки из банки освещают одну неизведанную соседнюю комнату: видно, что там, хотя герой туда не ходил.
@@ -217,22 +263,32 @@ export function createNodeCombat(run) {
   if (run.tutorialFight && type === "battle") {
     enemyIds = act.encounters[0];
     run.tutorialFight = false;
+  } else if (type === "battle" && act.mechanic.extraEnemy && enemyIds.length < CONFIG.maxEnemiesInCombat) {
+    // Орды: в обычном бою на одного врага больше
+    enemyIds = [...enemyIds, pickRandom(rng, act.encounters.flat())];
   }
   for (const enemyId of enemyIds) markSeen(run, "enemies", enemyId);
 
+  // Зараза: в колоду каждого боя замешаны Раны. После боя они исчезают вместе с колодой боя
+  const wounds = Array.from({ length: act.mechanic.wounds ?? 0 }, () => ({ cardId: "wound", upgraded: false }));
   return createCombat({
     heroId: run.heroId,
     enemyIds,
     seed: deriveSeed(run.seed, `combat:${run.act}:${run.currentNodeId}`),
     hp: run.hp,
     maxHp: run.maxHp,
-    deck: run.deck,
+    deck: [...run.deck, ...wounds],
     relics: run.relics,
     potions: run.potions,
-    enemyHpMultiplier: CONFIG.enemyHpMultiplier * act.enemyHpMultiplier,
-    enemyStrength: act.mechanic.enemyStrength ?? 0,
+    // У босса своё здоровье: он и так копит Силу весь бой, и общий множитель акта сделал бы его непробиваемым
+    enemyHpMultiplier: CONFIG.enemyHpMultiplier * (type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier),
+    // Сила врагов: своя у каждого акта и прибавка от особенности
+    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0),
     enemyBlock: act.mechanic.enemyBlock ?? 0,
+    enemyRamp: act.mechanic.enemyRamp ?? 0,
     heroStatuses: act.mechanic.heroPoison ? { poison: act.mechanic.heroPoison } : {},
+    extraPassives: act.mechanic.heroPassives ?? [],
+    potionPool: getPotionPool(run),
   });
 }
 
@@ -242,6 +298,8 @@ export function finishCombat(run, combat) {
   recordCombat(run, combat);
   run.hp = combat.hero.hp;
   run.potions = combat.potions;
+  // Алхимик мог сварить зелья в бою: они попадают в коллекцию
+  for (const potionId of run.potions) markSeen(run, "potions", potionId);
   if (combat.status === "lost") {
     run.status = "lost";
     return;
@@ -409,7 +467,7 @@ export function getPotionPool(run) {
 }
 
 export function canCarryPotion(run) {
-  return run.potions.length < CONFIG.maxPotions;
+  return run.potions.length < getMaxPotions(run.heroId);
 }
 
 // Даёт случайное зелье и возвращает его id; если места нет, возвращает null
@@ -507,6 +565,8 @@ function finishAct(run) {
   run.visitedNodeIds = [];
   run.trail = [];
   run.revealedNodeIds = [];
+  // Карта подземелья — на один акт: комнаты нового акта на ней не нарисованы
+  run.hasMap = false;
 }
 
 // Сколько HP вылечит отдых прямо сейчас

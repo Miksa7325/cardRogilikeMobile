@@ -1,7 +1,7 @@
 // Логика боя. Этот файл не трогает HTML: только меняет данные боя.
 import { CONFIG } from "../config.js";
 import { ENEMIES } from "../data/enemies.js";
-import { HEROES } from "../data/heroes.js";
+import { HEROES, getMaxPotions } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
@@ -10,14 +10,17 @@ import { createRng, nextInt } from "./rng.js";
 
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
 const DECAYING_STATUSES = ["vulnerable", "weak", "frail"];
+// Статусы, которые сгорают целиком в конце хода: Комбо Убийцы живёт один ход
+const TURN_STATUSES = ["combo"];
 
 // Создаёт бой. hp, maxHp, deck, relics и potions приходят из забега; в тестовом режиме их нет,
 // тогда берём стартовые значения героя, а реликвий и зелий у него нет.
-// enemyHpMultiplier, enemyStrength и enemyBlock усиливают врагов, heroStatuses — статусы героя с начала боя:
-// так работают особенности актов
+// enemyHpMultiplier, enemyStrength и enemyBlock усиливают врагов, enemyRamp — сколько Силы враг набирает за каждый свой ход,
+// heroStatuses — статусы героя с начала боя, extraPassives — триггеры, которые акт навешивает на героя (жар).
+// Так работают особенности актов
 export function createCombat({
   heroId, enemyIds, seed, hp, maxHp, deck, relics = [], potions = [], enemyHpMultiplier = 1, enemyStrength = 0, enemyBlock = 0,
-  heroStatuses = {},
+  enemyRamp = 0, heroStatuses = {}, extraPassives = [], potionPool = Object.keys(POTIONS),
 }) {
   const rng = createRng(seed);
   const heroData = HEROES[heroId];
@@ -35,12 +38,17 @@ export function createCombat({
       block: 0,
       statuses: { ...heroStatuses },
       powers: [], // разыгранные карты-силы с триггерами
+      // Врождённая особенность класса (как герой копит свой ресурс) и то, что навешивает акт
+      passives: [...(heroData.mechanic?.passives ?? []), ...extraPassives],
     },
     enemies: enemyIds.map((enemyId, index) => createEnemy(enemyId, index, rng, enemyHpMultiplier, enemyStrength, enemyBlock)),
     piles: createPiles(deck ?? startingDeck, rng),
     relics: [...relics],
     relicCounters: {}, // счётчики реликвий «каждый N-й раз»
     potions: [...potions],
+    maxPotions: getMaxPotions(heroId),
+    potionPool, // какие зелья может сварить Алхимик: только открытые
+    enemyRamp,
     events: [], // что произошло за последнее действие игрока: интерфейс проигрывает это как анимацию
   };
 
@@ -133,6 +141,7 @@ export function usePotion(combat, index, targetId) {
   addTally(combat, "potionsUsed");
   combat.potions.splice(index, 1);
   executeEffects(combat, potion.effects, { source: combat.hero, targets, fromCard: false });
+  fireTrigger(combat, "onPotionUsed");
   return { ok: true };
 }
 
@@ -165,7 +174,7 @@ export function addRelicToCombat(combat, relicId) {
 
 // Для тестового режима: даёт зелье. Возвращает false, если места нет
 export function addPotionToCombat(combat, potionId) {
-  if (combat.potions.length >= CONFIG.maxPotions) return false;
+  if (combat.potions.length >= combat.maxPotions) return false;
   combat.potions.push(potionId);
   return true;
 }
@@ -197,6 +206,11 @@ function runEnemyTurn(combat) {
     executeEffects(combat, move.effects, context);
     if (combat.status !== "playerTurn") return;
 
+    // Безумие: после каждого своего хода враг становится сильнее
+    if (combat.enemyRamp) {
+      enemy.statuses.strength = (enemy.statuses.strength ?? 0) + combat.enemyRamp;
+      recordEvent(combat, { type: "status", targetId: enemy.instanceId, status: "strength", amount: combat.enemyRamp });
+    }
     decayStatuses(enemy);
     chooseNextIntent(enemy);
   }
@@ -223,4 +237,5 @@ function findTargets(combat, targetType, targetId) {
 
 function decayStatuses(unit) {
   for (const status of DECAYING_STATUSES) reduceStatus(unit, status);
+  for (const status of TURN_STATUSES) delete unit.statuses[status];
 }

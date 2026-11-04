@@ -1,11 +1,20 @@
+import { HEROES } from "../data/heroes.js";
+import { getHeroFilter } from "../engine/town.js";
+import { loadMeta } from "../save.js";
+
 // Как выглядят бойцы. Спрайты лежат в assets/images/units: откуда они взяты, написано на экране «Авторы».
-// Заменить рисунок просто: положи файл с тем же именем.
+// Заменить рисунок просто: положи файл с тем же именем. У героя без своего рисунка в HEROES указан чужой (sprite)
 export function heroSprite(heroId) {
-  return `assets/images/units/hero-${heroId}.png`;
+  return `assets/images/units/${HEROES[heroId]?.sprite ?? `hero-${heroId}`}.png`;
 }
 
 export function enemySprite(enemyId) {
   return `assets/images/units/enemy-${enemyId}.png`;
+}
+
+// Окраска героя из лавки красок: одна и та же в городе, в доме героев, в коллекции и в бою
+export function applyHeroLook(image, heroId, meta = loadMeta()) {
+  image.style.filter = getHeroFilter(meta, heroId);
 }
 
 // Загружает все спрайты заранее: иначе модель могла бы мигнуть, когда экран рисуется заново
@@ -120,3 +129,67 @@ export const GATE_ART = pixelArt(GATE_HALF.map((row) => row + [...row].reverse()
   f: "#ffb040",
   t: "#6a4a2a",
 });
+
+// Рисунки новых зданий города: у них нет картинок в assets/images/city, поэтому они рисуются пикселями по форме.
+// art — из data/buildings.js: shape (house, arena или tent) и цвета roof, wall, trim. Ширина — 24 пикселя, как у домов
+const BUILDING_SHAPES = {
+  // Дом: двускатная крыша, стены, дверь и два светящихся окна
+  house(x, y) {
+    if (y <= 8) {
+      const half = 3 + y * 1.1;
+      const side = Math.abs(x - 11.5);
+      if (side > half) return ".";
+      if (side > half - 1 || y === 8) return "k";
+      return (x + y) % 4 === 0 ? "R" : "r";
+    }
+    if (x < 2 || x > 21) return ".";
+    if (y === 19 || x === 2 || x === 21) return "k";
+    if (x >= 10 && x <= 13 && y >= 13) return x === 10 || x === 13 ? "t" : "d";
+    const inWindow = (x >= 4 && x <= 7) || (x >= 16 && x <= 19);
+    if (inWindow && y >= 11 && y <= 14) return x === 4 || x === 7 || x === 16 || x === 19 || y === 11 || y === 14 ? "t" : "n";
+    return y === 9 ? "t" : "w";
+  },
+  // Арена: овальная стена с арками, внутри песок
+  arena(x, y) {
+    const distance = ((x - 11.5) / 12) ** 2 + ((y - 10) / 9.5) ** 2;
+    if (distance > 1) return ".";
+    if (distance > 0.86) return "k";
+    if (distance > 0.42) {
+      if (y < 10) return (x + y) % 3 === 0 ? "R" : "r";
+      return x % 3 === 0 ? "d" : "w";
+    }
+    return (x * 7 + y * 3) % 11 === 0 ? "t" : "a";
+  },
+  // Шатёр: полосатый конус с тёмным входом
+  tent(x, y) {
+    if (y === 0) return x === 11 || x === 12 ? "t" : ".";
+    const half = 1 + y * 0.62;
+    const side = Math.abs(x - 11.5);
+    if (side > half) return ".";
+    if (side > half - 1 || y === 19) return "k";
+    if (y >= 12 && side < 2.5) return "d";
+    return Math.floor((x + 40) / 3) % 2 === 0 ? "r" : "w";
+  },
+};
+
+// Темнее на долю amount: для теней на крыше
+function darken(hex, amount) {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const channel = (shift) => Math.round(((value >> shift) & 255) * (1 - amount));
+  return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
+}
+
+export function buildingArt(art) {
+  const draw = BUILDING_SHAPES[art.shape];
+  const rows = Array.from({ length: 20 }, (_, y) => Array.from({ length: 24 }, (__, x) => draw(x, y)).join(""));
+  return pixelArt(rows, {
+    k: "#1a1420",
+    r: art.roof,
+    R: darken(art.roof, 0.25),
+    w: art.wall,
+    t: art.trim,
+    d: "#2a1a12",
+    n: "#ffd98a",
+    a: "#d9c08a",
+  });
+}

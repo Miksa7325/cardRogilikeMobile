@@ -140,10 +140,11 @@ function pickNodeType(rng, floor, parentNodes, mechanic) {
   const weights = { ...nodeWeights };
   if (mechanic.noRest) delete weights.rest;
   if (floor < eliteMinFloor) delete weights.elite;
-  // Отдых не стоит два раза подряд на одном пути
+  // Отдых и лавка не стоят два раза подряд на одном пути
   if (floor + 1 === restFloor) delete weights.rest;
   for (const parent of parentNodes) {
     if (parent.type === "rest") delete weights.rest;
+    if (parent.type === "shop") delete weights.shop;
   }
   return pickWeighted(rng, weights);
 }

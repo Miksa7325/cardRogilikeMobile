@@ -11,6 +11,15 @@ export const RELICS = {
     trigger: "onCombatEnd",
     effects: [{ type: "heal", amount: 6 }],
   },
+  field_cauldron: {
+    id: "field_cauldron",
+    name: "Походный котёл",
+    icon: "⚗️",
+    rarity: "starter",
+    description: "В начале боя сварить зелье.",
+    trigger: "onCombatStart",
+    effects: [{ type: "brewPotion", amount: 1 }],
+  },
   venom_ring: {
     id: "venom_ring",
     name: "Перстень с ядом",

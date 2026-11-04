@@ -190,6 +190,7 @@ function createHeroesTab(meta) {
         TEXTS.collection.heroHp(hero.maxHp),
         TEXTS.collection.heroRelic(RELICS[hero.relics[0]].name),
         TEXTS.collection.heroDeck(hero.deck.length),
+        TEXTS.collection.heroMechanic(hero.mechanic.name, hero.mechanic.text),
         TEXTS.collection.heroRuns(stats.runs, stats.wins),
       ],
     });

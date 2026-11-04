@@ -4,6 +4,7 @@ import { CONFIG } from "../config.js";
 import { CARDS } from "../data/cards.js";
 import { RELICS } from "../data/relics.js";
 import { createCardInstance, drawCards } from "./deck.js";
+import { nextInt } from "./rng.js";
 
 // Формула урона: (база + Сила) × 0.75 при Слабости × 1.5 при Уязвимости цели, округление вниз.
 // target может быть null: тогда это число для описания карты, без учёта цели.
@@ -31,9 +32,16 @@ export function executeEffects(combat, effects, context) {
   }
 }
 
-// Запускает силы и реликвии героя с этим триггером. details.cardType — тип разыгранной карты
+// Прибавка к числу эффекта за ресурс героя: bonus: { status: "rage", per: 2 } — +2 за каждую Ярость.
+// Так работают карты, которые растут от Ярости, Комбо, Тьмы и Реагентов
+export function getBonus(effect, unit) {
+  return effect.bonus ? effect.bonus.per * (unit.statuses[effect.bonus.status] ?? 0) : 0;
+}
+
+// Запускает силы, реликвии и врождённую особенность класса героя с этим триггером.
+// details.cardType — тип разыгранной карты
 export function fireTrigger(combat, trigger, details = {}) {
-  for (const power of combat.hero.powers) {
+  for (const power of [...combat.hero.powers, ...(combat.hero.passives ?? [])]) {
     const typeMatches = !power.cardType || power.cardType === details.cardType;
     if (power.trigger === trigger && typeMatches) runTriggerEffects(combat, power.effects);
   }
@@ -135,21 +143,40 @@ function dealDamage(combat, source, target, damage) {
 const EFFECT_HANDLERS = {
   damage(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
-      const amount = effect.fixed ? effect.amount : calculateDamage(effect.amount, context.source, target);
+      const base = effect.amount + getBonus(effect, context.source);
+      const amount = effect.fixed ? base : calculateDamage(base, context.source, target);
       dealDamage(combat, context.source, target, amount);
     }
   },
   block(combat, effect, context) {
     for (const target of getTargets(combat, effect, context)) {
-      const amount = calculateBlock(effect.amount, target, context.fromCard);
+      const amount = calculateBlock(effect.amount + getBonus(effect, context.source), target, context.fromCard);
       target.block += amount;
       recordEvent(combat, { type: "block", targetId: unitId(combat, target), amount, hp: target.hp, block: target.block });
     }
   },
   applyStatus(combat, effect, context) {
+    const amount = effect.amount + getBonus(effect, context.source);
+    if (amount <= 0) return;
     for (const target of getTargets(combat, effect, context)) {
-      target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + effect.amount;
-      recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: effect.status, amount: effect.amount });
+      target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + amount;
+      recordEvent(combat, { type: "status", targetId: unitId(combat, target), status: effect.status, amount });
+    }
+  },
+  // Тратит ресурс героя (Ярость, Комбо, Тьму, Реагенты) на сильный эффект. Если ресурса не хватает, ничего не происходит
+  spend(combat, effect, context) {
+    const unit = context.source;
+    if ((unit.statuses[effect.status] ?? 0) < effect.amount) return;
+    unit.statuses[effect.status] -= effect.amount;
+    if (unit.statuses[effect.status] === 0) delete unit.statuses[effect.status];
+    executeEffects(combat, effect.effects, context);
+  },
+  // Алхимик варит случайное зелье прямо в бою, если в сумке есть место
+  brewPotion(combat, effect) {
+    for (let i = 0; i < effect.amount; i++) {
+      if (combat.potions.length >= combat.maxPotions || combat.potionPool.length === 0) return;
+      combat.potions.push(combat.potionPool[nextInt(combat.rng, 0, combat.potionPool.length - 1)]);
+      fireTrigger(combat, "onPotionBrewed");
     }
   },
   heal(combat, effect, context) {
@@ -163,6 +190,8 @@ const EFFECT_HANDLERS = {
     const unit = context.source;
     unit.hp = Math.max(0, unit.hp - effect.amount);
     recordEvent(combat, { type: "hpLoss", targetId: unitId(combat, unit), amount: effect.amount, hp: unit.hp, block: unit.block });
+    // Чернокнижник копит Тьму, когда платит своим здоровьем
+    if (unit === combat.hero && unit.hp > 0) fireTrigger(combat, "onHpPaid");
   },
   draw(combat, effect) {
     drawCards(combat.piles, effect.amount, combat.rng);
@@ -191,6 +220,7 @@ const EFFECT_HANDLERS = {
     for (const card of wounds) {
       piles.exhaust.push(card);
       fireTrigger(combat, "onExhaust");
+      fireTrigger(combat, "onWoundBurned");
     }
   },
 };

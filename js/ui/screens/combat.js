@@ -10,7 +10,7 @@ import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
-import { enemySprite, heroSprite, IDLE_STYLES } from "../art.js";
+import { applyHeroLook, enemySprite, heroSprite, IDLE_STYLES } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
 import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
@@ -36,6 +36,7 @@ const INTENT_ICONS = {
 export function startNodeCombat() {
   state.combat = createNodeCombat(state.run);
   state.test.enabled = false;
+  state.arena = null;
   clearSelection();
   saveTurnStart();
   showScreen("combat");
@@ -45,6 +46,7 @@ export function startNodeCombat() {
 export function resumeCombat() {
   state.combat = state.run.savedCombat;
   state.test.enabled = false;
+  state.arena = null;
   clearSelection();
   showScreen("combat");
 }
@@ -53,6 +55,19 @@ export function resumeCombat() {
 export function startTestCombat() {
   state.combat = createCombat({ heroId: state.test.heroId, enemyIds: state.test.enemyIds, seed: Date.now() });
   state.test.enabled = true;
+  state.arena = null;
+  clearSelection();
+  showScreen("combat");
+}
+
+// Бой на боевой арене города: герой со своим снаряжением и полным здоровьем, но без риска.
+// Как и тестовый, он не трогает забег и не сохраняется; снаряжение после боя остаётся прежним
+export function startArenaCombat(heroId, gear, fight) {
+  state.combat = createCombat({
+    heroId, enemyIds: fight.enemyIds, seed: Date.now(), hp: gear.maxHp, maxHp: gear.maxHp, deck: gear.deck, relics: gear.relics, potions: gear.potions,
+  });
+  state.test.enabled = true;
+  state.arena = { fightId: fight.id, rewarded: false };
   clearSelection();
   showScreen("combat");
 }
@@ -97,6 +112,11 @@ function createTopBar(combat) {
     el("span", "bar-hp", `❤️ ${combat.hero.hp}/${combat.hero.maxHp}`),
     el("span", "", `${TEXTS.turn} ${combat.turn}`),
   );
+  // На арене добавлять карты нельзя: это настоящий бой, просто без смерти
+  if (state.arena) {
+    bar.append(el("span", "run-bar__spacer"), createMenuButton({ needsConfirm: true, confirmText: TEXTS.menuConfirmCombat }));
+    return bar;
+  }
   const testButton = el("button", "button button--secondary", "🧪");
   testButton.type = "button";
   testButton.addEventListener("click", () => {
@@ -108,10 +128,12 @@ function createTopBar(combat) {
 }
 
 // idle — как модель двигается в покое: классы анимаций лежат в css/theme.css
-function createPortrait(sprite, idle = "breathe") {
+// heroId есть только у героя: его рисунок перекрашен окраской из лавки красок
+function createPortrait(sprite, idle = "breathe", heroId = null) {
   const portrait = el("div", `unit__portrait idle--${idle}`);
   const image = el("img", "");
   image.src = sprite;
+  if (heroId) applyHeroLook(image, heroId);
   image.alt = "";
   image.decoding = "sync"; // экран рисуется заново после каждого действия: рисунок не должен мигать
   image.draggable = false;
@@ -184,7 +206,7 @@ function createHero(combat) {
     createHpBar(combat.hero),
     createStatusIcons(combat.hero, { compact: iconCount > 2 }),
   );
-  unit.append(createPortrait(heroSprite(combat.hero.heroId)), details);
+  unit.append(createPortrait(heroSprite(combat.hero.heroId), "breathe", combat.hero.heroId), details);
   unit.addEventListener("click", () => showTooltip(describeStatuses(combat.hero)));
   wrapper.append(unit);
   return wrapper;

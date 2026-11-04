@@ -1,18 +1,20 @@
 // Город: с него начинается игра. Карта с видом сверху, по которой ходит герой. Подсвеченные дома можно открыть:
-// в доме героев выбирают, кем спуститься, в гильдии меняют эссенции на золото, у торговца покупают припасы.
-// У фонтана стоит старейшина с заданиями, а в конце южной дороги — вход в подземелье. Остальное нарисовано на карте как декор.
+// в каждом построенном доме работает служба (ui/screens/cityServices.js), в гильдии меняют эссенции на золото,
+// у торговца покупают припасы. У фонтана стоит старейшина с заданиями, в конце южной дороги — вход в подземелье.
+// Город растёт в стороны: когда построено достаточно домов, по бокам старого города вырастают слободы.
 import { CONFIG } from "../../config.js";
 import { BUILDINGS } from "../../data/buildings.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import {
-  bankLoot, buyBuilding, buyFromTrader, countReadyQuests, exchangeEssences, getStartableActs, getTraderGoods, isTraderGoodOwned,
-  selectHero,
+  bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getHeroEquipment, getStartableActs, getTraderGoods,
+  isHeroDead, payForReturn, selectHero,
 } from "../../engine/meta.js";
-import { canReturnToCity, getCurrentFloor, hasHealedHere, healInCity } from "../../engine/run.js";
+import { canReturnToCity, getCurrentFloor, getReturnPrice, hasHealedHere, healInCity } from "../../engine/run.js";
+import { isBuilt } from "../../engine/town.js";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
-import { ELDER_ART, GATE_ART, heroSprite } from "../art.js";
+import { applyHeroLook, buildingArt, ELDER_ART, GATE_ART, heroSprite } from "../art.js";
 import { playSound } from "../audio.js";
 import { BUILDING_ART } from "../cardArt.js";
 import { shakeCard } from "../components/card.js";
@@ -20,11 +22,15 @@ import { openQuestDialog } from "../components/questDialog.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
+import { appendService, createGood } from "./cityServices.js";
 import { continueRun, startNewRun } from "./dungeon.js";
 
 // Размеры в пикселях карты: положение на экране считаем в процентах от неё
-const MAP_WIDTH = 360;
+const CENTER_WIDTH = 360; // старый город на рисунке map.png
 const MAP_HEIGHT = 780;
+const DISTRICT_WIDTH = 260; // слобода сбоку от старого города
+// Дороги старого города уходят в слободы на тех же высотах: от и до
+const ROADS = [[243, 283], [388, 428], [532, 572]];
 const BUILDING_WIDTH = 88;
 const BUILDING_HEIGHT = 76;
 const HERO_WIDTH = 30;
@@ -37,8 +43,27 @@ const TALK_DISTANCE = 30; // так близко ко входу или стар
 const MAX_FRAME_S = 0.05; // после долгой паузы герой не должен перепрыгнуть через стену
 const CAMERA_SPEED = 6; // как быстро камера догоняет героя
 const CELL = 6; // шаг сетки для поиска пути, пикселей карты
-const COLUMNS = MAP_WIDTH / CELL;
 const ROWS = MAP_HEIGHT / CELL;
+// Как устроен город: западная слобода, старый город и восточная слобода. Слободы стоят с самого начала.
+// Все точки старого города (старейшина, вход, декор) хранятся в его координатах и сдвигаются на centerX
+const layout = {
+  width: DISTRICT_WIDTH + CENTER_WIDTH + DISTRICT_WIDTH,
+  centerX: DISTRICT_WIDTH,
+  eastX: DISTRICT_WIDTH + CENTER_WIDTH,
+};
+const gridColumns = Math.ceil(layout.width / CELL); // столбцов сетки поиска пути
+
+// Точка или прямоугольник старого города в координатах всего города
+function inCity(point) {
+  return { ...point, x: point.x + layout.centerX };
+}
+
+// Левый верхний угол здания в координатах всего города: в старом городе или в своей слободе
+function buildingOrigin(building) {
+  if (building.district === "east") return { x: layout.eastX + building.x, y: building.y };
+  if (building.district === "west") return { x: building.x, y: building.y };
+  return inCity(building);
+}
 const LINE_STEP = 2; // через столько пикселей проверяем, свободна ли прямая
 
 const ELDER = { x: 236, y: 420 }; // старейшина стоит у фонтана; это точка его ног
@@ -79,7 +104,7 @@ const MOVE_KEYS = {
 const ACTION_KEYS = ["Enter", "Space", "KeyE"];
 
 // Где стоит герой. Живёт между перерисовками: после покупки дома или награды герой остаётся на месте
-let heroPosition = { ...GATE_SPOT };
+let heroPosition = inCity(GATE_SPOT);
 
 function createButton(text, modifier, onTap) {
   const button = el("button", `button ${modifier}`, text);
@@ -88,9 +113,13 @@ function createButton(text, modifier, onTap) {
   return button;
 }
 
+// Значок здания в его окне: у старых зданий — гравюра, у новых — их пиксельный рисунок
 function createBuildingArt(building) {
   const art = el("div", "building__art");
-  art.innerHTML = `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${BUILDING_ART[building.id]}"/></svg>`;
+  art.innerHTML = BUILDING_ART[building.id]
+    ? `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${BUILDING_ART[building.id]}"/></svg>`
+    : buildingArt(building.art);
+  if (!BUILDING_ART[building.id]) art.classList.add("building__art--pixel");
   return art;
 }
 
@@ -100,13 +129,14 @@ function percent(value, total) {
 
 // Вход под серединой дома
 function buildingSpot(building) {
-  return { x: building.x + BUILDING_WIDTH / 2, y: building.y + BUILDING_HEIGHT + 6 };
+  const origin = buildingOrigin(building);
+  return { x: origin.x + BUILDING_WIDTH / 2, y: origin.y + BUILDING_HEIGHT + 6 };
 }
 
-// Открывает город. entrance — где появится герой: "home" — у своего дома, когда игра только началась,
-// "gate" — у входа в подземелье, когда он поднялся из забега
+// Открывает город. entrance — где появится герой: "gate" — у входа в подземелье, когда он поднялся из забега,
+// или id здания — у его двери: "home", когда игра только началась, "arena" — после боя на арене
 export function openCity(entrance) {
-  heroPosition = entrance === "home" ? buildingSpot(BUILDINGS.home) : { ...GATE_SPOT };
+  heroPosition = BUILDINGS[entrance] ? buildingSpot(BUILDINGS[entrance]) : inCity(GATE_SPOT);
   // Герой забега, поднявшийся в город, сдаёт добычу в казну и отдыхает: здоровье восстанавливается полностью.
   // Лечит каждая комната только раз: иначе можно было бы возвращаться к ней и лечиться снова
   const run = loadRun();
@@ -133,14 +163,17 @@ export function renderCityScreen(root) {
   // Места, к которым можно подойти: дома, гильдия, торговец, старейшина и вход в подземелье
   const places = [
     ...Object.values(BUILDINGS).map((building) => createBuildingPlace(meta, building)),
-    createServicePlace(GUILD, TEXTS.guild.title, openGuild),
-    createServicePlace(TRADER, TEXTS.trader.title, openTrader),
+    createServicePlace(inCity(GUILD), TEXTS.guild.title, openGuild),
+    createServicePlace(inCity(TRADER), TEXTS.trader.title, openTrader),
     createElderPlace(meta),
     createGatePlace(),
   ];
-  const hero = createHero(loadRun()?.heroId ?? meta.selectedHero);
+  const hero = createHero(loadRun()?.heroId ?? meta.selectedHero, meta);
   const map = el("div", "city__map");
-  map.append(...places.map((place) => place.element), hero);
+  // Карта шире экрана, когда выросли слободы: её ширина — доля от ширины старого города
+  map.style.width = `calc(min(100vw, calc(100dvh * 9 / 16)) * ${layout.width / CENTER_WIDTH})`;
+  map.style.aspectRatio = `${layout.width} / ${MAP_HEIGHT}`;
+  map.append(...createGround(), ...places.map((place) => place.element), hero);
 
   const header = el("div", "city__header");
   header.append(
@@ -157,12 +190,38 @@ export function renderCityScreen(root) {
   for (const place of places) place.element.addEventListener("click", () => walker.walkTo(place));
 }
 
-// По городу ходит герой сохранённого забега, а если забега нет — тот, кого выбрали в доме героев
-function createHero(heroId) {
+// Земля города: рисунок старого города посередине и слободы по бокам с продолжением его дорог
+function createGround() {
+  const parts = [];
+  const center = el("div", "city__center");
+  center.style.left = percent(layout.centerX, layout.width);
+  center.style.width = percent(CENTER_WIDTH, layout.width);
+  parts.push(center);
+  parts.push(createDistrict(0, TEXTS.city.westDistrict), createDistrict(layout.eastX, TEXTS.city.eastDistrict));
+  return parts;
+}
+
+function createDistrict(x, name) {
+  const district = el("div", "city__district");
+  district.style.left = percent(x, layout.width);
+  district.style.width = percent(DISTRICT_WIDTH, layout.width);
+  for (const [top, bottom] of ROADS) {
+    const road = el("div", "city__road");
+    road.style.top = percent(top, MAP_HEIGHT);
+    road.style.height = percent(bottom - top, MAP_HEIGHT);
+    district.append(road);
+  }
+  district.append(el("div", "city__district-name", name));
+  return district;
+}
+
+// По городу ходит герой сохранённого забега, а если забега нет — тот, кого выбрали в доме героев. В своей окраске
+function createHero(heroId, meta) {
   const hero = el("div", "city-hero");
-  hero.style.width = percent(HERO_WIDTH, MAP_WIDTH);
+  hero.style.width = percent(HERO_WIDTH, layout.width);
   const image = el("img", "city-hero__sprite");
   image.src = heroSprite(heroId);
+  applyHeroLook(image, heroId, meta);
   image.alt = "";
   image.draggable = false;
   hero.append(image);
@@ -175,41 +234,52 @@ function createBuildingPlace(meta, building) {
     action: TEXTS.city.enter(building.name),
     // Непроходима только нижняя часть дома: за крышу герой заходит, и она его заслоняет
     spot: buildingSpot(building),
-    obstacle: { x: building.x + 6, y: building.y + 30, width: BUILDING_WIDTH - 12, height: BUILDING_HEIGHT - 34 },
+    obstacle: { x: buildingOrigin(building).x + 6, y: building.y + 30, width: BUILDING_WIDTH - 12, height: BUILDING_HEIGHT - 34 },
     open: () => openBuilding(building),
   };
 }
 
 function createBuildingTile(meta, building) {
-  const built = meta.buildings.includes(building.id);
+  const built = isBuilt(meta, building.id);
   const tile = el("button", "building");
   tile.type = "button";
   tile.classList.add(built ? "building--built" : "building--locked");
   if (!built && meta.gold >= building.price) tile.classList.add("building--affordable");
-  tile.style.left = percent(building.x, MAP_WIDTH);
+  tile.style.left = percent(buildingOrigin(building).x, layout.width);
   tile.style.top = percent(building.y, MAP_HEIGHT);
-  tile.style.width = percent(BUILDING_WIDTH, MAP_WIDTH);
+  tile.style.width = percent(BUILDING_WIDTH, layout.width);
   tile.style.zIndex = building.y + BUILDING_HEIGHT;
 
-  // Пока здание не построено, на его месте стройплощадка
+  const label = el("span", "building__label", building.name);
+  if (!built) label.append(el("span", "building__price", TEXTS.city.locked(building.price)));
+  tile.append(createBuildingSprite(building, built), label);
+  return tile;
+}
+
+// Пока здание не построено, на его месте стройплощадка. Новым зданиям без картинки рисуем дом пикселями, с вывеской
+function createBuildingSprite(building, built) {
+  if (built && building.art) {
+    const sprite = el("div", "building__sprite building__sprite--drawn");
+    sprite.innerHTML = buildingArt(building.art);
+    sprite.append(el("span", "building__sign", building.art.sign));
+    return sprite;
+  }
   const image = el("img", "building__sprite");
   image.src = `assets/images/city/${built ? building.id : "plot"}.png`;
   image.alt = "";
   image.draggable = false;
-  const label = el("span", "building__label", building.name);
-  if (!built) label.append(el("span", "building__price", TEXTS.city.locked(building.price)));
-  tile.append(image, label);
-  return tile;
+  return image;
 }
 
 // Старейшина. Восклицательный знак над головой — есть награды, которые можно забрать
 function createElderPlace(meta) {
+  const at = inCity(ELDER);
   const elder = el("button", "city-npc");
   elder.type = "button";
-  elder.style.left = percent(ELDER.x, MAP_WIDTH);
-  elder.style.top = percent(ELDER.y, MAP_HEIGHT);
-  elder.style.width = percent(ELDER_WIDTH, MAP_WIDTH);
-  elder.style.zIndex = ELDER.y;
+  elder.style.left = percent(at.x, layout.width);
+  elder.style.top = percent(at.y, MAP_HEIGHT);
+  elder.style.width = percent(ELDER_WIDTH, layout.width);
+  elder.style.zIndex = at.y;
   const art = el("div", "city-npc__art");
   art.innerHTML = ELDER_ART;
   elder.append(art, el("span", "building__label", TEXTS.quests.elder));
@@ -218,20 +288,21 @@ function createElderPlace(meta) {
   return {
     element: elder,
     action: TEXTS.quests.talk,
-    spot: { x: ELDER.x, y: ELDER.y + 14 },
-    obstacle: { x: ELDER.x - 8, y: ELDER.y - 8, width: 16, height: 10 },
+    spot: { x: at.x, y: at.y + 14 },
+    obstacle: { x: at.x - 8, y: at.y - 8, width: 16, height: 10 },
     open: openElder,
   };
 }
 
 // Вход в подземелье: каменная арка в конце южной дороги
 function createGatePlace() {
+  const at = inCity(GATE);
   const gate = el("button", "city-gate");
   gate.type = "button";
-  gate.style.left = percent(GATE.x, MAP_WIDTH);
-  gate.style.top = percent(GATE.y, MAP_HEIGHT);
-  gate.style.width = percent(GATE_WIDTH, MAP_WIDTH);
-  gate.style.zIndex = GATE.y;
+  gate.style.left = percent(at.x, layout.width);
+  gate.style.top = percent(at.y, MAP_HEIGHT);
+  gate.style.width = percent(GATE_WIDTH, layout.width);
+  gate.style.zIndex = at.y;
   const art = el("div", "city-gate__art");
   art.innerHTML = GATE_ART;
   gate.append(art, el("span", "building__label", TEXTS.city.gate));
@@ -239,8 +310,8 @@ function createGatePlace() {
   return {
     element: gate,
     action: TEXTS.city.gateEnter,
-    spot: GATE_SPOT,
-    obstacle: { x: GATE.x - GATE_WIDTH / 2, y: GATE.y - 34, width: GATE_WIDTH, height: 34 },
+    spot: inCity(GATE_SPOT),
+    obstacle: { x: at.x - GATE_WIDTH / 2, y: at.y - 34, width: GATE_WIDTH, height: 34 },
     open: openGate,
   };
 }
@@ -258,24 +329,46 @@ function openGate() {
 
   if (run) {
     const hero = (HEROES[run.heroId] ?? HEROES.warrior).name;
-    dialog.append(
-      el("p", "building-details__note", TEXTS.city.gateRun(hero, TEXTS.floorLabel(run.act, getCurrentFloor(run)))),
-      createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run)),
-    );
+    dialog.append(el("p", "building-details__note", TEXTS.city.gateRun(hero, TEXTS.floorLabel(run.act, getCurrentFloor(run)))));
+    dialog.append(...createContinueChoice(meta, run));
   }
-  dialog.append(
-    createBalance(meta),
-    el("p", "quests__hint", run ? TEXTS.city.newRunOverRun(HEROES[meta.selectedHero].name) : TEXTS.city.gateHero(HEROES[meta.selectedHero].name)),
-  );
-  const list = el("div", "quest-dialog__list");
-  for (const act of getStartableActs(meta)) list.append(createActChoice(meta, act, run !== null));
-  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+  dialog.append(createBalance(meta));
+  // Погибшего героя в подземелье не отправить: нужно выбрать живого в доме героев, а если живых нет — спускаться некому
+  if (getAliveHeroIds(meta).length === 0) {
+    dialog.append(el("p", "quests__hint", TEXTS.city.allHeroesDead));
+  } else if (isHeroDead(meta, meta.selectedHero)) {
+    dialog.append(el("p", "quests__hint", TEXTS.city.heroIsDead(HEROES[meta.selectedHero].name)));
+  } else {
+    const name = HEROES[meta.selectedHero].name;
+    dialog.append(el("p", "quests__hint", run ? TEXTS.city.newRunOverRun(name) : TEXTS.city.gateHero(name)));
+    const list = el("div", "quest-dialog__list");
+    for (const act of getStartableActs(meta)) list.append(createActChoice(meta, act, run !== null));
+    dialog.append(list);
+  }
+  dialog.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 
   overlay.append(dialog);
   document.getElementById("app").append(overlay);
 }
 
-// Начало акта: его название, особенность и цена. Если забег уже идёт, новый его сотрёт — просим нажать дважды
+// Продолжить забег. Из комнаты сохранения в подземелье пускают за золото из казны, из начальной комнаты акта — даром
+function createContinueChoice(meta, run) {
+  const price = getReturnPrice(run);
+  if (price === 0) return [createButton(TEXTS.city.continueRun, "button--large", () => continueRun(run))];
+  const button = createButton(TEXTS.city.returnRun(price), "button--large", () => {
+    if (!payForReturn(meta, price)) {
+      shakeCard(button);
+      showTooltip(TEXTS.trader.notEnoughGold);
+      return;
+    }
+    if (!saveMeta(meta)) showTooltip(TEXTS.saveFailed);
+    continueRun(run);
+  });
+  button.disabled = meta.gold < price;
+  return [el("p", "quests__hint", TEXTS.city.returnHint), button];
+}
+
+// Начало акта: его название, особенность и цена. Если забег уже идёт, новый его закончит — просим нажать дважды
 function createActChoice(meta, act, replacesRun) {
   const row = el("div", "quest");
   row.append(
@@ -306,9 +399,9 @@ function createActChoice(meta, act, replacesRun) {
 function createServicePlace(rect, name, open) {
   const house = el("button", "city-service");
   house.type = "button";
-  house.style.left = percent(rect.x, MAP_WIDTH);
+  house.style.left = percent(rect.x, layout.width);
   house.style.top = percent(rect.y, MAP_HEIGHT);
-  house.style.width = percent(rect.width, MAP_WIDTH);
+  house.style.width = percent(rect.width, layout.width);
   house.style.height = percent(rect.height, MAP_HEIGHT);
   house.style.zIndex = rect.y + rect.height;
   house.append(el("span", "building__label", name));
@@ -356,43 +449,22 @@ function openGuild() {
   dialog.append(createBalance(meta), exchange, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 }
 
-// Торговец продаёт припасы. Если забег идёт, покупка сразу уходит в сумку героя, иначе он возьмёт её в следующий забег
+// Торговец продаёт карту подземелья и банку светлячков. Если забег идёт, покупка сразу уходит герою,
+// иначе он возьмёт её в следующий забег. Зелья продаёт лавка алхимика
 function openTrader() {
   const meta = loadMeta();
   const run = loadRun();
   const { overlay, dialog } = openDialog("🛒", TEXTS.trader.title, TEXTS.trader.text);
-  const holder = run ?? meta.supplies;
-  dialog.append(
-    createBalance(meta),
-    el("p", "quests__hint", run ? TEXTS.trader.intoRun : TEXTS.trader.intoNextRun),
-    el("p", "quests__hint", TEXTS.trader.bag(holder.potions.length, CONFIG.maxPotions)),
-  );
+  dialog.append(createBalance(meta), el("p", "quests__hint", run ? TEXTS.trader.intoRun : TEXTS.trader.intoNextRun));
   const list = el("div", "quest-dialog__list");
-  for (const good of getTraderGoods(meta)) list.append(createGood(meta, run, good));
-  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
-}
-
-function createGood(meta, run, good) {
-  const row = el("div", "quest");
-  row.append(el("div", "quest__title", `${good.icon} ${good.name}`), el("div", "quest__description", good.description));
-  const owned = isTraderGoodOwned(meta, run, good);
-  const buy = createButton(owned ? TEXTS.trader.owned : TEXTS.trader.buy(good.price), "", () => {
-    const result = buyFromTrader(meta, run, good);
-    if (!result.ok) {
-      shakeCard(buy);
-      showTooltip(TEXTS.trader[result.reason]);
-      return;
-    }
-    if (run) state.run = run;
-    if (!saveMeta(meta) || (run && !saveRun(run))) showTooltip(TEXTS.saveFailed);
+  const done = (gear) => {
+    if (gear) state.run = gear;
+    if (!saveMeta(meta) || (gear && !saveRun(gear))) showTooltip(TEXTS.saveFailed);
     playSound("buy");
     reopen(openTrader);
-  });
-  buy.disabled = owned;
-  const actions = el("div", "quest__row");
-  actions.append(buy);
-  row.append(actions);
-  return row;
+  };
+  for (const good of getTraderGoods()) list.append(createGood(meta, run, good, done));
+  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 }
 
 function openElder() {
@@ -419,13 +491,13 @@ function clamp(value, min, max) {
 }
 
 function cellCenter(cell) {
-  return { x: (cell % COLUMNS) * CELL + CELL / 2, y: Math.floor(cell / COLUMNS) * CELL + CELL / 2 };
+  return { x: (cell % gridColumns) * CELL + CELL / 2, y: Math.floor(cell / gridColumns) * CELL + CELL / 2 };
 }
 
 function cellOf(point) {
-  const column = clamp(Math.floor(point.x / CELL), 0, COLUMNS - 1);
+  const column = clamp(Math.floor(point.x / CELL), 0, gridColumns - 1);
   const row = clamp(Math.floor(point.y / CELL), 0, ROWS - 1);
-  return row * COLUMNS + column;
+  return row * gridColumns + column;
 }
 
 const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -435,7 +507,7 @@ const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], 
 function findPath(from, to, freeCells, isFree) {
   const start = cellOf(from);
   const finish = cellOf(to);
-  const parents = new Int32Array(COLUMNS * ROWS).fill(-1);
+  const parents = new Int32Array(gridColumns * ROWS).fill(-1);
   parents[start] = start;
   const queue = [start];
   let best = start;
@@ -447,16 +519,16 @@ function findPath(from, to, freeCells, isFree) {
       best = cell;
       bestDistance = cellDistance;
     }
-    const column = cell % COLUMNS;
-    const row = (cell - column) / COLUMNS;
+    const column = cell % gridColumns;
+    const row = (cell - column) / gridColumns;
     for (const [dx, dy] of NEIGHBOURS) {
       const nextColumn = column + dx;
       const nextRow = row + dy;
-      if (nextColumn < 0 || nextRow < 0 || nextColumn >= COLUMNS || nextRow >= ROWS) continue;
-      const next = nextRow * COLUMNS + nextColumn;
+      if (nextColumn < 0 || nextRow < 0 || nextColumn >= gridColumns || nextRow >= ROWS) continue;
+      const next = nextRow * gridColumns + nextColumn;
       if (parents[next] !== -1 || !freeCells[next]) continue;
       // По диагонали не срезаем угол дома
-      if (dx && dy && (!freeCells[row * COLUMNS + nextColumn] || !freeCells[nextRow * COLUMNS + column])) continue;
+      if (dx && dy && (!freeCells[row * gridColumns + nextColumn] || !freeCells[nextRow * gridColumns + column])) continue;
       parents[next] = cell;
       queue.push(next);
     }
@@ -501,14 +573,14 @@ function straightenPath(from, points, isFree) {
 // Касание дома или старейшины ведёт ко входу, и там окно открывается само.
 // На компьютере можно ходить стрелками или WASD, а Enter, пробел или E — войти
 function startWalking({ screen, map, hero, header, actions, places }) {
-  const obstacles = [...DECOR_OBSTACLES, ...places.map((place) => place.obstacle)];
+  const obstacles = [...DECOR_OBSTACLES.map(inCity), ...places.map((place) => place.obstacle)];
   const isFree = (point) => !obstacles.some((rect) => isInside(point, rect));
   // Герой не выходит за край карты: ноги не ниже нижнего края, голова не выше верхнего
   const keepOnMap = (point) => ({
-    x: clamp(point.x, HERO_WIDTH / 2, MAP_WIDTH - HERO_WIDTH / 2),
+    x: clamp(point.x, HERO_WIDTH / 2, layout.width - HERO_WIDTH / 2),
     y: clamp(point.y, HERO_WIDTH, MAP_HEIGHT - 2),
   });
-  const freeCells = Array.from({ length: COLUMNS * ROWS }, (_, cell) => {
+  const freeCells = Array.from({ length: gridColumns * ROWS }, (_, cell) => {
     const center = cellCenter(cell);
     const kept = keepOnMap(center);
     return isFree(center) && kept.x === center.x && kept.y === center.y;
@@ -521,13 +593,14 @@ function startWalking({ screen, map, hero, header, actions, places }) {
   let dragging = false;
   let dragCell = null; // клетка под пальцем: путь пересчитываем, только когда она меняется
   let nearest = null; // к чему герой стоит вплотную: для него показываем кнопку
+  let cameraX = null;
   let cameraY = null;
   let lastTime = performance.now();
 
   const toMapPoint = (event) => {
     const rect = map.getBoundingClientRect();
     return keepOnMap({
-      x: ((event.clientX - rect.left) / rect.width) * MAP_WIDTH,
+      x: ((event.clientX - rect.left) / rect.width) * layout.width,
       y: ((event.clientY - rect.top) / rect.height) * MAP_HEIGHT,
     });
   };
@@ -621,16 +694,23 @@ function startWalking({ screen, map, hero, header, actions, places }) {
     if (promptButton) actions.prepend(promptButton);
   };
 
-  // Камера держит героя посередине между шапкой и кнопками, но не уходит за край карты
+  // Камера держит героя посередине между шапкой и кнопками, а по ширине — посередине экрана.
+  // За край карты она не уходит; если карта уже экрана, карта стоит посередине
+  const follow = (current, wanted, seconds) => (current === null ? wanted : current + (wanted - current) * Math.min(1, seconds * CAMERA_SPEED));
   const updateCamera = (seconds) => {
     const top = header.getBoundingClientRect().bottom;
     const bottom = actions.getBoundingClientRect().top;
-    const scale = map.offsetWidth / MAP_WIDTH;
+    const scale = map.offsetWidth / layout.width;
     const lowest = bottom - map.offsetHeight;
-    let wanted = (top + bottom) / 2 - position.y * scale;
-    wanted = lowest > top ? (lowest + top) / 2 : clamp(wanted, lowest, top);
-    cameraY = cameraY === null ? wanted : cameraY + (wanted - cameraY) * Math.min(1, seconds * CAMERA_SPEED);
-    map.style.transform = `translate(-50%, ${cameraY}px)`;
+    let wantedY = (top + bottom) / 2 - position.y * scale;
+    wantedY = lowest > top ? (lowest + top) / 2 : clamp(wantedY, lowest, top);
+    const viewWidth = screen.clientWidth;
+    const leftmost = viewWidth - map.offsetWidth;
+    let wantedX = viewWidth / 2 - position.x * scale;
+    wantedX = leftmost > 0 ? leftmost / 2 : clamp(wantedX, leftmost, 0);
+    cameraX = follow(cameraX, wantedX, seconds);
+    cameraY = follow(cameraY, wantedY, seconds);
+    map.style.transform = `translate(${cameraX}px, ${cameraY}px)`;
   };
 
   const frame = (now) => {
@@ -657,7 +737,7 @@ function startWalking({ screen, map, hero, header, actions, places }) {
     }
 
     hero.classList.toggle("city-hero--walking", walking);
-    hero.style.left = percent(position.x, MAP_WIDTH);
+    hero.style.left = percent(position.x, layout.width);
     hero.style.top = percent(position.y, MAP_HEIGHT);
     hero.style.zIndex = Math.round(position.y);
     showPrompt(places.find((place) => distance(position, place.spot) <= TALK_DISTANCE) ?? null);
@@ -686,33 +766,39 @@ function describeUnlocks(building) {
   return parts.join(", ");
 }
 
-// Окно здания поверх города
+// Окно здания поверх города: что это за дом и что он добавляет в забеги. Построенный дом показывает свою службу,
+// непостроенный — цену. Длинные списки служб прокручиваются внутри окна
 function openBuilding(building) {
   const meta = loadMeta();
-  const built = meta.buildings.includes(building.id);
+  const built = isBuilt(meta, building.id);
   const overlay = el("div", "card-preview");
-  const details = el("div", "building-details");
-  details.append(
+  const dialog = el("div", "quest-dialog building-dialog");
+  dialog.append(
     createBuildingArt(building),
     el("h2", "event__title", building.name),
     el("p", "building-details__text", building.description),
   );
 
   const unlocks = describeUnlocks(building);
-  if (unlocks) details.append(el("p", "building-details__note", `${built ? TEXTS.city.opened : TEXTS.city.opens} ${unlocks}`));
-  if (building.id === "home") appendHomeDetails(details, meta);
+  if (unlocks) dialog.append(el("p", "building-details__note", `${built ? TEXTS.city.opened : TEXTS.city.opens} ${unlocks}`));
 
   if (!built) {
     const missing = building.price - meta.gold;
     const buy = createButton(missing > 0 ? TEXTS.city.notEnough(missing) : TEXTS.city.buy(building.price), "button--large", () => onBuy(building, buy));
-    details.append(buy);
+    dialog.append(createBalance(meta), buy);
+  } else if (building.service === "home") {
+    appendHomeDetails(dialog, meta);
+  } else {
+    dialog.append(createBalance(meta));
+    appendService(dialog, building, () => reopen(() => openBuilding(building)));
   }
-  details.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+  dialog.append(createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 
-  overlay.append(details);
+  overlay.append(dialog);
   document.getElementById("app").append(overlay);
 }
 
+// Постройка дома
 function onBuy(building, button) {
   const meta = loadMeta();
   const result = buyBuilding(meta, building.id);
@@ -723,40 +809,58 @@ function onBuy(building, button) {
   saveMeta(meta);
   playSound("buy");
   showScreen("city");
-  showTooltip(TEXTS.city.nextRun);
+  showTooltip(TEXTS.city.built);
 }
 
-// Внутри дома — герои и итоги всех забегов. Здесь выбирают, кем спуститься в подземелье
-function appendHomeDetails(details, meta) {
-  details.append(
+// Внутри дома — герои и итоги всех забегов. Здесь выбирают, кем спуститься в подземелье.
+// У каждого героя своё снаряжение, а погибшие остаются в доме только памятью
+function appendHomeDetails(dialog, meta) {
+  const details = el("div", "quest-dialog__list");
+  dialog.append(
     el("p", "building-details__note", TEXTS.city.homeTitle),
     el("p", "building-details__text", TEXTS.city.homeTotals(meta.runsPlayed, meta.wins, meta.bestFloor, meta.totals.kills ?? 0)),
   );
+  const run = loadRun();
   // Герой идущего забега не меняется: выбор будет в силе со следующего
-  if (loadRun()) details.append(el("p", "building-details__note", TEXTS.city.heroNextRun));
+  if (run) dialog.append(el("p", "building-details__note", TEXTS.city.heroNextRun));
+  if (getAliveHeroIds(meta).length === 0) dialog.append(el("p", "building-details__note", TEXTS.city.allHeroesDead));
+  dialog.append(details);
   for (const hero of Object.values(HEROES)) {
     const stats = meta.heroStats[hero.id] ?? { runs: 0, wins: 0 };
-    const selected = hero.id === meta.selectedHero;
+    const dead = isHeroDead(meta, hero.id);
+    const selected = hero.id === meta.selectedHero && !dead;
     const row = el("div", "building-details__hero");
     if (selected) row.classList.add("building-details__hero--selected");
+    if (dead) row.classList.add("building-details__hero--dead");
 
     const image = el("img", "");
     image.src = heroSprite(hero.id);
     image.alt = "";
+    applyHeroLook(image, hero.id, meta);
     const text = el("div", "building-details__hero-text");
     text.append(
       el("div", "building__name", hero.name),
-      el("div", "building-details__note", `${hero.description} ${TEXTS.heroSelect.hp(hero.maxHp)}`),
+      el("div", "building-details__note", hero.mechanic.name),
+      el("div", "building-details__note", dead ? TEXTS.city.heroDead : describeEquipment(meta, hero, run)),
       el("div", "building-details__note", TEXTS.city.heroRow(stats.runs, stats.wins)),
     );
-    const choose = createButton(selected ? TEXTS.city.heroSelected : TEXTS.city.heroChoose, selected ? "" : "button--secondary", () => {
+    const label = dead ? TEXTS.city.heroDeadButton : selected ? TEXTS.city.heroSelected : TEXTS.city.heroChoose;
+    const choose = createButton(label, selected || dead ? "" : "button--secondary", () => {
       selectHero(meta, hero.id);
       saveMeta(meta);
       showScreen("city");
       openBuilding(BUILDINGS.home);
     });
-    choose.disabled = selected;
+    choose.disabled = selected || dead;
     row.append(image, text, choose);
     details.append(row);
   }
+}
+
+// Что у героя с собой: стартовый набор, снаряжение с прошлых забегов или «сейчас в подземелье»
+function describeEquipment(meta, hero, run) {
+  if (run?.heroId === hero.id) return TEXTS.city.heroInDungeon;
+  const equipment = getHeroEquipment(meta, hero.id);
+  if (!equipment) return `${hero.description} ${TEXTS.heroSelect.hp(hero.maxHp)}`;
+  return TEXTS.city.heroEquipment(equipment.deck.length, equipment.relics.length, equipment.potions.length, equipment.maxHp);
 }

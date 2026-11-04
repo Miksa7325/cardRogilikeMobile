@@ -1,10 +1,20 @@
-// Карты Чернокнижника: плата своим HP, сжигание и Раны.
+// Карты Чернокнижника: Тьма, плата своим HP, сжигание и Раны.
 import {
-  allStatus, block, burn, card, cheaperPower, damage, draw, energy, exhaustWounds, fixedDamageToAll, heal, hits,
-  loseHp, selfStatus, status, triggerPower, wound,
+  allStatus, block, burn, card, cheaperPower, damage, draw, energy, exhaustWounds, fixedDamageToAll, gainResource, grow, heal, hits,
+  loseHp, selfStatus, spend, status, triggerPower, wound,
 } from "./cardHelpers.js";
 
 export const WARLOCK_CARDS = [
+  // Тьма: копится от платы здоровьем и сожжённых Ран, тёмные карты растут от неё или тратят её
+  card("w_dark_bolt", "Сгусток тьмы", "attack", "starter", 1, "enemy", "Нанести {damage} урона, +3 за каждую Тьму.", [grow(damage(5), "darkness", 3)], { effects: [grow(damage(7), "darkness", 4)] }),
+  card("w_blood_offering", "Кровавое подношение", "skill", "common", 0, "self", "Потерять {loseHp} HP. Получить {darkness} Тьмы. Сжечь.", [loseHp(3), gainResource("darkness", 2), burn], { effects: [loseHp(3), gainResource("darkness", 3), burn] }),
+  card("w_night_wall", "Ночная стена", "skill", "common", 1, "self", "Получить {block} блока, +2 за каждую Тьму.", [grow(block(4), "darkness", 2)], { effects: [grow(block(6), "darkness", 2)] }),
+  card("w_void_lance", "Копьё пустоты", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Тьма 3: ещё {damage} урона.", [damage(8), spend("darkness", 3, [damage(24)])], { effects: [damage(10), spend("darkness", 3, [damage(32)])] }),
+  card("w_dark_harvest", "Тёмная жатва", "skill", "uncommon", 1, "self", "Тьма 3: вылечить {heal} HP.", [spend("darkness", 3, [heal(10)])], { effects: [spend("darkness", 3, [heal(14)])] }),
+  card("w_wound_feast", "Пир на ранах", "skill", "uncommon", 1, "self", "Сжечь Раны в руке. Тьма 2: взять {draw} карты.", [exhaustWounds, spend("darkness", 2, [draw(3)])], { effects: [exhaustWounds, spend("darkness", 2, [draw(4)])] }),
+  card("w_abyss", "Бездна", "attack", "rare", 2, "allEnemies", "Нанести {damage} урона всем, +2 за каждую Тьму.", [grow(damage(6), "darkness", 2)], { effects: [grow(damage(9), "darkness", 2)] }),
+  triggerPower("w_eclipse", "Затмение", "rare", 2, "В начале хода +{darkness} Тьмы.", "onTurnStart", [gainResource("darkness", 2)], [gainResource("darkness", 3)]),
+
   // Стартовые
   card("w_bolt", "Тёмный разряд", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
   card("w_shield", "Щит тьмы", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)], { effects: [block(8)] }),

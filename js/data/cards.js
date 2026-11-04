@@ -1,5 +1,8 @@
 import { ASSASSIN_CARDS } from "./cardsAssassin.js";
-import { block, burn, card, damage, draw, energy, heal, hits, allStatus, loseHp, selfStatus, status, wound } from "./cardHelpers.js";
+import { ALCHEMIST_CARDS } from "./cardsAlchemist.js";
+import {
+  block, burn, card, damage, draw, energy, gainResource, grow, heal, hits, allStatus, loseHp, selfStatus, spend, status, triggerPower, wound,
+} from "./cardHelpers.js";
 import { WARLOCK_CARDS } from "./cardsWarlock.js";
 
 // Все карты игры. Новая карта — новая запись здесь или в таблице её героя.
@@ -316,6 +319,18 @@ export const CARDS = {
 };
 
 const MORE_WARRIOR_CARDS = [
+  // Ярость: копится от атак и пропущенных ударов. «Ярость N» тратит её, другие карты растут от неё
+  card("rage_burst", "Выплеск ярости", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Ярость 3: ещё {damage} урона.", [damage(5), spend("rage", 3, [damage(10)])], { effects: [damage(7), spend("rage", 3, [damage(14)])] }),
+  card("war_cry", "Боевой клич", "skill", "common", 0, "self", "Получить {rage} Ярости. Сжечь.", [gainResource("rage", 2), burn], { effects: [gainResource("rage", 3), burn] }),
+  card("reckless_charge", "Безрассудный натиск", "attack", "common", 1, "enemy", "Нанести {damage} урона: +2 за каждую Ярость.", [grow(damage(4), "rage", 2)], { effects: [grow(damage(6), "rage", 2)] }),
+  card("fury_shield", "Щит гнева", "skill", "common", 1, "self", "Получить {block} блока: +1 за каждую Ярость.", [grow(block(4), "rage", 1)], { effects: [grow(block(6), "rage", 2)] }),
+  card("blood_rush", "Кровавый порыв", "attack", "common", 1, "enemy", "Нанести {damage} урона. Потерять {loseHp} HP. Получить {rage} Ярости.", [damage(8), loseHp(2), gainResource("rage", 2)], { effects: [damage(11), loseHp(2), gainResource("rage", 2)] }),
+  card("rampage", "Буйство", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона. Ярость 5: ещё 3 удара по {damage}.", [damage(8), spend("rage", 5, hits(7, 3))], { effects: [damage(10), spend("rage", 5, hits(9, 3))] }),
+  card("unstoppable", "Неудержимость", "skill", "uncommon", 1, "self", "Ярость 4: получить {strength} Силы. Сжечь.", [spend("rage", 4, [selfStatus("strength", 2)]), burn], { effects: [spend("rage", 3, [selfStatus("strength", 2)]), burn], description: "Ярость 3: получить {strength} Силы. Сжечь." }),
+  triggerPower("seething", "Кипящая кровь", "uncommon", 1, "В начале хода +{rage} Ярость.", "onTurnStart", [gainResource("rage", 1)], [gainResource("rage", 2)]),
+  card("execution", "Казнь", "attack", "rare", 2, "enemy", "Нанести {damage} урона: +3 за каждую Ярость.", [grow(damage(6), "rage", 3)], { effects: [grow(damage(10), "rage", 3)] }),
+  card("berserk_roar", "Рёв берсерка", "attack", "rare", 1, "allEnemies", "Ярость 6: нанести {damage} урона всем и получить {block} блока.", [spend("rage", 6, [damage(20), block(10)])], { effects: [spend("rage", 6, [damage(26), block(14)])] }),
+
   // Обычные атаки
   card("deep_cut", "Глубокий порез", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(4), status("poison", 3)], { effects: [damage(5), status("poison", 5)] }),
   card("kick", "Пинок", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {vulnerable} Уязвимости.", [damage(7), status("vulnerable", 1)], { effects: [damage(9), status("vulnerable", 2)] }),
@@ -396,4 +411,7 @@ for (const assassinCard of ASSASSIN_CARDS) {
 }
 for (const warlockCard of WARLOCK_CARDS) {
   CARDS[warlockCard.id] = { ...warlockCard, hero: "warlock" };
+}
+for (const alchemistCard of ALCHEMIST_CARDS) {
+  CARDS[alchemistCard.id] = { ...alchemistCard, hero: "alchemist" };
 }

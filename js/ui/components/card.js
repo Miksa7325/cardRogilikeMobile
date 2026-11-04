@@ -1,7 +1,7 @@
 // Рисует карту. На самой карте — значки с числами, полный текст показывает большая карта (cardPreview.js).
 import { TEXTS } from "../../data/texts.ru.js";
 import { getCardData } from "../../engine/deck.js";
-import { calculateBlock, calculateDamage } from "../../engine/effects.js";
+import { calculateBlock, calculateDamage, getBonus } from "../../engine/effects.js";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
 import { CARD_ART } from "../cardArt.js";
@@ -10,10 +10,15 @@ import { STATUS_ICONS } from "./statusIcons.js";
 
 const NAME_FIT_LETTERS = 8; // столько букв помещается в строку названия обычным шрифтом
 
-// Подставляет в полное описание итоговые числа: например, {damage} с учётом Силы и Слабости героя
+// Эффекты карты вместе с теми, что спрятаны внутри «потратить ресурс»: числа в описании идут в этом порядке
+function flattenEffects(effects) {
+  return effects.flatMap((effect) => (effect.type === "spend" ? [effect, ...flattenEffects(effect.effects)] : [effect]));
+}
+
+// Подставляет в полное описание итоговые числа: например, {damage} с учётом Силы, Слабости и ресурса героя
 export function formatDescription(card, hero) {
   let text = card.description;
-  for (const effect of card.effects) {
+  for (const effect of flattenEffects(card.effects)) {
     text = fillEffect(text, effect, hero, true);
   }
   // Эффекты силы идут не от разыгранной карты, поэтому Ловкость на них не влияет
@@ -25,12 +30,14 @@ export function formatDescription(card, hero) {
 
 function fillEffect(text, effect, hero, fromCard) {
   switch (effect.type) {
-    case "damage":
-      return text.replace("{damage}", effect.fixed ? effect.amount : calculateDamage(effect.amount, hero, null));
+    case "damage": {
+      const base = effect.amount + getBonus(effect, hero);
+      return text.replace("{damage}", effect.fixed ? base : calculateDamage(base, hero, null));
+    }
     case "block":
-      return text.replace("{block}", calculateBlock(effect.amount, hero, fromCard));
+      return text.replace("{block}", calculateBlock(effect.amount + getBonus(effect, hero), hero, fromCard));
     case "applyStatus":
-      return text.replace(`{${effect.status}}`, effect.amount);
+      return text.replace(`{${effect.status}}`, effect.amount + getBonus(effect, hero));
     case "draw":
       return text.replace("{draw}", effect.amount);
     case "gainEnergy":
@@ -46,7 +53,7 @@ function fillEffect(text, effect, hero, fromCard) {
 
 // Цвет рисунка зависит от главного, что делает карта
 function pickArtColor(card) {
-  const effects = [...card.effects, ...(card.power?.effects ?? [])];
+  const effects = flattenEffects([...card.effects, ...(card.power?.effects ?? [])]);
   const has = (type) => effects.some((effect) => effect.type === type);
   const hasStatus = (...names) => effects.some((effect) => names.includes(effect.status));
   if (card.cost === null) return "skull";
@@ -62,6 +69,7 @@ function pickArtColor(card) {
   if (has("gainEnergy")) return "bolt";
   if (has("draw")) return "scroll";
   if (has("exhaustWounds")) return "flame";
+  if (has("brewPotion")) return "poison";
   return "star";
 }
 
@@ -81,11 +89,14 @@ function createLine(icon, valueElement, suffix = "") {
   return line;
 }
 
-// Превращает список эффектов в короткие строки со значками. Эффект с целью «все» подписывается
+// Превращает список эффектов в короткие строки со значками. Эффект с целью «все» подписывается,
+// а эффект, который растёт от ресурса героя, — сколько он прибавляет: «+2/💢»
 function createEffectLines(effects, card, hero, fromCard) {
   const { face } = TEXTS;
   const lines = [];
   const allSuffix = (effect) => (card.target === "allEnemies" || effect.target === "allEnemies" ? face.all : "");
+  const growSuffix = (effect) => (effect.bonus ? `+${effect.bonus.per}/${STATUS_ICONS[effect.bonus.status]}` : "");
+  const suffix = (effect) => [allSuffix(effect), growSuffix(effect)].filter(Boolean).join(" ");
 
   for (let i = 0; i < effects.length; i++) {
     const effect = effects[i];
@@ -95,18 +106,29 @@ function createEffectLines(effects, card, hero, fromCard) {
         let hits = 1;
         while (effects[i + hits]?.type === "damage" && effects[i + hits].amount === effect.amount) hits += 1;
         i += hits - 1;
-        const amount = effect.fixed ? effect.amount : calculateDamage(effect.amount, hero, null);
+        const base = effect.amount + getBonus(effect, hero);
+        const amount = effect.fixed ? base : calculateDamage(base, hero, null);
         const text = hits > 1 ? `${amount}×${hits}` : String(amount);
-        lines.push(createLine("⚔️", createValue(text, amount, effect.amount), allSuffix(effect)));
+        lines.push(createLine("⚔️", createValue(text, amount, effect.amount), suffix(effect)));
         break;
       }
       case "block": {
-        const amount = calculateBlock(effect.amount, hero, fromCard);
-        lines.push(createLine("🛡️", createValue(String(amount), amount, effect.amount)));
+        const amount = calculateBlock(effect.amount + getBonus(effect, hero), hero, fromCard);
+        lines.push(createLine("🛡️", createValue(String(amount), amount, effect.amount), growSuffix(effect)));
         break;
       }
-      case "applyStatus":
-        lines.push(createLine(STATUS_ICONS[effect.status], createValue(String(effect.amount), 0, 0), allSuffix(effect)));
+      case "applyStatus": {
+        const amount = effect.amount + getBonus(effect, hero);
+        lines.push(createLine(STATUS_ICONS[effect.status], createValue(String(amount), amount, effect.amount), suffix(effect)));
+        break;
+      }
+      // «Ярость 3:» и под ней то, что случится, если ресурса хватит
+      case "spend":
+        lines.push(createLine(STATUS_ICONS[effect.status], createValue(`${effect.amount}:`, 0, 0), face.spend));
+        lines.push(...createEffectLines(effect.effects, card, hero, fromCard));
+        break;
+      case "brewPotion":
+        lines.push(createLine("🧪", createValue(`+${effect.amount}`, 0, 0), face.brew));
         break;
       case "multiplyStatus":
         lines.push(createLine(STATUS_ICONS[effect.status], createValue(`×${effect.factor}`, 0, 0)));

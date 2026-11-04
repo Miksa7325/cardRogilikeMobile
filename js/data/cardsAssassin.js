@@ -1,14 +1,25 @@
-// Карты Убийцы: Яд, дешёвые карты и добор.
+// Карты Убийцы: Комбо, Яд, дешёвые карты и добор.
 import {
-  allStatus, block, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, heal, hits,
-  multiplyStatus, selfStatus, status, triggerPower, wound,
+  allStatus, block, burn, card, cheaperPower, damage, draw, energy, fixedDamageToAll, gainResource, grow, heal, hits,
+  multiplyStatus, selfStatus, spend, status, triggerPower, wound,
 } from "./cardHelpers.js";
 
 export const ASSASSIN_CARDS = [
+  // Комбо: каждая карта за ход даёт Комбо, добивания растут от него, а приёмы «Комбо N» тратят его
+  card("a_finisher", "Добивание", "attack", "starter", 1, "enemy", "Добивание: {damage} урона, +3 за каждое Комбо.", [grow(damage(3), "combo", 3)], { effects: [grow(damage(5), "combo", 4)] }),
+  card("a_flourish", "Росчерк", "skill", "common", 0, "self", "Получить {combo} Комбо.", [gainResource("combo", 2)], { effects: [gainResource("combo", 3)] }),
+  card("a_eviscerate", "Потрошение", "attack", "common", 1, "enemy", "Добивание: наложить {poison} Яда, +2 за каждое Комбо.", [grow(status("poison", 2), "combo", 2)], { effects: [grow(status("poison", 4), "combo", 2)] }),
+  card("a_tempo", "Темп", "skill", "common", 0, "self", "Взять {draw} карту. Комбо 2: получить {energy} энергию. Сжечь.", [draw(1), spend("combo", 2, [energy(1)]), burn], { effects: [draw(2), spend("combo", 2, [energy(1)]), burn] }),
+  card("a_veil", "Растворение", "skill", "uncommon", 1, "self", "Получить {block} блока, +2 за каждое Комбо.", [grow(block(3), "combo", 2)], { effects: [grow(block(5), "combo", 3)] }),
+  card("a_whirl", "Вихрь клинков", "attack", "uncommon", 1, "enemy", "Комбо 3: нанести {damage} урона 3 раза.", [spend("combo", 3, hits(6, 3))], { effects: [spend("combo", 3, hits(8, 3))] }),
+  triggerPower("a_chain", "Цепь ударов", "uncommon", 2, "Каждая карта даёт ещё {combo} Комбо.", "onCardPlayed", [gainResource("combo", 1)], [gainResource("combo", 2)]),
+  card("a_coup", "Удар милосердия", "attack", "rare", 2, "enemy", "Добивание: {damage} урона, +5 за каждое Комбо.", [grow(damage(6), "combo", 5)], { effects: [grow(damage(10), "combo", 5)] }),
+  card("a_execute", "Устранение", "attack", "rare", 1, "enemy", "Комбо 5: нанести {damage} урона.", [spend("combo", 5, [damage(35)])], { effects: [spend("combo", 4, [damage(40)])], description: "Комбо 4: нанести {damage} урона." }),
+
   // Стартовые
   card("a_strike", "Удар кинжалом", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
   card("a_dodge", "Уклонение", "skill", "starter", 1, "self", "Получить {block} блока.", [block(5)], { effects: [block(8)] }),
-  card("a_dart", "Отравленный дротик", "attack", "starter", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(3), status("poison", 4)], { effects: [damage(4), status("poison", 6)] }),
+  card("a_dart", "Отравленный дротик", "attack", "starter", 0, "enemy", "Нанести {damage} урона. Наложить {poison} Яда.", [damage(3), status("poison", 4)], { effects: [damage(4), status("poison", 6)] }),
 
   // Обычные атаки
   card("a_stab", "Укол", "attack", "common", 0, "enemy", "Нанести {damage} урона.", [damage(4)], { effects: [damage(6)] }),

@@ -1,11 +1,17 @@
 // Акты подземелья. Каждый следующий опаснее, у каждого своя особенность, а награды в нём ценнее.
-// encounters, elites, boss — группы врагов из data/enemies.js. enemyHpMultiplier — во сколько раз враги акта крепче.
+// encounters, elites, boss — группы врагов из data/enemies.js. enemyHpMultiplier — во сколько раз враги акта крепче,
+//   bossHpMultiplier — то же для босса (если не задан, берётся enemyHpMultiplier).
 // mechanic — особенность акта: name и text видит игрок, остальное — её числа:
 //   deadEnds — сколько боковых туннелей с тупиком (вместо CONFIG.map.deadEnds)
 //   coldWater — сколько HP стоит шаг в неизведанную комнату
 //   enemyBlock — с каким блоком враги начинают бой
 //   heroPoison — сколько Яда у героя в начале боя
 //   noRest — в акте нет отдыха; enemyStrength — Сила всех врагов
+//   noMap — кромешная тьма: карта подземелья и светлячки бесполезны
+//   heroPassives — триггеры, которые акт навешивает на героя (жар: потеря HP в конце хода)
+//   wounds — сколько Ран замешано в колоду каждого боя; extraEnemy — в обычных боях на одного врага больше
+//   enemyRamp — сколько Силы враг набирает после каждого своего хода
+// enemyStrength акта — Сила всех его врагов: поздние акты собраны из знакомых врагов, и без неё они били бы слабо
 // rewards: essences — множитель эссенций за бои, rarityWeights — шансы редкости карт в наградах,
 //   relics — какой редкости реликвии у элит и в сундуках, potionChance — шанс зелья после боя.
 // startPrice — сколько золота из казны стоит начать забег с этого акта: так можно не проходить уже пройденные
@@ -23,6 +29,7 @@ export const ACTS = [
     elites: [["fallen_knight"], ["grave_hound"]],
     boss: ["crypt_warden"],
     enemyHpMultiplier: 1,
+    enemyStrength: 0,
     rewards: { essences: 1, rarityWeights: { common: 60, uncommon: 30, rare: 10 }, relics: ["common", "uncommon"], potionChance: 0.4 },
     startPrice: 0,
   },
@@ -35,13 +42,14 @@ export const ACTS = [
       ["bandit", "banshee"],
       ["warlock", "rat_swarm"],
       ["rat_swarm", "rat_swarm", "rat_swarm"],
-      ["banshee", "bandit", "rat_swarm"],
+      ["banshee", "rat_swarm"],
     ],
     elites: [["bone_colossus"], ["witch_queen"]],
     boss: ["vampire_lord"],
     enemyHpMultiplier: 1,
+    enemyStrength: 0,
     rewards: { essences: 1.4, rarityWeights: { common: 50, uncommon: 35, rare: 15 }, relics: ["common", "uncommon"], potionChance: 0.45 },
-    startPrice: 40,
+    startPrice: 20,
   },
   {
     name: "Логово нежити",
@@ -57,8 +65,9 @@ export const ACTS = [
     elites: [["death_knight"], ["demon"]],
     boss: ["lich_king"],
     enemyHpMultiplier: 1,
+    enemyStrength: 0,
     rewards: { essences: 1.8, rarityWeights: { common: 40, uncommon: 40, rare: 20 }, relics: ["uncommon"], potionChance: 0.5 },
-    startPrice: 80,
+    startPrice: 40,
   },
   {
     name: "Ядовитые топи",
@@ -73,9 +82,11 @@ export const ACTS = [
     ],
     elites: [["witch_queen"], ["bone_colossus"], ["demon"]],
     boss: ["vampire_lord", "rat_swarm", "rat_swarm"],
-    enemyHpMultiplier: 1.2,
+    enemyHpMultiplier: 1.3,
+    bossHpMultiplier: 1.35,
+    enemyStrength: 1,
     rewards: { essences: 2.3, rarityWeights: { common: 30, uncommon: 42, rare: 28 }, relics: ["uncommon"], potionChance: 0.55 },
-    startPrice: 130,
+    startPrice: 60,
   },
   {
     name: "Цитадель тьмы",
@@ -89,9 +100,110 @@ export const ACTS = [
       ["ghoul", "ghoul", "acolyte"],
     ],
     elites: [["death_knight", "acolyte"], ["demon"], ["bone_colossus", "acolyte"]],
-    boss: ["lich_king", "acolyte", "acolyte"],
-    enemyHpMultiplier: 1.35,
+    boss: ["lich_king"],
+    enemyHpMultiplier: 1.45,
+    bossHpMultiplier: 1.1,
+    enemyStrength: 1,
     rewards: { essences: 2.8, rarityWeights: { common: 20, uncommon: 45, rare: 35 }, relics: ["uncommon", "boss"], potionChance: 0.6 },
-    startPrice: 180,
+    startPrice: 90,
+  },
+  {
+    name: "Безлунные пещеры",
+    mechanic: { name: "Кромешная тьма", text: "Карта подземелья и светлячки здесь бесполезны, а тупиков больше обычного.", noMap: true, deadEnds: 6 },
+    encounters: [
+      ["spider", "spider", "grave_hound"],
+      ["wraith", "banshee"],
+      ["gargoyle", "gargoyle"],
+      ["ghoul", "ghoul"],
+      ["assassin", "bandit"],
+      ["rat_swarm", "rat_swarm", "wraith"],
+    ],
+    elites: [["fallen_knight", "grave_hound"], ["witch_queen", "banshee"], ["bone_colossus"]],
+    boss: ["crypt_warden", "grave_hound"],
+    enemyHpMultiplier: 1.5,
+    bossHpMultiplier: 1.95,
+    enemyStrength: 1,
+    rewards: { essences: 3.3, rarityWeights: { common: 20, uncommon: 45, rare: 35 }, relics: ["uncommon", "boss"], potionChance: 0.6 },
+    startPrice: 120,
+  },
+  {
+    name: "Кузня демонов",
+    mechanic: {
+      name: "Жар",
+      text: "В конце каждого своего хода герой теряет 3 HP.",
+      heroPassives: [{ trigger: "onTurnEnd", effects: [{ type: "loseHp", amount: 3 }] }],
+    },
+    encounters: [
+      ["hellhound", "hellhound"],
+      ["golem", "acolyte"],
+      ["blood_priest", "hellhound"],
+      ["warlock", "warlock"],
+      ["golem", "golem"],
+      ["cultist", "cultist", "blood_priest"],
+    ],
+    elites: [["demon"], ["death_knight", "acolyte"], ["golem", "blood_priest", "acolyte"]],
+    boss: ["demon", "hellhound"],
+    enemyHpMultiplier: 1.55,
+    bossHpMultiplier: 1.5,
+    enemyStrength: 2,
+    rewards: { essences: 3.8, rarityWeights: { common: 18, uncommon: 45, rare: 37 }, relics: ["uncommon", "boss"], potionChance: 0.62 },
+    startPrice: 150,
+  },
+  {
+    name: "Чумной некрополь",
+    mechanic: { name: "Зараза", text: "В колоду каждого боя замешаны 3 Раны.", wounds: 3 },
+    encounters: [
+      ["ghoul", "ghoul", "rat_swarm"],
+      ["skeleton", "skeleton", "acolyte"],
+      ["blood_priest", "ghoul"],
+      ["warlock", "wraith", "rat_swarm"],
+      ["cultist", "banshee", "ghoul"],
+      ["witch_queen"],
+    ],
+    elites: [["witch_queen", "ghoul"], ["bone_colossus", "acolyte"], ["vampire_lord"]],
+    boss: ["witch_queen", "vampire_lord"],
+    enemyHpMultiplier: 1.6,
+    bossHpMultiplier: 0.9,
+    enemyStrength: 2,
+    rewards: { essences: 4.4, rarityWeights: { common: 15, uncommon: 45, rare: 40 }, relics: ["uncommon", "boss"], potionChance: 0.65 },
+    startPrice: 190,
+  },
+  {
+    name: "Легион мёртвых",
+    mechanic: { name: "Орды", text: "В каждом обычном бою на одного врага больше.", extraEnemy: true },
+    encounters: [
+      ["skeleton", "fallen_knight"],
+      ["death_knight"],
+      ["wraith", "wraith"],
+      ["bone_colossus"],
+      ["assassin", "assassin"],
+      ["gargoyle", "golem"],
+    ],
+    elites: [["death_knight", "acolyte"], ["bone_colossus", "fallen_knight"], ["fallen_knight", "grave_hound"], ["golem", "golem"]],
+    boss: ["death_knight", "fallen_knight"],
+    enemyHpMultiplier: 1.6,
+    bossHpMultiplier: 1.65,
+    enemyStrength: 2,
+    rewards: { essences: 5, rarityWeights: { common: 12, uncommon: 43, rare: 45 }, relics: ["uncommon", "boss"], potionChance: 0.68 },
+    startPrice: 240,
+  },
+  {
+    name: "Сердце бездны",
+    mechanic: { name: "Безумие", text: "После каждого своего хода враги набирают +1 Силу.", enemyRamp: 1 },
+    encounters: [
+      ["demon", "acolyte"],
+      ["death_knight", "blood_priest"],
+      ["witch_queen", "wraith"],
+      ["bone_colossus", "golem"],
+      ["vampire_lord"],
+      ["hellhound", "hellhound", "hellhound"],
+    ],
+    elites: [["demon"], ["death_knight", "rat_swarm"], ["witch_queen", "ghoul"], ["bone_colossus", "blood_priest"]],
+    boss: ["lich_king"],
+    enemyHpMultiplier: 1.65,
+    bossHpMultiplier: 1.25,
+    enemyStrength: 2,
+    rewards: { essences: 5.8, rarityWeights: { common: 10, uncommon: 40, rare: 50 }, relics: ["uncommon", "boss"], potionChance: 0.7 },
+    startPrice: 290,
   },
 ];

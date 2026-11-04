@@ -15,6 +15,15 @@ export const exhaustWounds = { type: "exhaustWounds" };
 export const wound = { type: "addCard", cardId: "wound", pile: "discard" };
 export const burn = { type: "exhaust" };
 
+// Механики классов. Ресурсы — статусы героя: rage — Ярость, combo — Комбо, darkness — Тьма, reagents — Реагенты.
+// spend: потратить N ресурса на эффекты; если ресурса меньше, ничего не случится
+export const spend = (resource, amount, effects) => ({ type: "spend", status: resource, amount, effects });
+// grow: эффект растёт на per за каждую единицу ресурса: grow(damage(4), "rage", 2) — 4 урона +2 за Ярость
+export const grow = (effect, resource, per) => ({ ...effect, bonus: { status: resource, per } });
+export const gainResource = (resource, amount) => selfStatus(resource, amount);
+// brew: Алхимик варит зелье в бою
+export const brew = (amount = 1) => ({ type: "brewPotion", amount });
+
 // Порядок: id, название, тип, редкость, стоимость, цель, описание, эффекты, улучшение, сила
 export function card(id, name, type, rarity, cost, target, description, effects, upgraded, power) {
   return { id, name, type, rarity, cost, target, description, effects, upgraded, ...(power ? { power } : {}) };

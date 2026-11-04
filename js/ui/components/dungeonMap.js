@@ -41,7 +41,7 @@ export function openDungeonMap(run, onTravel) {
     el("h2", "event__title dungeon-map__title", TEXTS.dungeon.mapTitle(run.act)),
     el("p", "map__legend dungeon-map__hint", TEXTS.dungeon.mapActMechanic(getAct(run).mechanic.name, getAct(run).mechanic.text)),
     el("p", "map__legend", TEXTS.mapLegend),
-    el("p", "map__legend dungeon-map__hint", TEXTS.dungeon.mapHint(CONFIG.teleportPrice)),
+    createTeleportHint(run),
     scroller,
     close,
   );
@@ -108,6 +108,11 @@ function createLine(run, from, to, explored) {
   line.setAttribute("y2", y1 + (getNodeY(run, to) - y1) * share);
   line.classList.add(explored ? "map__line--walked" : "map__line--unknown");
   return line;
+}
+
+// Подсказка: переход бесплатный, но в пути может случиться событие
+function createTeleportHint() {
+  return el("p", "map__legend dungeon-map__hint", TEXTS.dungeon.mapHint);
 }
 
 // Где стоит герой, тот узел обведён. Остальные пройденные — кнопки быстрого перехода

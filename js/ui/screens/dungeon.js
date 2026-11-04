@@ -4,12 +4,14 @@
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { startEvent } from "../../engine/events.js";
-import { countReadyQuests, getLockedContent, mergeSeen, payForActStart, takeSupplies } from "../../engine/meta.js";
+import {
+  bankLoot, countReadyQuests, getHeroEquipment, getLockedContent, isHeroDead, keepEquipment, mergeSeen, payForActStart, takeSupplies,
+} from "../../engine/meta.js";
 import {
   canReturnToCity, createRun, enterNode, getAct, getAvailableNodeIds, getCurrentNode, getLowerNodeIds, getPreviousNodeId, getStepCost,
   isNodeCleared, isNodeRevealed, openChest, rechargeFireflies, releaseFireflies, travelTo,
 } from "../../engine/run.js";
-import { loadMeta, saveMeta, saveRun } from "../../save.js";
+import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { NODE_ICONS, openDungeonMap } from "../components/dungeonMap.js";
 import { createItemColumns, createRunBar } from "../components/runBar.js";
@@ -30,10 +32,17 @@ const MAP_ICON = `<svg class="map-button__icon" viewBox="0 0 32 32" aria-hidden=
 
 // Запускает новый забег с начала акта: первый бесплатно, остальные за золото из казны. Комнаты каждый раз новые.
 // Время как seed задаём здесь: в логике случайность только через rng.js.
-// Припасы, купленные у торговца, герой берёт с собой: из казны они уходят. Возвращает false, если не хватило золота
+// Герой берёт своё снаряжение с прошлых забегов и припасы, купленные у торговца: из казны они уходят.
+// Если идёт другой забег, он заканчивается: его герой возвращается домой со всем, что у него есть.
+// Возвращает false, если герой погиб или не хватило золота
 export function startNewRun(heroId, startAct = 1) {
   const meta = loadMeta();
-  if (!payForActStart(meta, startAct)) return false;
+  if (isHeroDead(meta, heroId) || !payForActStart(meta, startAct)) return false;
+  const previous = loadRun();
+  if (previous) {
+    bankLoot(meta, previous);
+    keepEquipment(meta, previous);
+  }
   const supplies = takeSupplies(meta);
   state.run = createRun({
     heroId,
@@ -41,9 +50,11 @@ export function startNewRun(heroId, startAct = 1) {
     startAct,
     tutorialFight: !meta.tutorialDone && startAct === 1,
     ...getLockedContent(meta),
+    equipment: getHeroEquipment(meta, heroId),
     potions: supplies.potions,
     hasMap: supplies.hasMap,
     fireflies: supplies.fireflies,
+    blessing: supplies.blessing,
   });
   saveMeta(meta);
   state.test.enabled = false;
@@ -275,10 +286,24 @@ function describeTunnel(run, node, side, previous, sideNames) {
 function createCorridorActions(run, meta, toggleAiming) {
   const actions = el("div", "corridor__actions");
   const tools = el("div", "corridor__tools");
-  if (run.fireflies) tools.append(createFirefliesButton(run, toggleAiming));
-  if (run.hasMap) tools.append(createMapButton(run));
-  actions.append(canReturnToCity(run) ? createCityButton(meta) : el("span", ""), tools);
+  // Кромешная тьма: ни карта, ни светлячки здесь не помогают
+  const dark = getAct(run).mechanic.noMap;
+  if (run.fireflies && !dark) tools.append(createFirefliesButton(run, toggleAiming));
+  if (run.hasMap && !dark) tools.append(createMapButton(run));
+  // Слева — выход в город, а в начальной комнате акта ещё и лавка
+  const exits = el("div", "corridor__tools");
+  if (canReturnToCity(run)) exits.append(createCityButton(meta));
+  if (!run.currentNodeId) exits.append(createShopButton());
+  actions.append(exits, tools);
   return actions;
+}
+
+// Лавка в начальной комнате акта: карта подземелья и избавление от карты
+function createShopButton() {
+  const button = el("button", "corridor__city", TEXTS.dungeon.shopButton);
+  button.type = "button";
+  button.addEventListener("click", () => showScreen("shop"));
+  return button;
 }
 
 // Банка светлячков: полная светится, пустая тёмная до следующего отдыха или комнаты сохранения
@@ -306,12 +331,15 @@ function createMapButton(run) {
   button.append(el("span", "map-button__label", TEXTS.dungeon.mapButton));
   button.addEventListener("click", () => openDungeonMap(run, (nodeId) => {
     const result = travelTo(run, nodeId);
-    if (!result.ok) {
-      if (result.reason === "notEnoughGold") showTooltip(TEXTS.dungeon.teleportNoGold(CONFIG.teleportPrice));
+    if (!result.ok) return;
+    if (result.event) {
+      startEvent(run);
+      showScreen("event");
+      showTooltip(TEXTS.dungeon.ambushed);
       return;
     }
     showScreen("dungeon");
-    showTooltip(TEXTS.dungeon.traveled(CONFIG.teleportPrice));
+    showTooltip(TEXTS.dungeon.traveled);
   }));
   return button;
 }
@@ -328,7 +356,7 @@ function createCityButton(meta) {
 }
 
 // Входит в комнату за туннелем. В пройденной и в пустом тупике ничего не случается: герой просто стоит там.
-// Магазины остались только в старых сохранениях: теперь торговец в городе, и такая комната пуста
+// Только лавка открывается и в пройденной комнате: в неё возвращаются за картой подземелья
 function enterTunnel(run, nodeId) {
   const cleared = isNodeCleared(run, nodeId);
   const chill = getStepCost(run, nodeId);
@@ -341,11 +369,15 @@ function enterTunnel(run, nodeId) {
 
 // Показывает, что в комнате: бой, событие, отдых и так далее. В пройденной ничего не случается заново
 function showRoom(run, cleared) {
+  if (getCurrentNode(run)?.type === "shop") {
+    showScreen("shop");
+    return;
+  }
   // В начальной комнате узла нет, но она всегда пройдена: тип не нужен
   const type = cleared ? null : getCurrentNode(run).type;
   // На отдыхе и в комнате сохранения светлячки снова собираются в банку
   if (type === "rest" || type === "save") rechargeFireflies(run);
-  if (cleared || type === "deadEnd" || type === "shop") {
+  if (cleared || type === "deadEnd") {
     showScreen("dungeon");
   } else if (type === "rest") {
     showScreen("rest");

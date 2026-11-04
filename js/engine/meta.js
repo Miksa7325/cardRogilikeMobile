@@ -3,15 +3,20 @@
 import { CONFIG } from "../config.js";
 import { ACTS } from "../data/acts.js";
 import { BUILDINGS } from "../data/buildings.js";
+import { HEROES, getMaxPotions } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { QUESTS } from "../data/quests.js";
 import { POTION_PRICE, TRADER_GOODS } from "../data/trader.js";
+import { getEquipment } from "./run.js";
 
 export function createMeta() {
   return {
     gold: 0, // казна города: на золото строят дома и покупают у торговца
     essences: 0, // эссенции с монстров: в гильдии их меняют на золото
     selectedHero: "warrior", // кем герой спустится в подземелье: выбирают в доме героев
+    // Герои этого сохранения: { warrior: { dead: false, equipment } }. Снаряжение у каждого своё и остаётся
+    // между забегами, а погибший герой не возвращается вовсе. Героя без записи ещё не было в подземелье
+    heroes: {},
     supplies: createSupplies(), // что куплено у торговца для следующего забега
     buildings: ["home"], // построенные здания: дом есть с самого начала
     totals: {}, // счётчики всех забегов для заданий
@@ -28,7 +33,7 @@ export function createMeta() {
 
 // Припасы на следующий забег: зелья в сумку, карта подземелья и банка светлячков
 export function createSupplies() {
-  return { potions: [], hasMap: false, fireflies: false };
+  return { potions: [], hasMap: false, fireflies: false, blessing: false };
 }
 
 // Что пока закрыто: содержимое ещё не построенных зданий. Эти списки попадают в новый забег и не меняются до его конца
@@ -53,7 +58,32 @@ export function buyBuilding(meta, buildingId) {
 }
 
 export function selectHero(meta, heroId) {
-  meta.selectedHero = heroId;
+  if (!isHeroDead(meta, heroId)) meta.selectedHero = heroId;
+}
+
+// Погиб ли герой в подземелье: тогда его больше нельзя выбрать
+export function isHeroDead(meta, heroId) {
+  return meta.heroes[heroId]?.dead === true;
+}
+
+// Снаряжение героя с прошлых забегов или null, если он ещё не спускался
+export function getHeroEquipment(meta, heroId) {
+  return meta.heroes[heroId]?.equipment ?? null;
+}
+
+export function getAliveHeroIds(meta) {
+  return Object.keys(HEROES).filter((heroId) => !isHeroDead(meta, heroId));
+}
+
+// Герой вернулся из подземелья живым: всё, что при нём, остаётся у него до следующего забега
+export function keepEquipment(meta, run) {
+  meta.heroes[run.heroId] = { dead: false, equipment: getEquipment(run) };
+}
+
+// Герой погиб навсегда: снаряжение пропадает вместе с ним. Если он был выбран, выбираем первого живого
+function buryHero(meta, heroId) {
+  meta.heroes[heroId] = { dead: true };
+  if (meta.selectedHero === heroId) meta.selectedHero = getAliveHeroIds(meta)[0] ?? heroId;
 }
 
 // Обмен в гильдии: все эссенции, которых хватает на целое золото, превращаются в золото.
@@ -77,6 +107,13 @@ export function getStartableActs(meta) {
 }
 
 // Начало забега с акта: первый бесплатно, остальные за золото из казны. Возвращает false, если нельзя или не хватает
+// Возвращение в подземелье через комнату сохранения стоит золота из казны. Возвращает false, если не хватает
+export function payForReturn(meta, price) {
+  if (meta.gold < price) return false;
+  meta.gold -= price;
+  return true;
+}
+
 export function payForActStart(meta, actNumber) {
   const act = ACTS[actNumber - 1];
   if (!act || actNumber > meta.bestAct || meta.gold < act.startPrice) return false;
@@ -95,15 +132,19 @@ export function bankLoot(meta, run) {
   return loot;
 }
 
-// Что продаёт торговец: карту, банку светлячков и все открытые зелья
-export function getTraderGoods(meta) {
+// Что продаёт торговец: карту подземелья и банку светлячков
+export function getTraderGoods() {
+  return TRADER_GOODS;
+}
+
+// Что продаёт лавка алхимика: все открытые зелья
+export function getPotionGoods(meta) {
   const { lockedPotionIds } = getLockedContent(meta);
-  const potions = Object.values(POTIONS)
+  return Object.values(POTIONS)
     .filter((potion) => !lockedPotionIds.includes(potion.id))
     .map((potion) => ({
       id: potion.id, kind: "potion", potionId: potion.id, icon: potion.icon, name: potion.name, description: potion.description, price: POTION_PRICE,
     }));
-  return [...TRADER_GOODS, ...potions];
 }
 
 // Куда уйдёт покупка у торговца: в текущий забег, если он идёт, иначе в припасы на следующий
@@ -123,7 +164,9 @@ export function isTraderGoodOwned(meta, run, good) {
 export function buyFromTrader(meta, run, good) {
   const holder = getHolder(meta, run);
   if (isTraderGoodOwned(meta, run, good)) return { ok: false, reason: "owned" };
-  if (good.kind === "potion" && holder.potions.length >= CONFIG.maxPotions) return { ok: false, reason: "potionsFull" };
+  // Припасы пойдут герою, который спустится следующим: у Алхимика сумка больше
+  const heroId = run?.heroId ?? meta.selectedHero;
+  if (good.kind === "potion" && holder.potions.length >= getMaxPotions(heroId)) return { ok: false, reason: "potionsFull" };
   if (meta.gold < good.price) return { ok: false, reason: "notEnoughGold" };
 
   meta.gold -= good.price;
@@ -182,10 +225,15 @@ export function mergeSeen(meta, run) {
   }
 }
 
-// Записывает итог законченного забега. Добыча, которую герой нёс, уходит в казну. Возвращает, что игрок получил
+// Записывает итог законченного забега. Победивший герой сдаёт добычу в казну и оставляет снаряжение себе.
+// Погибший пропадает навсегда вместе со снаряжением и всем, что нёс. Возвращает, что игрок получил
 export function applyRunToMeta(meta, run, currentFloor) {
   const readyBefore = QUESTS.filter((quest) => isQuestReady(meta, quest)).map((quest) => quest.id);
-  const loot = bankLoot(meta, run);
+  const died = run.status === "lost";
+  reachAct(meta, run.act);
+  const loot = died ? { gold: 0, essences: 0 } : bankLoot(meta, run);
+  if (died) buryHero(meta, run.heroId);
+  else keepEquipment(meta, run);
 
   // Счётчики заданий: то, что набралось в забеге, плюс сам забег
   const add = (key, amount) => {
@@ -208,6 +256,7 @@ export function applyRunToMeta(meta, run, currentFloor) {
   mergeSeen(meta, run);
 
   return {
+    died,
     goldGained: loot.gold,
     essencesGained: loot.essences,
     questsReady: QUESTS.filter((quest) => isQuestReady(meta, quest) && !readyBefore.includes(quest.id)).map((quest) => quest.title),

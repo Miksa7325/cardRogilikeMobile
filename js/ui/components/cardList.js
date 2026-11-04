@@ -8,14 +8,18 @@ import { hideTooltip } from "./tooltip.js";
 // Вне боя статусов нет: числа на картах показываем без них
 const HERO_OUTSIDE_COMBAT = { statuses: {} };
 
-// sections: [{ title, cards }]. onPick необязателен: с ним нажатие на карту выбирает её
-export function openCardList(sections, onPick = null) {
+// sections: [{ title, cards }]. onPick необязателен: с ним нажатие на карту выбирает её.
+// onClose — что сделать, если список закрыли без выбора
+export function openCardList(sections, onPick = null, onClose = null) {
   hideTooltip();
   const overlay = el("div", "picker");
 
   const closeButton = el("button", "button", TEXTS.close);
   closeButton.type = "button";
-  closeButton.addEventListener("click", () => overlay.remove());
+  closeButton.addEventListener("click", () => {
+    overlay.remove();
+    onClose?.();
+  });
   overlay.append(closeButton);
 
   for (const { title, cards } of sections) {

@@ -48,6 +48,37 @@
   filter: sepia(0.7) hue-rotate(-40deg) saturate(2.4) brightness(0.75);
 }
 
+/* Акты 6–10 тоже перекрашивают текстуры первых актов */
+/* Безлунные пещеры: почти чёрный камень */
+#scene[data-act="6"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act1.png");
+  filter: hue-rotate(200deg) saturate(0.6) brightness(0.45);
+}
+
+/* Кузня демонов: раскалённый камень */
+#scene[data-act="7"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act3.png");
+  filter: sepia(0.8) hue-rotate(-25deg) saturate(3) brightness(0.8);
+}
+
+/* Чумной некрополь: гнилая зелень */
+#scene[data-act="8"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act2.png");
+  filter: hue-rotate(35deg) saturate(1.9) brightness(0.75);
+}
+
+/* Легион мёртвых: выбеленная кость */
+#scene[data-act="9"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act3.png");
+  filter: grayscale(1) brightness(0.95) contrast(1.25);
+}
+
+/* Сердце бездны: лиловая тьма */
+#scene[data-act="10"] .scene__texture {
+  background-image: url("../assets/images/textures/scene-act2.png");
+  filter: hue-rotate(220deg) saturate(2.2) brightness(0.65);
+}
+
 .scene__torches {
   position: absolute;
   inset: 0;
@@ -547,6 +578,36 @@
   --tint: sepia(0.7) hue-rotate(-40deg) saturate(2.4);
 }
 
+.corridor[data-act="6"] {
+  --wall: url("../assets/images/textures/scene-act1.png");
+  --stone: #14161c;
+  --tint: hue-rotate(200deg) saturate(0.6) brightness(0.45);
+}
+
+.corridor[data-act="7"] {
+  --wall: url("../assets/images/textures/scene-act3.png");
+  --stone: #3a1a10;
+  --tint: sepia(0.8) hue-rotate(-25deg) saturate(3) brightness(0.8);
+}
+
+.corridor[data-act="8"] {
+  --wall: url("../assets/images/textures/scene-act2.png");
+  --stone: #262a12;
+  --tint: hue-rotate(35deg) saturate(1.9) brightness(0.75);
+}
+
+.corridor[data-act="9"] {
+  --wall: url("../assets/images/textures/scene-act3.png");
+  --stone: #26262a;
+  --tint: grayscale(1) brightness(0.95) contrast(1.25);
+}
+
+.corridor[data-act="10"] {
+  --wall: url("../assets/images/textures/scene-act2.png");
+  --stone: #1e1430;
+  --tint: hue-rotate(220deg) saturate(2.2) brightness(0.65);
+}
+
 /* Комната короче коридора: дальняя стена ближе и крупнее */
 .corridor--room {
   --depth: 140px;
@@ -914,6 +975,12 @@
   box-shadow: 0 0 0 1px rgba(224, 184, 76, 0.35);
 }
 
+/* Не хватает золота на телепорт: предупреждение заметное, комнаты тусклые */
+.dungeon-map__hint--warning {
+  color: #ff9a7a;
+  font-weight: bold;
+}
+
 /* Быстрый переход: пройденные комнаты на карте нажимаются */
 .map-node--travel:hover,
 .map-node--travel:focus-visible {
@@ -1020,14 +1087,100 @@
   image-rendering: pixelated;
 }
 
+/* Карта города: ширину и пропорции задаёт city.js — город шире, когда выросли слободы. Сдвиг камеры тоже задаёт он */
 .city__map {
   position: absolute;
   top: 0;
-  left: 50%;
-  width: min(100vw, calc(100dvh * 9 / 16));
-  aspect-ratio: 360 / 780;
+  left: 0;
+}
+
+/* Старый город — нарисованная карта посередине */
+.city__center {
+  position: absolute;
+  top: 0;
+  height: 100%;
   background: url("../assets/images/city/map.png") center / 100% 100% no-repeat;
+}
+
+/* Слобода: трава и дороги, которые продолжают дороги старого города */
+.city__district {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(20, 60, 18, 0.25);
+}
+
+.city__road {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid rgba(70, 50, 20, 0.6);
+  border-bottom: 2px solid rgba(70, 50, 20, 0.6);
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 3px, transparent 3px 9px),
+    linear-gradient(180deg, #b48d55, #a2804c);
+}
+
+.city__district-name {
+  position: absolute;
+  top: 26%;
+  left: 0;
+  right: 0;
+  color: rgba(255, 240, 200, 0.75);
+  font-family: var(--font-title);
+  font-size: min(14px, 3.6vw);
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+
+/* Новые дома нарисованы пикселями, над дверью — вывеска */
+.building__sprite--drawn svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.building__sign {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  font-size: min(18px, 4.6vw);
   transform: translateX(-50%);
+  filter: drop-shadow(0 1px 1px #000);
+}
+
+/* Пиксельный значок здания в его окне */
+.building__art--pixel {
+  color: inherit;
+}
+
+.building__art--pixel svg {
+  height: auto;
+}
+
+/* Окно здания: длинный список службы прокручивается внутри */
+.building-dialog .building__art {
+  flex-shrink: 0;
+}
+
+/* Окраска в лавке красок: герой в ней, её название и кнопка */
+.look-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.look-row__hero {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.look-row__name {
+  flex: 1;
+  font-family: var(--font-title);
+  font-weight: bold;
 }
 
 .city__header {
@@ -1317,6 +1470,15 @@
 .building-details__hero--selected {
   border-color: var(--gold);
   box-shadow: 0 0 10px rgba(224, 184, 76, 0.45);
+}
+
+/* Погибший герой: портрет потемнел, строку не выбрать */
+.building-details__hero--dead {
+  opacity: 0.6;
+}
+
+.building-details__hero--dead img {
+  filter: grayscale(1) brightness(0.5);
 }
 
 .building-details__hero-text {

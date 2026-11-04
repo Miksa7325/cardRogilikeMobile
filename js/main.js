@@ -21,6 +21,7 @@ import { renderSaveRoomScreen } from "./ui/screens/saveRoom.js";
 import { renderSaveTransferScreen } from "./ui/screens/saveTransfer.js";
 import { renderSavesScreen } from "./ui/screens/saves.js";
 import { renderSettingsScreen } from "./ui/screens/settings.js";
+import { renderShopScreen } from "./ui/screens/shop.js";
 import { renderStartScreen } from "./ui/screens/start.js";
 import { renderTestSetupScreen } from "./ui/screens/testSetup.js";
 import { applySettings } from "./ui/settings.js";
@@ -43,6 +44,7 @@ registerScreen("result", renderResultScreen);
 registerScreen("saveTransfer", renderSaveTransferScreen);
 registerScreen("saves", renderSavesScreen);
 registerScreen("settings", renderSettingsScreen);
+registerScreen("shop", renderShopScreen);
 registerScreen("testSetup", renderTestSetupScreen);
 
 enableReliableTaps();
