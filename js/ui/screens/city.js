@@ -1,22 +1,24 @@
 // Город: с него начинается игра. Карта с видом сверху, по которой ходит герой. Подсвеченные дома можно открыть:
 // в каждом построенном доме работает служба (ui/screens/cityServices.js), в гильдии меняют эссенции на золото,
 // у торговца покупают припасы. У статуи в центре стоит старейшина с заданиями, в конце южной дороги — вход в подземелье.
-// Город растёт в стороны: когда построено достаточно домов, по бокам старого города вырастают слободы.
+// По бокам старого города — слободы. Здания, дома для красоты, деревья и вход в подземелье — отрисованные 3D-модели,
+// земля с дорогами и фонтаном — одна картинка ground.jpg. Что где стоит, описано в data/buildings.js и data/cityLayout.js.
+// В городе есть места интереса: колодец желаний, доска объявлений и дом летописца.
 import { CONFIG } from "../../config.js";
 import { BUILDINGS } from "../../data/buildings.js";
+import { DECOR_HOUSES, DECOR_PROPS, FOUNTAIN, POINTS_OF_INTEREST } from "../../data/cityLayout.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import {
   bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getHeroEquipment, getStartableActs, getTraderGoods,
-  isHeroDead, payForReturn, selectHero,
+  isHeroDead, payForReturn, selectHero, throwWishCoin,
 } from "../../engine/meta.js";
 import { canReturnToCity, getCurrentFloor, getReturnPrice, healInCity } from "../../engine/run.js";
 import { isBuilt } from "../../engine/town.js";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
-import { applyHeroLook, buildingArt, ELDER_ART, GATE_ART, heroSprite } from "../art.js";
+import { applyHeroLook, ELDER_ART, heroSprite } from "../art.js";
 import { playSound } from "../audio.js";
-import { BUILDING_ART } from "../cardArt.js";
 import { shakeCard } from "../components/card.js";
 import { openQuestDialog } from "../components/questDialog.js";
 import { showTooltip } from "../components/tooltip.js";
@@ -26,16 +28,14 @@ import { appendService, createGood } from "./cityServices.js";
 import { continueRun, startNewRun } from "./dungeon.js";
 
 // Размеры в пикселях карты: положение на экране считаем в процентах от неё
-const CENTER_WIDTH = 360; // старый город на рисунке map.png
+const CENTER_WIDTH = 360; // старый город посередине
 const MAP_HEIGHT = 780;
 const DISTRICT_WIDTH = 260; // слобода сбоку от старого города
-// Дороги старого города уходят в слободы на тех же высотах: от и до
-const ROADS = [[243, 283], [388, 428], [532, 572]];
 const BUILDING_WIDTH = 88;
 const BUILDING_HEIGHT = 76;
 const HERO_WIDTH = 30;
 const ELDER_WIDTH = 30;
-const GATE_WIDTH = 44;
+const GATE_WIDTH = 72;
 const STATUE_WIDTH = 124;
 
 const HERO_SPEED = 120; // пикселей карты в секунду
@@ -69,29 +69,16 @@ const LINE_STEP = 2; // через столько пикселей провер�
 
 const ELDER = { x: 236, y: 420 }; // старейшина стоит у статуи; это точка его ног
 const GATE = { x: 180, y: 778 }; // вход в подземелье в конце южной дороги; это середина его нижнего края
-const GATE_SPOT = { x: 180, y: 734 }; // где стоит герой у входа в подземелье
+const GATE_SPOT = { x: 180, y: 706 }; // где стоит герой у входа в подземелье
 // Статуя лучшего игрока стоит в центре города, на перекрёстке между фонарями; это середина низа постамента
 const STATUE = { x: 180, y: 430 };
 
-// Гильдия и торговец живут в домах, нарисованных на карте у центральной площади: подсвечиваем сами дома. x и y — левый верхний угол
+// Гильдия и торговец живут в домиках у центральной площади. x и y — левый верхний угол
 const GUILD = { x: 210, y: 320, width: 52, height: 46 };
 const TRADER = { x: 211, y: 464, width: 51, height: 46 };
 
-// Куда нельзя зайти: дома, колодец и лоток, нарисованные на карте, и фонтан. x и y — левый верхний угол
-const DECOR_OBSTACLES = [
-  { x: 0, y: 62, width: 38, height: 45 },
-  { x: 45, y: 72, width: 50, height: 45 },
-  { x: 100, y: 170, width: 50, height: 45 },
-  { x: 215, y: 70, width: 50, height: 45 },
-  { x: 272, y: 62, width: 52, height: 45 },
-  { x: 102, y: 322, width: 48, height: 30 },
-  { x: 162, y: 245, width: 36, height: 36 },
-  { x: 116, y: 478, width: 20, height: 24 },
-  { x: 0, y: 584, width: 42, height: 46 },
-  { x: 47, y: 590, width: 50, height: 45 },
-  { x: 250, y: 590, width: 52, height: 45 },
-  { x: 310, y: 584, width: 50, height: 46 },
-];
+// Фонтан нарисован на земле: обойти его можно только по краю площади. Остальные препятствия — дома и деревья
+const FOUNTAIN_OBSTACLE = { x: FOUNTAIN.x - FOUNTAIN.radius, y: FOUNTAIN.y - FOUNTAIN.radius, width: FOUNTAIN.radius * 2, height: FOUNTAIN.radius * 2 };
 
 // Стрелки и WASD: куда шагает герой
 const MOVE_KEYS = {
@@ -116,13 +103,19 @@ function createButton(text, modifier, onTap) {
   return button;
 }
 
-// Значок здания в его окне: у старых зданий — гравюра, у новых — их пиксельный рисунок
-function createBuildingArt(building) {
-  const art = el("div", "building__art");
-  art.innerHTML = BUILDING_ART[building.id]
-    ? `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${BUILDING_ART[building.id]}"/></svg>`
-    : buildingArt(building.art);
-  if (!BUILDING_ART[building.id]) art.classList.add("building__art--pixel");
+// Рисунок из assets/images/city: здания, дома, деревья и мелочи
+function createSpriteImage(name, className = "") {
+  const image = el("img", className);
+  image.src = `assets/images/city/${name}.png`;
+  image.alt = "";
+  image.draggable = false;
+  return image;
+}
+
+// Значок здания в его окне: та же 3D-модель, что стоит на карте
+function createBuildingArt(name) {
+  const art = el("div", "building__art building__art--model");
+  art.append(createSpriteImage(name));
   return art;
 }
 
@@ -161,10 +154,14 @@ export function renderCityScreen(root) {
   const screen = el("main", "city");
 
   // Места, к которым можно подойти: дома, гильдия, торговец, старейшина и вход в подземелье
+  const { well, board, chronicler } = POINTS_OF_INTEREST;
   const places = [
     ...Object.values(BUILDINGS).map((building) => createBuildingPlace(meta, building)),
-    createServicePlace(inCity(GUILD), TEXTS.guild.title, openGuild),
-    createServicePlace(inCity(TRADER), TEXTS.trader.title, openTrader),
+    createServicePlace(inCity(GUILD), "guild", TEXTS.guild.title, openGuild),
+    createServicePlace(inCity(TRADER), "trader", TEXTS.trader.title, openTrader),
+    createServicePlace(well, well.sprite, TEXTS.city.well.title, openWell),
+    createServicePlace(board, board.sprite, TEXTS.city.board.title, openBoard),
+    createServicePlace(chronicler, chronicler.sprite, TEXTS.city.chronicler.title, openChronicler),
     createElderPlace(meta),
     createStatuePlace(),
     createGatePlace(),
@@ -174,7 +171,8 @@ export function renderCityScreen(root) {
   // Карта шире экрана, когда выросли слободы: её ширина — доля от ширины старого города
   map.style.width = `calc(min(100vw, calc(100dvh * 9 / 16)) * ${layout.width / CENTER_WIDTH})`;
   map.style.aspectRatio = `${layout.width} / ${MAP_HEIGHT}`;
-  map.append(...createGround(), ...places.map((place) => place.element), hero);
+  const decor = createDecor();
+  map.append(...createGround(), ...decor.map((item) => item.element), ...places.map((place) => place.element), hero);
 
   const header = el("div", "city__header");
   header.append(
@@ -187,33 +185,45 @@ export function renderCityScreen(root) {
   screen.append(map, header, actions);
   root.append(screen);
 
-  const walker = startWalking({ screen, map, hero, header, actions, places });
+  const walker = startWalking({ screen, map, hero, header, actions, places, decor });
   for (const place of places) place.element.addEventListener("click", () => walker.walkTo(place));
 }
 
-// Земля города: рисунок старого города посередине и слободы по бокам с продолжением его дорог
+// Земля города — одна картинка на весь город, над слободами — их названия
 function createGround() {
-  const parts = [];
-  const center = el("div", "city__center");
-  center.style.left = percent(layout.centerX, layout.width);
-  center.style.width = percent(CENTER_WIDTH, layout.width);
-  parts.push(center);
-  parts.push(createDistrict(0, TEXTS.city.westDistrict), createDistrict(layout.eastX, TEXTS.city.eastDistrict));
-  return parts;
+  const ground = el("div", "city__ground");
+  const names = [[0, TEXTS.city.westDistrict], [layout.eastX, TEXTS.city.eastDistrict]].map(([x, name]) => {
+    const label = el("div", "city__district-name", name);
+    label.style.left = percent(x, layout.width);
+    label.style.width = percent(DISTRICT_WIDTH, layout.width);
+    return label;
+  });
+  return [ground, ...names];
 }
 
-function createDistrict(x, name) {
-  const district = el("div", "city__district");
-  district.style.left = percent(x, layout.width);
-  district.style.width = percent(DISTRICT_WIDTH, layout.width);
-  for (const [top, bottom] of ROADS) {
-    const road = el("div", "city__road");
-    road.style.top = percent(top, MAP_HEIGHT);
-    road.style.height = percent(bottom - top, MAP_HEIGHT);
-    district.append(road);
-  }
-  district.append(el("div", "city__district-name", name));
-  return district;
+// Дома для красоты, деревья и мелочи: войти нельзя, но и пройти сквозь них тоже
+function createDecor() {
+  const houses = DECOR_HOUSES.map((house) => {
+    const element = el("div", "city-decor");
+    element.style.left = percent(house.x, layout.width);
+    element.style.top = percent(house.y, MAP_HEIGHT);
+    element.style.width = percent(BUILDING_WIDTH, layout.width);
+    element.style.zIndex = house.y + BUILDING_HEIGHT;
+    element.append(createSpriteImage(house.sprite, "city-decor__art"));
+    return { element, obstacle: { x: house.x + 6, y: house.y + 30, width: BUILDING_WIDTH - 12, height: BUILDING_HEIGHT - 34 } };
+  });
+  const props = DECOR_PROPS.map((prop) => {
+    const element = el("div", "city-prop");
+    element.style.left = percent(prop.x, layout.width);
+    element.style.top = percent(prop.y, MAP_HEIGHT);
+    element.style.width = percent(prop.size, layout.width);
+    element.style.zIndex = prop.y;
+    element.append(createSpriteImage(prop.sprite, "city-decor__art"));
+    // Непроходим только низ: ствол дерева или основание бочки
+    const foot = prop.size * 0.4;
+    return { element, obstacle: { x: prop.x - foot / 2, y: prop.y - 8, width: foot, height: 8 } };
+  });
+  return [...houses, ...props];
 }
 
 // По городу ходит герой сохранённого забега, а если забега нет — тот, кого выбрали в доме героев. В своей окраске
@@ -260,19 +270,9 @@ function createBuildingTile(meta, building) {
   return tile;
 }
 
-// Пока здание не построено, на его месте стройплощадка. Новым зданиям без картинки рисуем дом пикселями, с вывеской
+// Пока здание не построено, на его месте стройплощадка
 function createBuildingSprite(building, built) {
-  if (built && building.art) {
-    const sprite = el("div", "building__sprite building__sprite--drawn");
-    sprite.innerHTML = buildingArt(building.art);
-    sprite.append(el("span", "building__sign", building.art.sign));
-    return sprite;
-  }
-  const image = el("img", "building__sprite");
-  image.src = `assets/images/city/${built ? building.id : "plot"}.png`;
-  image.alt = "";
-  image.draggable = false;
-  return image;
+  return createSpriteImage(built ? building.id : "plot", "building__sprite");
 }
 
 // Старейшина. Восклицательный знак над головой — есть награды, которые можно забрать
@@ -337,7 +337,7 @@ function openStatue() {
   document.getElementById("app").append(overlay);
 }
 
-// Вход в подземелье: каменная арка в конце южной дороги
+// Вход в подземелье: старая шахта в конце южной дороги
 function createGatePlace() {
   const at = inCity(GATE);
   const gate = el("button", "city-gate");
@@ -346,15 +346,13 @@ function createGatePlace() {
   gate.style.top = percent(at.y, MAP_HEIGHT);
   gate.style.width = percent(GATE_WIDTH, layout.width);
   gate.style.zIndex = at.y;
-  const art = el("div", "city-gate__art");
-  art.innerHTML = GATE_ART;
-  gate.append(art, el("span", "building__label", TEXTS.city.gate));
+  gate.append(createSpriteImage("gate", "city-gate__art"), el("span", "building__label", TEXTS.city.gate));
 
   return {
     element: gate,
     action: TEXTS.city.gateEnter,
     spot: inCity(GATE_SPOT),
-    obstacle: { x: at.x - GATE_WIDTH / 2, y: at.y - 34, width: GATE_WIDTH, height: 34 },
+    obstacle: { x: at.x - GATE_WIDTH / 2 + 6, y: at.y - 40, width: GATE_WIDTH - 12, height: 40 },
     open: openGate,
   };
 }
@@ -366,9 +364,7 @@ function openGate() {
   const meta = loadMeta();
   const overlay = el("div", "card-preview");
   const dialog = el("div", "quest-dialog");
-  const art = el("div", "building__art");
-  art.innerHTML = GATE_ART;
-  dialog.append(art, el("h2", "event__title", TEXTS.city.gateTitle), el("p", "quest-dialog__speech", TEXTS.city.gateText));
+  dialog.append(createBuildingArt("gate"), el("h2", "event__title", TEXTS.city.gateTitle), el("p", "quest-dialog__speech", TEXTS.city.gateText));
 
   if (run) {
     const hero = (HEROES[run.heroId] ?? HEROES.warrior).name;
@@ -438,30 +434,31 @@ function createActChoice(meta, act, replacesRun) {
   return row;
 }
 
-// Дом на карте, где работает гильдия или торговец: его контур светится, над ним подпись
-function createServicePlace(rect, name, open) {
-  const house = el("button", "city-service");
+// Домик службы или место интереса: гильдия, торговец, колодец, доска объявлений, дом летописца.
+// rect — место на карте, sprite — рисунок из assets/images/city. Непроходим только низ, за крышу можно зайти
+function createServicePlace(rect, sprite, name, open) {
+  const house = el("button", "building building--built city-service");
   house.type = "button";
   house.style.left = percent(rect.x, layout.width);
   house.style.top = percent(rect.y, MAP_HEIGHT);
   house.style.width = percent(rect.width, layout.width);
-  house.style.height = percent(rect.height, MAP_HEIGHT);
   house.style.zIndex = rect.y + rect.height;
-  house.append(el("span", "building__label", name));
+  house.append(createSpriteImage(sprite, "building__sprite"), el("span", "building__label", name));
+  const solidTop = rect.y + rect.height * 0.45;
   return {
     element: house,
     action: TEXTS.city.enter(name),
     spot: { x: rect.x + rect.width / 2, y: rect.y + rect.height + 6 },
-    obstacle: rect,
+    obstacle: { x: rect.x + 4, y: solidTop, width: rect.width - 8, height: rect.y + rect.height - solidTop - 2 },
     open,
   };
 }
 
-// Окно поверх города: значок, название и описание. Возвращает его содержимое, чтобы добавить остальное
-function openDialog(icon, title, text) {
+// Окно поверх города: рисунок места, название и описание. Возвращает его содержимое, чтобы добавить остальное
+function openDialog(sprite, title, text) {
   const overlay = el("div", "card-preview");
   const dialog = el("div", "quest-dialog");
-  dialog.append(el("div", "service__icon", icon), el("h2", "event__title", title), el("p", "quest-dialog__speech", text));
+  dialog.append(createBuildingArt(sprite), el("h2", "event__title", title), el("p", "quest-dialog__speech", text));
   overlay.append(dialog);
   document.getElementById("app").append(overlay);
   return { overlay, dialog };
@@ -480,7 +477,7 @@ function reopen(openWindow) {
 // Гильдия скупает эссенции чудовищ за золото
 function openGuild() {
   const meta = loadMeta();
-  const { overlay, dialog } = openDialog("⚖️", TEXTS.guild.title, TEXTS.guild.text(CONFIG.city.essencesPerGold));
+  const { overlay, dialog } = openDialog("guild", TEXTS.guild.title, TEXTS.guild.text(CONFIG.city.essencesPerGold));
   const gold = Math.floor(meta.essences / CONFIG.city.essencesPerGold);
   const exchange = createButton(gold > 0 ? TEXTS.guild.exchange(gold * CONFIG.city.essencesPerGold, gold) : TEXTS.guild.notEnough, "button--large", () => {
     exchangeEssences(meta);
@@ -497,7 +494,7 @@ function openGuild() {
 function openTrader() {
   const meta = loadMeta();
   const run = loadRun();
-  const { overlay, dialog } = openDialog("🛒", TEXTS.trader.title, TEXTS.trader.text);
+  const { overlay, dialog } = openDialog("trader", TEXTS.trader.title, TEXTS.trader.text);
   dialog.append(createBalance(meta), el("p", "quests__hint", run ? TEXTS.trader.intoRun : TEXTS.trader.intoNextRun));
   const list = el("div", "quest-dialog__list");
   const done = (gear) => {
@@ -515,6 +512,67 @@ function openElder() {
     showScreen("city");
     openElder();
   });
+}
+
+// Колодец желаний: монетка из казны в колодец. Иногда колодец отвечает эссенциями или возвращает золото вдвое
+function openWell() {
+  const meta = loadMeta();
+  const texts = TEXTS.city.well;
+  const { overlay, dialog } = openDialog("well", texts.title, texts.text);
+  const result = el("p", "quests__hint", "");
+  const balance = createBalance(meta);
+  const button = createButton(texts.throw(CONFIG.city.wellPrice), "button--large", () => {
+    const outcome = throwWishCoin(meta, Math.random());
+    if (!outcome.ok) {
+      shakeCard(button);
+      showTooltip(TEXTS.trader.notEnoughGold);
+      return;
+    }
+    if (!saveMeta(meta)) showTooltip(TEXTS.saveFailed);
+    playSound(outcome.outcome === "wish" ? "gem" : "buy");
+    result.textContent = outcome.outcome === "wish" ? texts.wishes[Math.floor(Math.random() * texts.wishes.length)] : texts.results[outcome.outcome](outcome.amount);
+    balance.replaceWith(createBalance(meta));
+    button.disabled = meta.gold < CONFIG.city.wellPrice;
+  });
+  button.disabled = meta.gold < CONFIG.city.wellPrice;
+  dialog.append(balance, button, result, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+}
+
+// Доска объявлений: три случайных совета и новости города
+function openBoard() {
+  const meta = loadMeta();
+  const texts = TEXTS.city.board;
+  const { overlay, dialog } = openDialog("board", texts.title, texts.text);
+  const tips = [...texts.tips].sort(() => Math.random() - 0.5).slice(0, 3);
+  const list = el("div", "quest-dialog__list");
+  for (const tip of tips) list.append(el("div", "quest notice", tip));
+  const ready = countReadyQuests(meta);
+  if (ready > 0) list.prepend(el("div", "quest notice notice--news", texts.elderNews(ready)));
+  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
+}
+
+// Дом летописца: итоги всех забегов и каждого героя
+function openChronicler() {
+  const meta = loadMeta();
+  const texts = TEXTS.city.chronicler;
+  const { overlay, dialog } = openDialog("chronicler", texts.title, meta.runsPlayed > 0 ? texts.text : texts.empty);
+  const totals = meta.totals ?? {};
+  const list = el("div", "quest-dialog__list");
+  for (const [key, label] of texts.lines) {
+    const value = key === "bestFloor" ? meta.bestFloor : key === "runs" ? meta.runsPlayed : key === "wins" ? meta.wins : totals[key] ?? 0;
+    const row = el("div", "quest chronicle");
+    row.append(el("span", "chronicle__label", label), el("b", "chronicle__value", String(value)));
+    list.append(row);
+  }
+  for (const [heroId, hero] of Object.entries(HEROES)) {
+    const stats = meta.heroStats?.[heroId];
+    if (!stats) continue;
+    const row = el("div", "quest chronicle");
+    const fate = isHeroDead(meta, heroId) ? texts.fallen : "";
+    row.append(el("span", "chronicle__label", hero.name + fate), el("b", "chronicle__value", texts.heroLine(stats.runs, stats.wins)));
+    list.append(row);
+  }
+  dialog.append(list, createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()));
 }
 
 function isDialogOpen() {
@@ -615,8 +673,8 @@ function straightenPath(from, points, isFree) {
 // Движение героя. Касание земли ведёт героя туда, а если не отпускать палец, он идёт следом.
 // Касание дома или старейшины ведёт ко входу, и там окно открывается само.
 // На компьютере можно ходить стрелками или WASD, а Enter, пробел или E — войти
-function startWalking({ screen, map, hero, header, actions, places }) {
-  const obstacles = [...DECOR_OBSTACLES.map(inCity), ...places.map((place) => place.obstacle)];
+function startWalking({ screen, map, hero, header, actions, places, decor }) {
+  const obstacles = [FOUNTAIN_OBSTACLE, ...decor.map((item) => item.obstacle), ...places.map((place) => place.obstacle)];
   const isFree = (point) => !obstacles.some((rect) => isInside(point, rect));
   // Герой не выходит за край карты: ноги не ниже нижнего края, голова не выше верхнего
   const keepOnMap = (point) => ({
@@ -817,7 +875,7 @@ function openBuilding(building) {
   const overlay = el("div", "card-preview");
   const dialog = el("div", "quest-dialog building-dialog");
   dialog.append(
-    createBuildingArt(building),
+    createBuildingArt(building.id),
     el("h2", "event__title", building.name),
     el("p", "building-details__text", building.description),
   );

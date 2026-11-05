@@ -1,21 +1,26 @@
-// Авторы иконок на картах: сколько иконок каждого автора используется в игре. Этого требует лицензия CC BY 3.0.
+// Авторы иконок на картах, значках статусов и зданиях: сколько иконок каждого автора используется в игре (примерно).
+// Этого требует лицензия CC BY 3.0.
 export const ICON_AUTHORS = {
-  "Lorc": 167,
-  "Delapouite": 55,
+  "Lorc": 230,
+  "Delapouite": 40,
+  "DarkZaitzev": 11,
   "Skoll": 7,
-  "DarkZaitzev": 5,
-  "Sbed": 3,
+  "Sbed": 4,
   "Carl Olsen": 2,
+  "Zeromancer": 2,
   "Willdabeast": 1,
   "Starseeker": 1,
   "HeavenlyDog": 1,
-  "Caro Asercion": 1
+  "Caro Asercion": 1,
+  "Faithtoken": 1,
+  "Felbrigg": 1,
+  "Zajkonur": 1
 };
 
-// 3D-модели бойцов и старейшины: перекрашены, поставлены в позу и отрисованы в спрайты.
+// 3D-модели бойцов, старейшины и города: перекрашены, поставлены в позу и отрисованы в спрайты.
 // Модели CC BY 3.0 требуют указать автора, остальные — общественное достояние (CC0)
 export const MODEL_CREDITS = [
-  { work: "KayKit: Adventurers, Skeletons, Dungeon Remastered", author: "Kay Lousberg", licence: "CC0" },
+  { work: "KayKit: Adventurers, Skeletons, Dungeon Remastered, Medieval Hexagon", author: "Kay Lousberg", licence: "CC0" },
   { work: "Spider, Rat, Wolf, Demon, Ghost, Ghost Skull, Dragon Evolved, Zombie", author: "Quaternius", licence: "CC0" },
   { work: "Colossus pre Tilt Brush", author: "Darwin Yamamoto", licence: "CC BY 3.0" },
 ];

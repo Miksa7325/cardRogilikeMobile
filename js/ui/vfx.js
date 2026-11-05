@@ -1,4 +1,5 @@
-// Эффекты заклинаний Мага на поле боя: не на карте, а во всей комнате, где идёт бой.
+// Эффекты карт на поле боя: не на карте, а во всей комнате, где идёт бой. Здесь — общие приёмы и эффекты Мага,
+// эффекты остальных карт собираются из этих приёмов в ui/vfxCards.js.
 // Частицы (снег, искры, угли, звёзды) рисуются на холсте поверх боя, молнии, кольца, лучи и вспышки — элементами
 // с анимацией. Все длительности умножаются на --anim-speed: при ускорении ×2 эффекты тоже вдвое короче.
 import { el } from "./dom.js";
@@ -14,11 +15,11 @@ export const CARD_VFX = {
 };
 
 // Цвета стихий
-const FIRE = ["#fff3b0", "#ffb02e", "#ff5a12", "#c21a00"];
-const FROST = ["#ffffff", "#c8f0ff", "#7fd0ff", "#3a8cff"];
-const ARCANE = ["#ffffff", "#f0c8ff", "#b46cff", "#6a2cff"];
-const STORM = ["#ffffff", "#e8f4ff", "#9fd8ff", "#5a9cff"];
-const GOLD = ["#fffbe0", "#ffe27a", "#ffb21e", "#c56d00"];
+export const FIRE = ["#fff3b0", "#ffb02e", "#ff5a12", "#c21a00"];
+export const FROST = ["#ffffff", "#c8f0ff", "#7fd0ff", "#3a8cff"];
+export const ARCANE = ["#ffffff", "#f0c8ff", "#b46cff", "#6a2cff"];
+export const STORM = ["#ffffff", "#e8f4ff", "#9fd8ff", "#5a9cff"];
+export const GOLD = ["#fffbe0", "#ffe27a", "#ffb21e", "#c56d00"];
 
 let canvas = null;
 let context = null;
@@ -30,24 +31,26 @@ function speed() {
   return Number(getComputedStyle(document.documentElement).getPropertyValue("--anim-speed")) || 1;
 }
 
-function ms(value) {
+export function ms(value) {
   return value * speed();
 }
 
-const random = (min, max) => min + Math.random() * (max - min);
-const pick = (list) => list[Math.floor(Math.random() * list.length)];
-const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+export const random = (min, max) => min + Math.random() * (max - min);
+export const pick = (list) => list[Math.floor(Math.random() * list.length)];
+export const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-// Проигрывает эффект карты. from — где стоит герой, targets — центры целей (враги или сам герой)
+// Проигрывает особый эффект карты Мага. from — где стоит герой, targets — центры целей (враги или сам герой).
+// Возвращает false, если у карты нет своего эффекта
 export function playCardVfx(cardId, { from, targets }) {
   const effect = EFFECTS[CARD_VFX[cardId]];
-  if (!effect || !from) return;
+  if (!effect || !from) return false;
   ensureCanvas();
   effect(from, targets.length > 0 ? targets : [from]);
+  return true;
 }
 
 // ---------- Холст частиц ----------
-function ensureCanvas() {
+export function ensureCanvas() {
   if (canvas?.isConnected) return;
   canvas = el("canvas", "vfx-canvas");
   document.body.append(canvas);
@@ -64,7 +67,7 @@ function resizeCanvas() {
 }
 
 // Частица: позиция, скорость, ускорение, жизнь в мс, размер, цвет и форма
-function spawn(particle) {
+export function spawn(particle) {
   particles.push({
     vx: 0, vy: 0, ax: 0, ay: 0, drag: 0, size: 4, grow: 0, life: 800, age: 0, shape: "glow", spin: 0, angle: 0, wobble: 0, seed: Math.random() * 6,
     delay: 0, ...particle, life: ms(particle.life ?? 800), delay: ms(particle.delay ?? 0),
@@ -159,6 +162,30 @@ function drawParticle(p, left) {
     context.closePath();
     context.fill();
     context.restore();
+  } else if (p.shape === "bubble") {
+    context.strokeStyle = p.color;
+    context.lineWidth = Math.max(1, size / 5);
+    context.beginPath();
+    context.arc(p.x, p.y, size, 0, Math.PI * 2);
+    context.stroke();
+  } else if (p.shape === "plus") {
+    context.fillStyle = p.color;
+    context.fillRect(p.x - size, p.y - size / 3, size * 2, (size * 2) / 3);
+    context.fillRect(p.x - size / 3, p.y - size, (size * 2) / 3, size * 2);
+  } else if (p.shape === "card") {
+    // Карта непрозрачная: рисуем её обычным наложением, а не сложением света
+    context.save();
+    context.globalCompositeOperation = "source-over";
+    context.translate(p.x, p.y);
+    context.rotate(p.angle);
+    context.fillStyle = "rgba(60, 30, 10, 0.9)";
+    context.strokeStyle = p.color;
+    context.lineWidth = 2;
+    context.beginPath();
+    context.roundRect(-size * 0.7, -size, size * 1.4, size * 2, size * 0.25);
+    context.fill();
+    context.stroke();
+    context.restore();
   } else if (p.shape === "star") {
     context.fillStyle = p.color;
     context.save();
@@ -179,7 +206,7 @@ function drawParticle(p, left) {
 
 // ---------- Общие приёмы ----------
 // Вспышка-взрыв частиц во все стороны
-function burst(at, palette, { count = 26, speed: velocity = 260, size = 6, life = 600, shape = "glow", gravity = 0, spread = 1 } = {}) {
+export function burst(at, palette, { count = 26, speed: velocity = 260, size = 6, life = 600, shape = "glow", gravity = 0, spread = 1 } = {}) {
   if (reduced()) count = Math.ceil(count / 3);
   for (let i = 0; i < count; i++) {
     const angle = random(0, Math.PI * 2);
@@ -192,7 +219,7 @@ function burst(at, palette, { count = 26, speed: velocity = 260, size = 6, life 
 }
 
 // Снаряд летит от героя к цели, за ним тянется след. Возвращает промис: снаряд долетел
-function projectile(from, to, palette, { size = 14, duration = 320, trail = "glow", arc = 0, trailSize = 6 } = {}) {
+export function projectile(from, to, palette, { size = 14, duration = 320, trail = "glow", arc = 0, trailSize = 6 } = {}) {
   return new Promise((resolve) => {
     const time = ms(duration);
     const start = performance.now();
@@ -210,7 +237,7 @@ function projectile(from, to, palette, { size = 14, duration = 320, trail = "glo
 }
 
 // Элемент поверх боя с анимацией; после анимации исчезает сам
-function overlay(className, styles, frames, duration, easing = "ease-out") {
+export function overlay(className, styles, frames, duration, easing = "ease-out") {
   const element = el("div", `vfx ${className}`);
   Object.assign(element.style, styles);
   document.body.append(element);
@@ -219,12 +246,12 @@ function overlay(className, styles, frames, duration, easing = "ease-out") {
 }
 
 // Вспышка на весь экран
-function flash(color, duration = 260, strength = 0.55) {
+export function flash(color, duration = 260, strength = 0.55) {
   overlay("vfx-flash", { background: color }, [{ opacity: strength }, { opacity: 0 }], duration);
 }
 
 // Кольцо расходится от точки
-function ring(at, color, { size = 220, duration = 520, width = 6 } = {}) {
+export function ring(at, color, { size = 220, duration = 520, width = 6 } = {}) {
   overlay("vfx-ring", {
     left: `${at.x}px`, top: `${at.y}px`, width: `${size}px`, height: `${size}px`,
     border: `${width}px solid ${color}`, boxShadow: `0 0 18px ${color}, inset 0 0 18px ${color}`,
@@ -235,7 +262,7 @@ function ring(at, color, { size = 220, duration = 520, width = 6 } = {}) {
 }
 
 // Тряска экрана боя
-function shake(strength = 6, duration = 320) {
+export function shake(strength = 6, duration = 320) {
   const combat = document.querySelector(".combat");
   combat?.animate([
     { transform: "none" },
@@ -247,7 +274,7 @@ function shake(strength = 6, duration = 320) {
 }
 
 // Ломаная молния из точки в точку (SVG поверх боя)
-function bolt(from, to, color, { width = 4, duration = 380, jitter = 26 } = {}) {
+export function bolt(from, to, color, { width = 4, duration = 380, jitter = 26 } = {}) {
   const points = [from];
   const segments = 9;
   for (let i = 1; i < segments; i++) {
@@ -267,8 +294,8 @@ function bolt(from, to, color, { width = 4, duration = 380, jitter = 26 } = {}) 
   svg.animate([{ opacity: 1 }, { opacity: 0.3 }, { opacity: 1 }, { opacity: 0 }], { duration: ms(duration) }).finished.then(() => svg.remove(), () => svg.remove());
 }
 
-const wait = (value) => new Promise((resolve) => setTimeout(resolve, ms(value)));
-const screen = () => ({ width: window.innerWidth, height: window.innerHeight });
+export const wait = (value) => new Promise((resolve) => setTimeout(resolve, ms(value)));
+export const screen = () => ({ width: window.innerWidth, height: window.innerHeight });
 
 // ---------- Эффекты карт ----------
 const EFFECTS = {
@@ -514,7 +541,7 @@ const EFFECTS = {
 };
 
 // Сфера щита вокруг героя
-function shield(at, color, palette) {
+export function shield(at, color, palette) {
   overlay("vfx-shield", { left: `${at.x}px`, top: `${at.y}px`, borderColor: color, boxShadow: `0 0 24px ${color}, inset 0 0 30px ${color}` }, [
     { transform: "translate(-50%, -50%) scale(0.4)", opacity: 0 },
     { transform: "translate(-50%, -50%) scale(1.05)", opacity: 1, offset: 0.35 },

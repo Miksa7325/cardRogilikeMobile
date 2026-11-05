@@ -57,6 +57,23 @@ export function buyBuilding(meta, buildingId) {
   return { ok: true };
 }
 
+// Колодец желаний: монетка из казны в колодец. roll — случайное число от 0 до 1, его даёт интерфейс.
+// Чаще всего это просто загаданное желание, иногда колодец отвечает эссенциями или возвращает золото вдвое
+export function throwWishCoin(meta, roll) {
+  const price = CONFIG.city.wellPrice;
+  if (meta.gold < price) return { ok: false, reason: "notEnoughGold" };
+  meta.gold -= price;
+  if (roll < 0.12) {
+    meta.essences += 3;
+    return { ok: true, outcome: "essences", amount: 3 };
+  }
+  if (roll < 0.37) {
+    meta.gold += price * 2;
+    return { ok: true, outcome: "gold", amount: price * 2 };
+  }
+  return { ok: true, outcome: "wish" };
+}
+
 export function selectHero(meta, heroId) {
   if (!isHeroDead(meta, heroId)) meta.selectedHero = heroId;
 }

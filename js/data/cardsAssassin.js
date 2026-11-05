@@ -14,7 +14,7 @@ export const ASSASSIN_CARDS = [
   card("a_whirl", "Вихрь клинков", "attack", "uncommon", 1, "enemy", "Комбо 3: нанести {damage} урона 3 раза.", [spend("combo", 3, hits(6, 3))], { effects: [spend("combo", 3, hits(8, 3))] }),
   triggerPower("a_chain", "Цепь ударов", "uncommon", 2, "Каждая карта даёт ещё {combo} Комбо.", "onCardPlayed", [gainResource("combo", 1)], [gainResource("combo", 2)]),
   card("a_coup", "Удар милосердия", "attack", "rare", 2, "enemy", "Добивание: {damage} урона, +5 за каждое Комбо.", [grow(damage(6), "combo", 5)], { effects: [grow(damage(10), "combo", 5)] }),
-  card("a_execute", "Устранение", "attack", "rare", 1, "enemy", "Комбо 5: нанести {damage} урона.", [spend("combo", 5, [damage(35)])], { effects: [spend("combo", 4, [damage(40)])], description: "Комбо 4: нанести {damage} урона." }),
+  card("a_execute", "Приговор", "attack", "rare", 1, "enemy", "Комбо 5: нанести {damage} урона.", [spend("combo", 5, [damage(35)])], { effects: [spend("combo", 4, [damage(40)])], description: "Комбо 4: нанести {damage} урона." }),
 
   // Стартовые
   card("a_strike", "Удар кинжалом", "attack", "starter", 1, "enemy", "Нанести {damage} урона.", [damage(6)], { effects: [damage(9)] }),
@@ -29,7 +29,7 @@ export const ASSASSIN_CARDS = [
   card("a_backstab", "Удар в спину", "attack", "common", 1, "enemy", "Нанести {damage} урона. Сжечь.", [damage(12), burn], { effects: [damage(16), burn] }),
   card("a_quick_cut", "Быстрый порез", "attack", "common", 0, "enemy", "Нанести {damage} урона. Взять {draw} карту.", [damage(3), draw(1)], { effects: [damage(5), draw(1)] }),
   card("a_throwing_knives", "Метательные ножи", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(4)], { effects: [damage(6)] }),
-  card("a_bleed", "Глубокая рана", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {weak} Слабости.", [damage(5), status("weak", 1)], { effects: [damage(7), status("weak", 2)] }),
+  card("a_bleed", "Удар под дых", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {weak} Слабости.", [damage(5), status("weak", 1)], { effects: [damage(7), status("weak", 2)] }),
   card("a_trip", "Подсечка", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {vulnerable} Уязвимости.", [damage(5), status("vulnerable", 1)], { effects: [damage(7), status("vulnerable", 2)] }),
   card("a_fan_knives", "Веер ножей", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем 3 раза.", hits(3, 3), { effects: hits(4, 3) }),
   card("a_garrote", "Удавка", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {weak} Слабости.", [damage(4), status("weak", 2)], { effects: [damage(5), status("weak", 3)] }),
@@ -50,7 +50,7 @@ export const ASSASSIN_CARDS = [
   card("a_focus", "Концентрация", "skill", "common", 1, "self", "Получить {strength} Силу. Сжечь.", [selfStatus("strength", 1), burn], { effects: [selfStatus("strength", 2), burn] }),
   card("a_balm", "Бальзам", "skill", "common", 0, "self", "Вылечить {heal} HP. Сжечь.", [heal(2), burn], { effects: [heal(4), burn] }),
   card("a_camouflage", "Маскировка", "skill", "common", 1, "self", "Получить {dexterity} Ловкость. Сжечь.", [selfStatus("dexterity", 1), burn], { effects: [selfStatus("dexterity", 2), burn] }),
-  card("a_caltrops", "Шипы", "skill", "common", 1, "allEnemies", "Наложить {weak} Слабости. Наложить {poison} Яда всем. Сжечь.", [status("weak", 1), status("poison", 1), burn], { effects: [status("weak", 2), status("poison", 2), burn] }),
+  card("a_caltrops", "Рассыпать шипы", "skill", "common", 1, "allEnemies", "Наложить {weak} Слабости. Наложить {poison} Яда всем. Сжечь.", [status("weak", 1), status("poison", 1), burn], { effects: [status("weak", 2), status("poison", 2), burn] }),
 
   // Необычные атаки
   card("a_assassinate", "Устранение", "attack", "uncommon", 2, "enemy", "Нанести {damage} урона.", [damage(18)], { effects: [damage(24)] }),
@@ -69,12 +69,12 @@ export const ASSASSIN_CARDS = [
   card("a_double_dose", "Двойная доза", "skill", "uncommon", 1, "enemy", "Удвоить Яд на цели. Сжечь.", [multiplyStatus("poison", 2), burn], { cost: 0 }),
   card("a_dash", "Рывок", "skill", "uncommon", 1, "self", "Получить {block} блока. Взять {draw} карты.", [block(7), draw(2)], { effects: [block(9), draw(2)] }),
   card("a_adrenaline", "Адреналин", "skill", "uncommon", 0, "self", "Получить {energy} энергию. Взять {draw} карту. Сжечь.", [energy(1), draw(1), burn], { effects: [energy(2), draw(2), burn] }),
-  card("a_evade", "Уход в тень", "skill", "uncommon", 2, "self", "Получить {block} блока.", [block(13)], { effects: [block(17)] }),
-  card("a_contagion", "Зараза", "skill", "uncommon", 2, "allEnemies", "Наложить {poison} Яда всем врагам.", [status("poison", 6)], { effects: [status("poison", 9)] }),
+  card("a_evade", "Уворот", "skill", "uncommon", 2, "self", "Получить {block} блока.", [block(13)], { effects: [block(17)] }),
+  card("a_contagion", "Ядовитый туман", "skill", "uncommon", 2, "allEnemies", "Наложить {poison} Яда всем врагам.", [status("poison", 6)], { effects: [status("poison", 9)] }),
   card("a_lethal_mix", "Смертельная смесь", "skill", "uncommon", 2, "enemy", "Наложить {poison} Яда. Наложить {weak} Слабости. Наложить {vulnerable} Уязвимости.", [status("poison", 5), status("weak", 2), status("vulnerable", 1)], { effects: [status("poison", 8), status("weak", 2), status("vulnerable", 2)] }),
   card("a_siphon", "Кража силы", "skill", "uncommon", 1, "enemy", "Наложить {weak} Слабости. Получить {strength} Силу. Сжечь.", [status("weak", 2), selfStatus("strength", 1), burn], { effects: [status("weak", 3), selfStatus("strength", 2), burn] }),
   card("a_swift_hands", "Ловкие руки", "skill", "uncommon", 1, "self", "Взять {draw} карты. Добавить Рану в сброс.", [draw(3), wound], { effects: [draw(4), wound] }),
-  card("a_fade", "Раствориться", "skill", "uncommon", 1, "self", "Получить {block} блока. Наложить {weak} Слабости всем.", [block(6), allStatus("weak", 1)], { effects: [block(8), allStatus("weak", 1)] }),
+  card("a_fade", "Морок", "skill", "uncommon", 1, "self", "Получить {block} блока. Наложить {weak} Слабости всем.", [block(6), allStatus("weak", 1)], { effects: [block(8), allStatus("weak", 1)] }),
 
   // Необычные силы
   triggerPower("a_toxic_blades", "Отравленные клинки", "uncommon", 2, "Каждая атака: {poison} Яда всем.", "onCardPlayed", [allStatus("poison", 1)], [allStatus("poison", 2)], "attack"),

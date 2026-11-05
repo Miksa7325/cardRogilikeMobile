@@ -10,7 +10,7 @@ import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
-import { playCardVfx } from "../vfx.js";
+import { playCardEffect } from "../vfxCards.js";
 import { applyHeroLook, enemySprite, heroSprite, IDLE_STYLES } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
 import { createCardElement, shakeCard } from "../components/card.js";
@@ -23,15 +23,17 @@ import { createStatusIcons } from "../components/statusIcons.js";
 import { showTooltip } from "../components/tooltip.js";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
+import { createIcon } from "../icons.js";
 import { showScreen } from "../router.js";
 import { animationMs } from "../settings.js";
 import { createTutorialBanner, finishTutorial, isTutorialTarget, notifyTutorial } from "../tutorial.js";
 
+// Значки намерений врагов из ui/icons.js
 const INTENT_ICONS = {
-  attack: "⚔️",
-  defend: "🛡️",
-  buff: "💪",
-  debuff: "🌀",
+  attack: "damage",
+  defend: "block",
+  buff: "buff",
+  debuff: "debuff",
 };
 
 // Запускает бой на текущем узле забега
@@ -159,7 +161,7 @@ function createEnemy(combat, enemy, compact) {
   if (isTutorialTarget("enemy")) element.classList.add("tutorial-target");
 
   element.append(
-    el("div", "unit__intent", formatIntent(combat, enemy)),
+    createIntent(combat, enemy),
     createPortrait(enemySprite(enemy.enemyId), IDLE_STYLES[enemy.enemyId]),
     el("div", "unit__name", ENEMIES[enemy.enemyId].name),
     createHpBar(enemy),
@@ -169,15 +171,14 @@ function createEnemy(combat, enemy, compact) {
   return element;
 }
 
-// Например: «⚔️ 9» за один удар, «⚔️ 6×2» за два, «🛡️ 9» за блок
-function formatIntent(combat, enemy) {
+// Значок и число: «[меч] 9» за один удар, «[меч] 6×2» за два, «[щит] 9» за блок
+function createIntent(combat, enemy) {
   const { intent, damage, hits, block } = getEnemyIntent(combat, enemy);
-  if (intent === "attack") {
-    const hitsText = hits > 1 ? `×${hits}` : "";
-    return `${INTENT_ICONS.attack} ${damage}${hitsText}`;
-  }
-  if (intent === "defend") return `${INTENT_ICONS.defend} ${block}`;
-  return INTENT_ICONS[intent];
+  const element = el("div", "unit__intent");
+  element.append(createIcon(INTENT_ICONS[intent]));
+  if (intent === "attack") element.append(` ${damage}${hits > 1 ? `×${hits}` : ""}`);
+  if (intent === "defend") element.append(` ${block}`);
+  return element;
 }
 
 // Текст подсказки при нажатии на бойца: что он сделает и что значат его статусы
@@ -335,7 +336,7 @@ function getVfxPositions(before, card, targetId) {
   };
   const enemies = Object.entries(before.units).filter(([id, unit]) => id !== "hero" && unit.hp > 0).map(([, unit]) => unit);
   const targets = card.target === "enemy" ? [before.units[targetId]] : card.target === "allEnemies" ? enemies : [];
-  return { from: center(before.units.hero), targets: targets.map(center).filter(Boolean) };
+  return { from: center(before.units.hero), targets: targets.map(center).filter(Boolean), enemies: enemies.map(center).filter(Boolean) };
 }
 
 // Карту отпустили на цели
@@ -350,7 +351,7 @@ function playDroppedCard(instance, targetId, ghost) {
     return;
   }
   flyCardAway(ghost);
-  playCardVfx(card.id, getVfxPositions(before, card, targetId));
+  playCardEffect(card, getVfxPositions(before, card, targetId));
   clearSelection();
 
   if (card.target === "enemy") notifyTutorial("attackPlayed");

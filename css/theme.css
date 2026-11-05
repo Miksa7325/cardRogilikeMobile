@@ -1085,9 +1085,7 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  background: #0f3a12 url("../assets/images/city/grass.png");
-  background-size: 48px;
-  image-rendering: pixelated;
+  background: #3f7d2a;
 }
 
 /* Карта города: ширину и пропорции задаёт city.js — город шире, когда выросли слободы. Сдвиг камеры тоже задаёт он */
@@ -1097,66 +1095,40 @@
   left: 0;
 }
 
-/* Старый город — нарисованная карта посередине */
-.city__center {
+/* Земля города: трава, мощёные дороги, площади и фонтан — одна картинка (рисует её скрипт по data/cityLayout.js) */
+.city__ground {
   position: absolute;
-  top: 0;
-  height: 100%;
-  background: url("../assets/images/city/map.png") center / 100% 100% no-repeat;
+  inset: 0;
+  background: url("../assets/images/city/ground.jpg") 0 0 / 100% 100% no-repeat;
 }
 
-/* Слобода: трава и дороги из того же рисунка, что старый город, — плитки вырезаны из map.png.
-   Плитка травы — 128 пикселей карты, слобода — 260: поэтому размер в процентах ширины слободы */
-.city__district {
+/* Дома для красоты, деревья и мелочи: на них не нажать, они только загораживают героя */
+.city-decor,
+.city-prop {
   position: absolute;
-  top: 0;
-  height: 100%;
-  background: url("../assets/images/city/district-grass.png") 0 0 / calc(128 / 260 * 100%) auto repeat;
+  pointer-events: none;
 }
 
-.city__road {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background: url("../assets/images/city/district-road.png") 0 0 / auto 100% repeat-x;
+.city-prop {
+  transform: translate(-50%, -100%);
+}
+
+.city-decor__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(4px 5px 3px rgba(0, 20, 0, 0.35));
 }
 
 .city__district-name {
   position: absolute;
-  top: 26%;
-  left: 0;
-  right: 0;
+  top: 1%;
   color: rgba(255, 240, 200, 0.75);
   font-family: var(--font-title);
   font-size: min(14px, 3.6vw);
   text-align: center;
   text-shadow: 0 1px 2px #000;
   pointer-events: none;
-}
-
-/* Новые дома нарисованы пикселями, над дверью — вывеска */
-.building__sprite--drawn svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.building__sign {
-  position: absolute;
-  top: 34%;
-  left: 50%;
-  font-size: min(18px, 4.6vw);
-  transform: translateX(-50%);
-  filter: drop-shadow(0 1px 1px #000);
-}
-
-/* Пиксельный значок здания в его окне */
-.building__art--pixel {
-  color: inherit;
-}
-
-.building__art--pixel svg {
-  height: auto;
 }
 
 /* Окно здания: длинный список службы прокручивается внутри */
@@ -1293,7 +1265,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.city-gate__art svg {
+.city-gate__art {
   display: block;
   width: 100%;
   height: auto;
@@ -1328,7 +1300,7 @@
 @media (prefers-reduced-motion: reduce) {
   .city-hero--walking .city-hero__sprite,
   .city-npc__marker,
-  .city-gate__art svg {
+  .city-gate__art {
     animation: none;
   }
 }
@@ -1404,10 +1376,21 @@
   filter: drop-shadow(0 2px 2px #000);
 }
 
-.building__art svg {
+.building__art svg,
+.building__art img {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* В окне здания — та же 3D-модель, что на карте, только крупнее */
+.building__art--model {
+  width: 140px;
+  height: 121px;
+}
+
+.building__art--model img {
+  object-fit: contain;
 }
 
 .building__name {
@@ -1428,8 +1411,8 @@
 }
 
 .building-details .building__art {
-  width: 96px;
-  height: 96px;
+  width: 150px;
+  height: 130px;
 }
 
 .building-details__text {
@@ -1490,24 +1473,7 @@
   padding: 0 12px;
 }
 
-/* Гильдия и торговец живут в домах, нарисованных на карте: светится контур самого дома */
-.city-service {
-  position: absolute;
-  padding: 0;
-  border: 2px solid rgba(255, 224, 138, 0.8);
-  border-radius: 6px;
-  background: rgba(255, 224, 138, 0.08);
-  color: var(--color-text);
-  cursor: pointer;
-  animation: service-glow 2.2s ease-in-out infinite;
-  -webkit-tap-highlight-color: transparent;
-}
-
-@keyframes service-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(255, 200, 80, 0.6); }
-  50% { box-shadow: 0 0 12px rgba(255, 200, 80, 1); }
-}
-
+/* Гильдия, торговец и места интереса — такие же дома, как здания со службами (.building) */
 /* Значок гильдии или торговца в их окне */
 .service__icon {
   font-size: 56px;

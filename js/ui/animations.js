@@ -3,7 +3,7 @@
 import { TEXTS } from "../data/texts.ru.js";
 import { ATTACK_STYLES } from "./art.js";
 import { playCardSound, playSound } from "./audio.js";
-import { STATUS_ICONS } from "./components/statusIcons.js";
+import { createIcon } from "./icons.js";
 import { hideTooltip } from "./components/tooltip.js";
 import { el } from "./dom.js";
 import { animationMs, vibrate } from "./settings.js";
@@ -235,7 +235,7 @@ function showEvent(event, before) {
     playSound(DRAIN_SOUNDS[event.type]);
     markDeadEnemy(event, target);
   } else if (event.type === "status") {
-    showNumber(target.rect, `${STATUS_ICONS[event.status]}+${event.amount}`, "number--status");
+    showNumber(target.rect, `+${event.amount}`, "number--status", 0, event.status);
   }
 }
 
@@ -299,8 +299,10 @@ function updateUnitView(event, before) {
 }
 
 // Вылетающее число: чем больше урон, тем оно крупнее. Разлетаются в разные стороны, чтобы не слипаться
-function showNumber(rect, text, className, value = 0) {
+// icon — имя значка статуса перед числом
+function showNumber(rect, text, className, value = 0, icon = null) {
   const label = el("div", `number ${className}`, text);
+  if (icon) label.prepend(createIcon(icon, "number__icon"));
   const { x } = centerOf(rect);
   label.style.left = `${x + (Math.random() - 0.5) * rect.width * 0.35}px`;
   label.style.top = `${rect.top + rect.height * 0.3}px`;

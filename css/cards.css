@@ -238,7 +238,7 @@
 .card__line {
   display: flex;
   justify-content: center;
-  align-items: baseline;
+  align-items: center;
   gap: 0.2em;
   max-width: 100%;
   line-height: 1.2;
@@ -246,7 +246,7 @@
 }
 
 .card__icon {
-  font-size: 1em;
+  font-size: 1.2em;
 }
 
 .card__value {

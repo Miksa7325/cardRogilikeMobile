@@ -125,3 +125,31 @@
     conic-gradient(from 0deg at 50% 32%, rgba(140, 60, 255, 0.25), transparent 25%, rgba(220, 160, 255, 0.25) 50%, transparent 75%, rgba(140, 60, 255, 0.25));
   mix-blend-mode: screen;
 }
+
+/* Росчерк клинка (ui/vfxCards.js) */
+.vfx-slash {
+  overflow: visible;
+}
+
+/* Волна тьмы, мороза или яда через всю комнату: цвета задаёт карта */
+.vfx-wave {
+  inset: 8% -20% 30%;
+  background:
+    radial-gradient(ellipse 30% 50% at 70% 50%, var(--wave-1, #e0a8ff), transparent 70%),
+    linear-gradient(90deg, transparent 0%, var(--wave-2, #9a4aff) 35%, var(--wave-1, #e0a8ff) 65%, transparent 85%);
+  filter: blur(8px);
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  -webkit-mask: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+  mask: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+}
+
+/* Ядовитый туман на всю комнату */
+.vfx-poison-fog {
+  inset: -5%;
+  background:
+    radial-gradient(ellipse 40% 25% at 25% 35%, rgba(150, 255, 80, 0.4), transparent 70%),
+    radial-gradient(ellipse 45% 25% at 70% 30%, rgba(110, 230, 60, 0.35), transparent 70%),
+    linear-gradient(180deg, rgba(60, 140, 30, 0.25), rgba(90, 200, 50, 0.15) 60%, transparent);
+  mix-blend-mode: screen;
+}

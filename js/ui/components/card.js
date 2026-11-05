@@ -4,9 +4,9 @@ import { getCardData } from "../../engine/deck.js";
 import { calculateBlock, calculateDamage, getBonus } from "../../engine/effects.js";
 import { playSound } from "../audio.js";
 import { el } from "../dom.js";
-import { CARD_ART } from "../cardArt.js";
+import { CARD_ART, CARD_THEME } from "../cardArt.js";
+import { createIcon } from "../icons.js";
 import { addLongPress } from "../longPress.js";
-import { STATUS_ICONS } from "./statusIcons.js";
 
 const NAME_FIT_LETTERS = 8; // столько букв помещается в строку названия обычным шрифтом
 
@@ -51,29 +51,6 @@ function fillEffect(text, effect, hero, fromCard) {
   }
 }
 
-// Цвет рисунка зависит от главного, что делает карта
-function pickArtColor(card) {
-  const effects = flattenEffects([...card.effects, ...(card.power?.effects ?? [])]);
-  const has = (type) => effects.some((effect) => effect.type === type);
-  const hasStatus = (...names) => effects.some((effect) => names.includes(effect.status));
-  if (card.cost === null) return "skull";
-  if (hasStatus("poison")) return "poison";
-  if (hasStatus("leech")) return "heart";
-  if (card.type === "power") return "star";
-  if (has("damage")) {
-    if (card.target === "allEnemies") return "wave";
-    return effects.filter((effect) => effect.type === "damage").length > 1 ? "blades" : "sword";
-  }
-  if (has("block")) return "shield";
-  if (hasStatus("weak", "vulnerable", "frail")) return "hex";
-  if (has("heal")) return "heart";
-  if (has("gainEnergy")) return "bolt";
-  if (has("draw")) return "scroll";
-  if (has("exhaustWounds")) return "flame";
-  if (has("brewPotion")) return "poison";
-  return "star";
-}
-
 // Число сравниваем с базовым: зелёное — усилено, красное — ослаблено
 function createValue(text, current, base) {
   const value = el("b", "card__value", text);
@@ -82,22 +59,28 @@ function createValue(text, current, base) {
   return value;
 }
 
-function createLine(icon, valueElement, suffix = "") {
+// icon — имя значка из ui/icons.js; suffix — подпись, может быть со значком ресурса: ["+2/", значок]
+function createLine(icon, valueElement, suffix = []) {
   const line = el("div", "card__line");
-  line.append(el("span", "card__icon", icon));
+  line.append(createIcon(icon, "card__icon"));
   if (valueElement) line.append(valueElement);
-  if (suffix) line.append(el("span", "card__suffix", suffix));
+  const parts = [suffix].flat().filter(Boolean);
+  if (parts.length > 0) {
+    const tail = el("span", "card__suffix");
+    tail.append(...parts);
+    line.append(tail);
+  }
   return line;
 }
 
 // Превращает список эффектов в короткие строки со значками. Эффект с целью «все» подписывается,
-// а эффект, который растёт от ресурса героя, — сколько он прибавляет: «+2/💢»
+// а эффект, который растёт от ресурса героя, — сколько он прибавляет: «+2/» и значок ресурса
 function createEffectLines(effects, card, hero, fromCard) {
   const { face } = TEXTS;
   const lines = [];
   const allSuffix = (effect) => (card.target === "allEnemies" || effect.target === "allEnemies" ? face.all : "");
-  const growSuffix = (effect) => (effect.bonus ? `+${effect.bonus.per}/${STATUS_ICONS[effect.bonus.status]}` : "");
-  const suffix = (effect) => [allSuffix(effect), growSuffix(effect)].filter(Boolean).join(" ");
+  const growSuffix = (effect) => (effect.bonus ? [`+${effect.bonus.per}/`, createIcon(effect.bonus.status)] : []);
+  const suffix = (effect) => [allSuffix(effect) && `${allSuffix(effect)} `, ...growSuffix(effect)].filter(Boolean);
 
   for (let i = 0; i < effects.length; i++) {
     const effect = effects[i];
@@ -110,52 +93,52 @@ function createEffectLines(effects, card, hero, fromCard) {
         const base = effect.amount + getBonus(effect, hero);
         const amount = effect.fixed ? base : calculateDamage(base, hero, null);
         const text = hits > 1 ? `${amount}×${hits}` : String(amount);
-        lines.push(createLine("⚔️", createValue(text, amount, effect.amount), suffix(effect)));
+        lines.push(createLine("damage", createValue(text, amount, effect.amount), suffix(effect)));
         break;
       }
       case "block": {
         const amount = calculateBlock(effect.amount + getBonus(effect, hero), hero, fromCard);
-        lines.push(createLine("🛡️", createValue(String(amount), amount, effect.amount), growSuffix(effect)));
+        lines.push(createLine("block", createValue(String(amount), amount, effect.amount), growSuffix(effect)));
         break;
       }
       case "applyStatus": {
         const amount = effect.amount + getBonus(effect, hero);
-        lines.push(createLine(STATUS_ICONS[effect.status], createValue(String(amount), amount, effect.amount), suffix(effect)));
+        lines.push(createLine(effect.status, createValue(String(amount), amount, effect.amount), suffix(effect)));
         break;
       }
       // «Ярость 3:» и под ней то, что случится, если ресурса хватит
       case "spend":
-        lines.push(createLine(STATUS_ICONS[effect.status], createValue(`${effect.amount}:`, 0, 0), face.spend));
+        lines.push(createLine(effect.status, createValue(`${effect.amount}:`, 0, 0), face.spend));
         lines.push(...createEffectLines(effect.effects, card, hero, fromCard));
         break;
       case "brewPotion":
-        lines.push(createLine("🧪", createValue(`+${effect.amount}`, 0, 0), face.brew));
+        lines.push(createLine("brew", createValue(`+${effect.amount}`, 0, 0), face.brew));
         break;
       case "multiplyStatus":
-        lines.push(createLine(STATUS_ICONS[effect.status], createValue(`×${effect.factor}`, 0, 0)));
+        lines.push(createLine(effect.status, createValue(`×${effect.factor}`, 0, 0)));
         break;
       case "draw":
-        lines.push(createLine("🃏", createValue(`+${effect.amount}`, 0, 0)));
+        lines.push(createLine("draw", createValue(`+${effect.amount}`, 0, 0)));
         break;
       case "gainEnergy":
-        lines.push(createLine("⚡", createValue(`+${effect.amount}`, 0, 0)));
+        lines.push(createLine("energy", createValue(`+${effect.amount}`, 0, 0)));
         break;
       case "heal":
-        lines.push(createLine("❤️", createValue(`+${effect.amount}`, 0, 0)));
+        lines.push(createLine("heal", createValue(`+${effect.amount}`, 0, 0)));
         break;
       case "loseHp":
-        lines.push(createLine("🩸", createValue(`−${effect.amount}`, 0, 0)));
+        lines.push(createLine("hpLoss", createValue(`−${effect.amount}`, 0, 0)));
         break;
       case "addCard": {
         // Несколько Ран подряд — одна строка
         let count = 1;
         while (effects[i + count]?.type === "addCard") count += 1;
         i += count - 1;
-        lines.push(createLine("🩹", createValue(`+${count}`, 0, 0), face.wound));
+        lines.push(createLine("wound", createValue(`+${count}`, 0, 0), face.wound));
         break;
       }
       case "exhaustWounds":
-        lines.push(createLine("🔥", null, face.burnWounds));
+        lines.push(createLine("burn", null, face.burnWounds));
         break;
       default: // Сжигание показывается отдельной пометкой внизу карты
         break;
@@ -178,6 +161,11 @@ function createEffects(card, hero) {
   return block;
 }
 
+// Рисунок карты: контур с градиентом темы и тёмной обводкой; цвет и сцену за ним задаёт css/vivid.css
+function artSvg(cardId) {
+  return `<svg viewBox="-16 -16 544 544" aria-hidden="true"><path class="card__art-path" d="${CARD_ART[cardId]}"/></svg>`;
+}
+
 // Лицо карты. Его же использует большая карта в cardPreview.js
 export function fillCardFace(element, instance, hero) {
   const card = getCardData(instance);
@@ -185,8 +173,8 @@ export function fillCardFace(element, instance, hero) {
 
   if (card.cost !== null) element.append(el("div", "card__cost", card.cost));
 
-  const art = el("div", `card__art card__art--${pickArtColor(card)}`);
-  art.innerHTML = `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${CARD_ART[instance.cardId]}"/></svg>`;
+  const art = el("div", `card__art card__art--${CARD_THEME[instance.cardId] ?? "steel"}`);
+  art.innerHTML = artSvg(instance.cardId);
 
   // Длинное слово в названии получает шрифт поменьше, иначе в руке оно разорвётся на части
   const longestWord = Math.max(...fullName.split(" ").map((word) => word.length));
@@ -199,8 +187,9 @@ export function fillCardFace(element, instance, hero) {
 
 // Значок карты для коллекции: только рисунок на цвете её типа, рамка показывает редкость
 export function createCardIcon(card) {
-  const icon = el("div", `collection-tile__icon collection-tile__icon--card card--${card.type} card--${card.rarity}`);
-  icon.innerHTML = `<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="${CARD_ART[card.id]}"/></svg>`;
+  const theme = CARD_THEME[card.id] ?? "steel";
+  const icon = el("div", `collection-tile__icon collection-tile__icon--card card--${card.type} card--${card.rarity} card__art--${theme}`);
+  icon.innerHTML = artSvg(card.id);
   return icon;
 }
 

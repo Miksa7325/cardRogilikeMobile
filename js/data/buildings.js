@@ -1,9 +1,9 @@
 // Здания города. Каждое что-то делает для героев (service) и может добавить в забеги новые события, зелья
 // или реликвии (unlocks). Службы описаны в engine/town.js, их окна — в ui/screens/cityServices.js.
 // price — цена в золоте, у дома героев её нет: он есть с самого начала.
-// district — где стоит здание: center — старый город на рисунке map.png (360×780), east и west — слободы по бокам.
+// district — где стоит здание: center — старый город посередине (360×780), east и west — слободы по бокам.
 // Все дома можно строить с самого начала: слободы стоят по бокам старого города сразу.
-// x и y — место в своём районе. art — у зданий без рисунка в assets/images/city: какой дом нарисовать и какими цветами.
+// x и y — место в своём районе. Рисунок здания — assets/images/city/id.png (3D-модель KayKit), до постройки — plot.png.
 export const BUILDINGS = {
   home: {
     id: "home",
@@ -81,7 +81,6 @@ export const BUILDINGS = {
     price: 120,
     service: "training",
     unlocks: {},
-    art: { shape: "house", roof: "#8a3b2a", wall: "#c9b48a", trim: "#5a3a22", sign: "🗡️" },
   },
   arena: {
     id: "arena",
@@ -93,7 +92,6 @@ export const BUILDINGS = {
     price: 160,
     service: "arena",
     unlocks: {},
-    art: { shape: "arena", roof: "#a8916a", wall: "#d9c9a0", trim: "#6a5232", sign: "⚔️" },
   },
   cosmetics: {
     id: "cosmetics",
@@ -105,7 +103,6 @@ export const BUILDINGS = {
     price: 90,
     service: "cosmetics",
     unlocks: {},
-    art: { shape: "house", roof: "#6a3a8a", wall: "#e0c8e8", trim: "#3a2250", sign: "🎨" },
   },
   fortune: {
     id: "fortune",
@@ -117,6 +114,5 @@ export const BUILDINGS = {
     price: 100,
     service: "fortune",
     unlocks: {},
-    art: { shape: "tent", roof: "#2a5a8a", wall: "#d8c070", trim: "#1a3050", sign: "🔮" },
   },
 };
