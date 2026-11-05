@@ -1,6 +1,6 @@
 // Авторы иконок на картах: сколько иконок каждого автора используется в игре. Этого требует лицензия CC BY 3.0.
 export const ICON_AUTHORS = {
-  "Lorc": 141,
+  "Lorc": 167,
   "Delapouite": 55,
   "Skoll": 7,
   "DarkZaitzev": 5,

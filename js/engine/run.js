@@ -50,7 +50,6 @@ export function createRun({
     currentNodeId: null,
     visitedNodeIds: [], // пройденные комнаты акта: в них ничего не случается заново
     trail: [], // путь героя по акту от начальной комнаты: по нему он возвращается назад
-    cityHeals: [], // комнаты, из которых герой уже поднимался в город и лечился
     shopRemovals: [], // лавки, в которых герой уже избавился от карты: в каждой только раз
     pendingReward: null,
     activeEvent: null, // событие на текущем узле, его создаёт engine/events.js
@@ -269,6 +268,12 @@ export function createNodeCombat(run) {
   }
   for (const enemyId of enemyIds) markSeen(run, "enemies", enemyId);
 
+  // Чем глубже этаж акта, тем враги крепче и сильнее: обойти все комнаты не должно быть бесплатно.
+  // У босса своя настройка в акте, этаж на него не влияет
+  const depth = type === "boss" ? 0 : getCurrentNode(run).floor;
+  const depthHp = 1 + CONFIG.depth.hpPerFloor * depth;
+  const depthStrength = Math.floor(depth / CONFIG.depth.floorsPerStrength);
+
   // Зараза: в колоду каждого боя замешаны Раны. После боя они исчезают вместе с колодой боя
   const wounds = Array.from({ length: act.mechanic.wounds ?? 0 }, () => ({ cardId: "wound", upgraded: false }));
   return createCombat({
@@ -281,9 +286,9 @@ export function createNodeCombat(run) {
     relics: run.relics,
     potions: run.potions,
     // У босса своё здоровье: он и так копит Силу весь бой, и общий множитель акта сделал бы его непробиваемым
-    enemyHpMultiplier: CONFIG.enemyHpMultiplier * (type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier),
-    // Сила врагов: своя у каждого акта и прибавка от особенности
-    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0),
+    enemyHpMultiplier: CONFIG.enemyHpMultiplier * depthHp * (type === "boss" ? act.bossHpMultiplier ?? act.enemyHpMultiplier : act.enemyHpMultiplier),
+    // Сила врагов: своя у каждого акта, прибавка от особенности и от глубины
+    enemyStrength: act.enemyStrength + (act.mechanic.enemyStrength ?? 0) + depthStrength,
     enemyBlock: act.mechanic.enemyBlock ?? 0,
     enemyRamp: act.mechanic.enemyRamp ?? 0,
     heroStatuses: act.mechanic.heroPoison ? { poison: act.mechanic.heroPoison } : {},
@@ -579,19 +584,11 @@ export function restHeal(run) {
   run.hp += getRestHealAmount(run);
 }
 
-// Лечился ли герой в городе, поднявшись из этой комнаты: каждая комната лечит один раз,
-// иначе можно было бы возвращаться к комнате сохранения и лечиться без конца
-export function hasHealedHere(run) {
-  return run.cityHeals.includes(`${run.act}:${run.currentNodeId ?? "start"}`);
-}
-
-// В городе герой отдыхает и лечит часть ран — не все: иначе две комнаты сохранения за акт снимали бы любой риск.
-// Возвращает, сколько HP вылечено
+// В городе герой отдыхает и полностью залечивает раны. Без конца этим не воспользоваться:
+// вернуться в подземелье из комнаты сохранения стоит золота (getReturnPrice). Возвращает, сколько HP вылечено
 export function healInCity(run) {
-  if (hasHealedHere(run)) return 0;
-  const healed = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * CONFIG.cityHealShare));
-  if (healed > 0) run.cityHeals.push(`${run.act}:${run.currentNodeId ?? "start"}`);
-  run.hp += healed;
+  const healed = run.maxHp - run.hp;
+  run.hp = run.maxHp;
   return healed;
 }
 

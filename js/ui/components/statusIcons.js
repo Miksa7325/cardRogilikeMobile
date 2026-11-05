@@ -10,11 +10,13 @@ export const STATUS_ICONS = {
   weak: "🥀",
   frail: "🧊",
   poison: "☠️",
+  leech: "🩸",
   // Ресурсы классов
   rage: "💢",
   combo: "🎯",
   darkness: "🌑",
   reagents: "⚗️",
+  surge: "🔮",
 };
 
 // compact: true показывает только иконку и число, когда места мало (несколько врагов в ряд)

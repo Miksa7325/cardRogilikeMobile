@@ -168,7 +168,7 @@ function isValidRun(run) {
   if (!Array.isArray(run.lockedEventIds) || !Array.isArray(run.lockedPotionIds)) return false;
   if (!Array.isArray(run.seen?.cards) || !Array.isArray(run.seen?.enemies) || !Array.isArray(run.seen?.relics) || !Array.isArray(run.seen?.potions)) return false;
   if (run.currentNodeId !== null && !run.map.nodes[run.currentNodeId]) return false;
-  if (!Array.isArray(run.trail) || !run.trail.every((id) => run.map.nodes[id]) || !Array.isArray(run.cityHeals)) return false;
+  if (!Array.isArray(run.trail) || !run.trail.every((id) => run.map.nodes[id])) return false;
   if (!Number.isFinite(run.essences) || !Array.isArray(run.revealedNodeIds) || !Array.isArray(run.shopRemovals)) return false;
   if (run.savedCombat && !isValidCombat(run.savedCombat)) return false;
 

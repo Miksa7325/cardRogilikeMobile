@@ -10,6 +10,7 @@ import { createNodeCombat, finishCombat } from "../../engine/run.js";
 import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
+import { playCardVfx } from "../vfx.js";
 import { applyHeroLook, enemySprite, heroSprite, IDLE_STYLES } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
 import { createCardElement, shakeCard } from "../components/card.js";
@@ -326,6 +327,17 @@ function onEnemyTap(combat, enemy) {
   else showTooltip(describeEnemy(combat, enemy));
 }
 
+// Откуда и куда летит эффект заклинания: от героя к выбранному врагу или ко всем живым врагам
+function getVfxPositions(before, card, targetId) {
+  const center = (unit) => unit?.portraitRect && {
+    x: unit.portraitRect.left + unit.portraitRect.width / 2,
+    y: unit.portraitRect.top + unit.portraitRect.height / 2,
+  };
+  const enemies = Object.entries(before.units).filter(([id, unit]) => id !== "hero" && unit.hp > 0).map(([, unit]) => unit);
+  const targets = card.target === "enemy" ? [before.units[targetId]] : card.target === "allEnemies" ? enemies : [];
+  return { from: center(before.units.hero), targets: targets.map(center).filter(Boolean) };
+}
+
 // Карту отпустили на цели
 function playDroppedCard(instance, targetId, ghost) {
   const before = captureCombatView(state.combat);
@@ -338,6 +350,7 @@ function playDroppedCard(instance, targetId, ghost) {
     return;
   }
   flyCardAway(ghost);
+  playCardVfx(card.id, getVfxPositions(before, card, targetId));
   clearSelection();
 
   if (card.target === "enemy") notifyTutorial("attackPlayed");

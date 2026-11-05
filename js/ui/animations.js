@@ -119,7 +119,7 @@ export async function playEnemyTurn(before, combat) {
       await strike(event, before);
     } else {
       showEvent(event, before);
-      if (event.type === "poison" || event.type === "hpLoss") await wait(200);
+      if (event.type in DRAIN_SOUNDS) await wait(200);
     }
   }
   await wait(PAUSE_BETWEEN_ENEMIES_MS);
@@ -204,6 +204,10 @@ async function castProjectile(portrait, attacker, target, color) {
   projectile.remove();
 }
 
+// Потеря HP мимо блока: Яд, Печать крови или плата здоровьем
+const DRAIN_NUMBER_CLASSES = { poison: "number--poison", leech: "number--leech", hpLoss: "number--damage" };
+const DRAIN_SOUNDS = { poison: "poison", leech: "magicHit", hpLoss: "hit" };
+
 // Проигрывает одно событие без движения атакующего: числа, вспышки, полоску HP
 function showEvent(event, before) {
   const target = before.units[event.targetId];
@@ -225,10 +229,10 @@ function showEvent(event, before) {
     showNumber(target.rect, `+${event.amount}`, "number--heal");
     updateUnitView(event, before);
     playSound("heal");
-  } else if (event.type === "poison" || event.type === "hpLoss") {
-    showNumber(target.rect, `-${event.amount}`, event.type === "poison" ? "number--poison" : "number--damage", event.amount);
+  } else if (event.type === "poison" || event.type === "hpLoss" || event.type === "leech") {
+    showNumber(target.rect, `-${event.amount}`, DRAIN_NUMBER_CLASSES[event.type], event.amount);
     updateUnitView(event, before);
-    playSound(event.type === "poison" ? "poison" : "hit");
+    playSound(DRAIN_SOUNDS[event.type]);
     markDeadEnemy(event, target);
   } else if (event.type === "status") {
     showNumber(target.rect, `${STATUS_ICONS[event.status]}+${event.amount}`, "number--status");

@@ -415,6 +415,10 @@
   color: #8fe35a;
 }
 
+.number--leech {
+  color: #ff3d7a;
+}
+
 .number--heal {
   color: #7be07b;
 }
@@ -1102,23 +1106,20 @@
   background: url("../assets/images/city/map.png") center / 100% 100% no-repeat;
 }
 
-/* Слобода: трава и дороги, которые продолжают дороги старого города */
+/* Слобода: трава и дороги из того же рисунка, что старый город, — плитки вырезаны из map.png.
+   Плитка травы — 128 пикселей карты, слобода — 260: поэтому размер в процентах ширины слободы */
 .city__district {
   position: absolute;
   top: 0;
   height: 100%;
-  background: rgba(20, 60, 18, 0.25);
+  background: url("../assets/images/city/district-grass.png") 0 0 / calc(128 / 260 * 100%) auto repeat;
 }
 
 .city__road {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 2px solid rgba(70, 50, 20, 0.6);
-  border-bottom: 2px solid rgba(70, 50, 20, 0.6);
-  background:
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 3px, transparent 3px 9px),
-    linear-gradient(180deg, #b48d55, #a2804c);
+  background: url("../assets/images/city/district-road.png") 0 0 / auto 100% repeat-x;
 }
 
 .city__district-name {
@@ -1259,7 +1260,7 @@
   50% { translate: 0 -10%; rotate: 4deg; }
 }
 
-/* Старейшина у фонтана: как и герой, стоит ногами на своей точке */
+/* Старейшина у статуи: как и герой, стоит ногами на своей точке */
 .city-npc {
   position: absolute;
   padding: 0;

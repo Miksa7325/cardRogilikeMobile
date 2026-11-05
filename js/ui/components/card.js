@@ -58,6 +58,7 @@ function pickArtColor(card) {
   const hasStatus = (...names) => effects.some((effect) => names.includes(effect.status));
   if (card.cost === null) return "skull";
   if (hasStatus("poison")) return "poison";
+  if (hasStatus("leech")) return "heart";
   if (card.type === "power") return "star";
   if (has("damage")) {
     if (card.target === "allEnemies") return "wave";

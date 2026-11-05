@@ -34,6 +34,13 @@ export function renderCreditsScreen(root) {
     createLink(credits.ccBy, "https://creativecommons.org/licenses/by/3.0/"),
   );
 
+  const mage = el("section", "credits__block");
+  mage.append(
+    el("h2", "credits__heading", credits.mageTitle),
+    el("p", "credits__text", credits.mageText),
+    createLink(credits.mageLink, "https://vrm.dev/licenses/1.0/"),
+  );
+
   const sounds = el("section", "credits__block");
   sounds.append(
     el("h2", "credits__heading", credits.soundsTitle),
@@ -47,6 +54,6 @@ export function renderCreditsScreen(root) {
   back.type = "button";
   back.addEventListener("click", () => showScreen("start"));
 
-  screen.append(sprites, icons, sounds, back);
+  screen.append(sprites, icons, mage, sounds, back);
   root.append(screen);
 }

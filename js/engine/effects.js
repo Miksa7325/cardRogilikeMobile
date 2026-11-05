@@ -95,6 +95,24 @@ export function applyPoison(combat, unit) {
   checkCombatEnd(combat);
 }
 
+// Печать крови на враге: он теряет HP по числу стаков мимо блока, а герой лечится на столько же.
+// Стаки складываются, а после каждого срабатывания их становится на 1 меньше — как у Яда
+export function applyLeech(combat, unit) {
+  const stacks = unit.statuses.leech;
+  if (!stacks || unit === combat.hero) return;
+  const drained = Math.min(unit.hp, stacks);
+  addTally(combat, "damageDealt", drained);
+  unit.hp -= drained;
+  recordEvent(combat, { type: "leech", targetId: unitId(combat, unit), amount: stacks, hp: unit.hp, block: unit.block });
+  const hero = combat.hero;
+  const before = hero.hp;
+  hero.hp = Math.min(hero.maxHp, hero.hp + drained);
+  recordEvent(combat, { type: "heal", targetId: "hero", amount: hero.hp - before, hp: hero.hp, block: hero.block });
+  reduceStatus(unit, "leech");
+  notifyIfEnemyDied(combat, unit);
+  checkCombatEnd(combat);
+}
+
 export function reduceStatus(unit, status) {
   if (!unit.statuses[status]) return;
   unit.statuses[status] -= 1;
@@ -196,8 +214,9 @@ const EFFECT_HANDLERS = {
   draw(combat, effect) {
     drawCards(combat.piles, effect.amount, combat.rng);
   },
-  gainEnergy(combat, effect) {
-    combat.energy += effect.amount;
+  // Энергия может расти от ресурса: так Маг получает энергию за Прилив
+  gainEnergy(combat, effect, context) {
+    combat.energy += effect.amount + getBonus(effect, context.source);
   },
   addCard(combat, effect) {
     combat.piles[effect.pile].push(createCardInstance(combat.piles, effect.cardId));

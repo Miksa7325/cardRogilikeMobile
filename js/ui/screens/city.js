@@ -1,6 +1,6 @@
 // Город: с него начинается игра. Карта с видом сверху, по которой ходит герой. Подсвеченные дома можно открыть:
 // в каждом построенном доме работает служба (ui/screens/cityServices.js), в гильдии меняют эссенции на золото,
-// у торговца покупают припасы. У фонтана стоит старейшина с заданиями, в конце южной дороги — вход в подземелье.
+// у торговца покупают припасы. У статуи в центре стоит старейшина с заданиями, в конце южной дороги — вход в подземелье.
 // Город растёт в стороны: когда построено достаточно домов, по бокам старого города вырастают слободы.
 import { CONFIG } from "../../config.js";
 import { BUILDINGS } from "../../data/buildings.js";
@@ -10,7 +10,7 @@ import {
   bankLoot, buyBuilding, countReadyQuests, exchangeEssences, getAliveHeroIds, getHeroEquipment, getStartableActs, getTraderGoods,
   isHeroDead, payForReturn, selectHero,
 } from "../../engine/meta.js";
-import { canReturnToCity, getCurrentFloor, getReturnPrice, hasHealedHere, healInCity } from "../../engine/run.js";
+import { canReturnToCity, getCurrentFloor, getReturnPrice, healInCity } from "../../engine/run.js";
 import { isBuilt } from "../../engine/town.js";
 import { loadMeta, loadRun, saveMeta, saveRun } from "../../save.js";
 import { state } from "../../state.js";
@@ -36,6 +36,7 @@ const BUILDING_HEIGHT = 76;
 const HERO_WIDTH = 30;
 const ELDER_WIDTH = 26;
 const GATE_WIDTH = 44;
+const STATUE_WIDTH = 124;
 
 const HERO_SPEED = 120; // пикселей карты в секунду
 const ARRIVE_DISTANCE = 2; // ближе этого герой уже дошёл до точки
@@ -66,11 +67,13 @@ function buildingOrigin(building) {
 }
 const LINE_STEP = 2; // через столько пикселей проверяем, свободна ли прямая
 
-const ELDER = { x: 236, y: 420 }; // старейшина стоит у фонтана; это точка его ног
+const ELDER = { x: 236, y: 420 }; // старейшина стоит у статуи; это точка его ног
 const GATE = { x: 180, y: 778 }; // вход в подземелье в конце южной дороги; это середина его нижнего края
 const GATE_SPOT = { x: 180, y: 734 }; // где стоит герой у входа в подземелье
+// Статуя лучшего игрока стоит в центре города, на перекрёстке между фонарями; это середина низа постамента
+const STATUE = { x: 180, y: 430 };
 
-// Гильдия и торговец живут в домах, нарисованных на карте у фонтана: подсвечиваем сами дома. x и y — левый верхний угол
+// Гильдия и торговец живут в домах, нарисованных на карте у центральной площади: подсвечиваем сами дома. x и y — левый верхний угол
 const GUILD = { x: 210, y: 320, width: 52, height: 46 };
 const TRADER = { x: 211, y: 464, width: 51, height: 46 };
 
@@ -82,7 +85,7 @@ const DECOR_OBSTACLES = [
   { x: 215, y: 70, width: 50, height: 45 },
   { x: 272, y: 62, width: 52, height: 45 },
   { x: 102, y: 322, width: 48, height: 30 },
-  { x: 162, y: 390, width: 36, height: 36 },
+  { x: 162, y: 245, width: 36, height: 36 },
   { x: 116, y: 478, width: 20, height: 24 },
   { x: 0, y: 584, width: 42, height: 46 },
   { x: 47, y: 590, width: 50, height: 45 },
@@ -137,18 +140,15 @@ function buildingSpot(building) {
 // или id здания — у его двери: "home", когда игра только началась, "arena" — после боя на арене
 export function openCity(entrance) {
   heroPosition = BUILDINGS[entrance] ? buildingSpot(BUILDINGS[entrance]) : inCity(GATE_SPOT);
-  // Герой забега, поднявшийся в город, сдаёт добычу в казну и отдыхает: здоровье восстанавливается полностью.
-  // Лечит каждая комната только раз: иначе можно было бы возвращаться к ней и лечиться снова
+  // Герой забега, поднявшийся в город, сдаёт добычу в казну и отдыхает: здоровье восстанавливается полностью
   const run = loadRun();
   const news = [];
   if (run !== null && canReturnToCity(run)) {
     const meta = loadMeta();
     const loot = bankLoot(meta, run);
     if (loot.gold > 0 || loot.essences > 0) news.push(TEXTS.city.banked(loot.gold, loot.essences));
-    const restedBefore = run.hp < run.maxHp && hasHealedHere(run);
     const healed = healInCity(run);
     if (healed > 0) news.push(TEXTS.city.healed(healed));
-    else if (restedBefore) news.push(TEXTS.city.restedBefore);
     state.run = run;
     if (!saveRun(run) || !saveMeta(meta)) news.push(TEXTS.saveFailed);
   }
@@ -166,6 +166,7 @@ export function renderCityScreen(root) {
     createServicePlace(inCity(GUILD), TEXTS.guild.title, openGuild),
     createServicePlace(inCity(TRADER), TEXTS.trader.title, openTrader),
     createElderPlace(meta),
+    createStatuePlace(),
     createGatePlace(),
   ];
   const hero = createHero(loadRun()?.heroId ?? meta.selectedHero, meta);
@@ -295,6 +296,45 @@ function createElderPlace(meta) {
     obstacle: { x: at.x - 8, y: at.y - 8, width: 16, height: 10 },
     open: openElder,
   };
+}
+
+// Мраморная статуя лучшего игрока. Подойдёшь — откроется её большое изображение
+function createStatuePlace() {
+  const at = inCity(STATUE);
+  const statue = el("button", "city-statue");
+  statue.type = "button";
+  statue.style.left = percent(at.x, layout.width);
+  statue.style.top = percent(at.y, MAP_HEIGHT);
+  statue.style.width = percent(STATUE_WIDTH, layout.width);
+  statue.style.zIndex = at.y;
+  const image = el("img", "city-statue__art");
+  image.src = "assets/images/city/statue.png";
+  image.alt = "";
+  image.draggable = false;
+  statue.append(image, el("span", "building__label", TEXTS.city.statue.label));
+  return {
+    element: statue,
+    action: TEXTS.city.statue.look,
+    spot: { x: at.x, y: at.y + 12 },
+    obstacle: { x: at.x - 16, y: at.y - 14, width: 32, height: 14 },
+    open: openStatue,
+  };
+}
+
+function openStatue() {
+  const overlay = el("div", "card-preview");
+  const dialog = el("div", "quest-dialog statue-dialog");
+  const image = el("img", "statue-dialog__art");
+  image.src = "assets/images/city/statue-large.png";
+  image.alt = TEXTS.city.statue.name;
+  dialog.append(
+    image,
+    el("h2", "event__title statue-dialog__name", TEXTS.city.statue.name),
+    el("p", "statue-dialog__title", TEXTS.city.statue.title),
+    createButton(TEXTS.city.close, "button--secondary", () => overlay.remove()),
+  );
+  overlay.append(dialog);
+  document.getElementById("app").append(overlay);
 }
 
 // Вход в подземелье: каменная арка в конце южной дороги

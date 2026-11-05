@@ -90,6 +90,26 @@ export const HEROES = {
     ],
     relics: ["field_cauldron"],
   },
+  mage: {
+    id: "mage",
+    name: "Маг",
+    description: "Прилив: с каждым ходом всё больше энергии на дорогие заклинания.",
+    maxHp: CONFIG.mageMaxHp,
+    mechanic: {
+      name: "Прилив",
+      resource: "surge",
+      text: "В начале каждого хода Маг получает столько дополнительной энергии, сколько у него Прилива, а потом Прилив растёт на 1. Новых карт в руку почти не приходит: заклинания дорогие, их надо тратить с умом. Чародейские карты сильнее за каждый Прилив.",
+      passives: [
+        { trigger: "onTurnStart", effects: [{ type: "gainEnergy", amount: 0, bonus: { status: "surge", per: 1 } }, ...gain("surge")] },
+      ],
+    },
+    deck: [
+      "m_spark", "m_spark", "m_spark", "m_spark",
+      "m_barrier", "m_barrier", "m_barrier", "m_barrier",
+      "m_frostbolt", "m_arcane_blast",
+    ],
+    relics: ["moon_bell"],
+  },
 };
 
 // Сколько зелий носит герой: Алхимик больше остальных

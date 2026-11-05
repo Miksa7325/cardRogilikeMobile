@@ -29,6 +29,15 @@ export const RELICS = {
     trigger: "onCombatStart",
     effects: [{ type: "applyStatus", status: "poison", amount: 2, target: "allEnemies" }],
   },
+  moon_bell: {
+    id: "moon_bell",
+    name: "Лунный колокольчик",
+    icon: "🔔",
+    rarity: "starter",
+    description: "В начале боя +1 Прилив.",
+    trigger: "onCombatStart",
+    effects: [{ type: "applyStatus", status: "surge", amount: 1, target: "self" }],
+  },
   soul_chalice: {
     id: "soul_chalice",
     name: "Чаша душ",

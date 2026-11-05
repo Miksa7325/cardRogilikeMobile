@@ -5,7 +5,7 @@ import { HEROES, getMaxPotions } from "../data/heroes.js";
 import { POTIONS } from "../data/potions.js";
 import { RELICS } from "../data/relics.js";
 import { createCardInstance, createPiles, discardHand, drawCards, getCardData, takeFromHand } from "./deck.js";
-import { addTally, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.js";
+import { addTally, applyLeech, applyPoison, calculateBlock, calculateDamage, executeEffects, fireTrigger, recordEvent, reduceStatus } from "./effects.js";
 import { createRng, nextInt } from "./rng.js";
 
 // Статусы, которые убывают на 1 в конце хода владельца. Сила и Ловкость сюда не входят, у Яда свой порядок.
@@ -197,6 +197,9 @@ function runEnemyTurn(combat) {
 
     enemy.block = 0;
     applyPoison(combat, enemy);
+    if (combat.status !== "playerTurn") return;
+    if (enemy.hp <= 0) continue;
+    applyLeech(combat, enemy);
     if (combat.status !== "playerTurn") return;
     if (enemy.hp <= 0) continue;
 

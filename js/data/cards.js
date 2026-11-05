@@ -1,5 +1,6 @@
 import { ASSASSIN_CARDS } from "./cardsAssassin.js";
 import { ALCHEMIST_CARDS } from "./cardsAlchemist.js";
+import { MAGE_CARDS } from "./cardsMage.js";
 import {
   block, burn, card, damage, draw, energy, gainResource, grow, heal, hits, allStatus, loseHp, selfStatus, spend, status, triggerPower, wound,
 } from "./cardHelpers.js";
@@ -414,4 +415,7 @@ for (const warlockCard of WARLOCK_CARDS) {
 }
 for (const alchemistCard of ALCHEMIST_CARDS) {
   CARDS[alchemistCard.id] = { ...alchemistCard, hero: "alchemist" };
+}
+for (const mageCard of MAGE_CARDS) {
+  CARDS[mageCard.id] = { ...mageCard, hero: "mage" };
 }
