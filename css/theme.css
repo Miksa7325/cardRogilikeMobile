@@ -16,34 +16,33 @@
   overflow: hidden;
 }
 
-/* Стены и пол: крупные пиксели как у моделей. На каждый акт своя текстура */
+/* Стены и пол: гладкие нарисованные текстуры (сверху кладка, снизу пол). На каждый акт своя */
 .scene__texture {
   position: absolute;
   inset: 0;
-  background: url("../assets/images/textures/scene-menu.png") center / cover;
-  image-rendering: pixelated;
+  background: url("../assets/images/textures/scene-menu.jpg") center / cover;
 }
 
 #scene[data-act="1"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act1.png");
+  background-image: url("../assets/images/textures/scene-act1.jpg");
 }
 
 #scene[data-act="2"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act2.png");
+  background-image: url("../assets/images/textures/scene-act2.jpg");
 }
 
 #scene[data-act="3"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act3.png");
+  background-image: url("../assets/images/textures/scene-act3.jpg");
 }
 
 /* Своих текстур у актов 4 и 5 нет: перекрашиваем текстуры актов 2 и 3 — ядовитые топи и багровая цитадель */
 #scene[data-act="4"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act2.png");
+  background-image: url("../assets/images/textures/scene-act2.jpg");
   filter: hue-rotate(60deg) saturate(1.4) brightness(0.85);
 }
 
 #scene[data-act="5"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act3.png");
+  background-image: url("../assets/images/textures/scene-act3.jpg");
   /* Текстура почти серая: сепия даёт ей цвет, который потом сдвигаем в багровый */
   filter: sepia(0.7) hue-rotate(-40deg) saturate(2.4) brightness(0.75);
 }
@@ -51,31 +50,31 @@
 /* Акты 6–10 тоже перекрашивают текстуры первых актов */
 /* Безлунные пещеры: почти чёрный камень */
 #scene[data-act="6"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act1.png");
+  background-image: url("../assets/images/textures/scene-act1.jpg");
   filter: hue-rotate(200deg) saturate(0.6) brightness(0.45);
 }
 
 /* Кузня демонов: раскалённый камень */
 #scene[data-act="7"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act3.png");
+  background-image: url("../assets/images/textures/scene-act3.jpg");
   filter: sepia(0.8) hue-rotate(-25deg) saturate(3) brightness(0.8);
 }
 
 /* Чумной некрополь: гнилая зелень */
 #scene[data-act="8"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act2.png");
+  background-image: url("../assets/images/textures/scene-act2.jpg");
   filter: hue-rotate(35deg) saturate(1.9) brightness(0.75);
 }
 
 /* Легион мёртвых: выбеленная кость */
 #scene[data-act="9"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act3.png");
+  background-image: url("../assets/images/textures/scene-act3.jpg");
   filter: grayscale(1) brightness(0.95) contrast(1.25);
 }
 
 /* Сердце бездны: лиловая тьма */
 #scene[data-act="10"] .scene__texture {
-  background-image: url("../assets/images/textures/scene-act2.png");
+  background-image: url("../assets/images/textures/scene-act2.jpg");
   filter: hue-rotate(220deg) saturate(2.2) brightness(0.65);
 }
 
@@ -256,7 +255,7 @@
   animation-delay: var(--idle-phase, 0ms);
 }
 
-/* Несколько врагов в ряд: модели поменьше. Размеры кратны 32: так пиксели остаются ровными */
+/* Несколько врагов в ряд: модели поменьше */
 .combat__enemies:has(.unit + .unit) .unit__portrait {
   width: 64px;
   height: 64px;
@@ -547,7 +546,7 @@
    дальняя стена с туннелями стоит в её конце. Стены из той же текстуры, что и фон акта */
 .corridor {
   --depth: 240px;
-  --wall: url("../assets/images/textures/scene-act1.png");
+  --wall: url("../assets/images/textures/scene-act1.jpg");
   --stone: #2a2620;
   --tint: hue-rotate(0deg); /* перекраска стен для актов без своей текстуры */
   position: relative;
@@ -556,57 +555,56 @@
   overflow: hidden;
   background: #050407;
   perspective: 420px;
-  image-rendering: pixelated;
 }
 
 .corridor[data-act="2"] {
-  --wall: url("../assets/images/textures/scene-act2.png");
+  --wall: url("../assets/images/textures/scene-act2.jpg");
   --stone: #262a2a;
 }
 
 .corridor[data-act="3"] {
-  --wall: url("../assets/images/textures/scene-act3.png");
+  --wall: url("../assets/images/textures/scene-act3.jpg");
   --stone: #2c2024;
 }
 
 .corridor[data-act="4"] {
-  --wall: url("../assets/images/textures/scene-act2.png");
+  --wall: url("../assets/images/textures/scene-act2.jpg");
   --stone: #1f2a1c;
   --tint: hue-rotate(60deg) saturate(1.4);
 }
 
 .corridor[data-act="5"] {
-  --wall: url("../assets/images/textures/scene-act3.png");
+  --wall: url("../assets/images/textures/scene-act3.jpg");
   --stone: #2e1a1c;
   --tint: sepia(0.7) hue-rotate(-40deg) saturate(2.4);
 }
 
 .corridor[data-act="6"] {
-  --wall: url("../assets/images/textures/scene-act1.png");
+  --wall: url("../assets/images/textures/scene-act1.jpg");
   --stone: #14161c;
   --tint: hue-rotate(200deg) saturate(0.6) brightness(0.45);
 }
 
 .corridor[data-act="7"] {
-  --wall: url("../assets/images/textures/scene-act3.png");
+  --wall: url("../assets/images/textures/scene-act3.jpg");
   --stone: #3a1a10;
   --tint: sepia(0.8) hue-rotate(-25deg) saturate(3) brightness(0.8);
 }
 
 .corridor[data-act="8"] {
-  --wall: url("../assets/images/textures/scene-act2.png");
+  --wall: url("../assets/images/textures/scene-act2.jpg");
   --stone: #262a12;
   --tint: hue-rotate(35deg) saturate(1.9) brightness(0.75);
 }
 
 .corridor[data-act="9"] {
-  --wall: url("../assets/images/textures/scene-act3.png");
+  --wall: url("../assets/images/textures/scene-act3.jpg");
   --stone: #26262a;
   --tint: grayscale(1) brightness(0.95) contrast(1.25);
 }
 
 .corridor[data-act="10"] {
-  --wall: url("../assets/images/textures/scene-act2.png");
+  --wall: url("../assets/images/textures/scene-act2.jpg");
   --stone: #1e1430;
   --tint: hue-rotate(220deg) saturate(2.2) brightness(0.65);
 }
@@ -1319,7 +1317,6 @@
 .building__sprite {
   display: block;
   width: 100%;
-  image-rendering: pixelated;
   animation: building-glow 2.2s ease-in-out infinite;
 }
 
