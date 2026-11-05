@@ -57,8 +57,11 @@ export const TEXTS = {
   credits: {
     button: "Авторы",
     title: "Авторы",
-    spritesTitle: "Герои, враги и фон",
+    spritesTitle: "Фон и текстуры",
     spritesText: "Тайлы проекта Dungeon Crawl Stone Soup, выпущенные их авторами как общественное достояние (CC0). Фон и текстуры карт собраны из этих тайлов.",
+    modelsTitle: "3D-модели героев и врагов",
+    modelsText: "Модели перекрашены, поставлены в позы и отрисованы в спрайты. Авторы:",
+    modelsLink: "poly.pizza",
     spritesLink: "Сборка тайлов на GitHub",
     ccZero: "Лицензия CC0",
     iconsTitle: "Рисунки на картах и зданиях",

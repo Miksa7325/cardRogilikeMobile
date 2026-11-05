@@ -72,8 +72,6 @@ export const HEROES = {
     description: "Варка: носит 4 зелья и варит их прямо в бою.",
     maxHp: CONFIG.alchemistMaxHp,
     maxPotions: 4,
-    // Своего рисунка нет: Алхимик одет как послушник из подземелья
-    sprite: "enemy-acolyte",
     mechanic: {
       name: "Варка",
       resource: "reagents",

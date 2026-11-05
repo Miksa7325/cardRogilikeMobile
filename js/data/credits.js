@@ -12,6 +12,14 @@ export const ICON_AUTHORS = {
   "Caro Asercion": 1
 };
 
+// 3D-модели бойцов и старейшины: перекрашены, поставлены в позу и отрисованы в спрайты.
+// Модели CC BY 3.0 требуют указать автора, остальные — общественное достояние (CC0)
+export const MODEL_CREDITS = [
+  { work: "KayKit: Adventurers, Skeletons, Dungeon Remastered", author: "Kay Lousberg", licence: "CC0" },
+  { work: "Spider, Rat, Wolf, Demon, Ghost, Ghost Skull, Dragon Evolved, Zombie", author: "Quaternius", licence: "CC0" },
+  { work: "Colossus pre Tilt Brush", author: "Darwin Yamamoto", licence: "CC BY 3.0" },
+];
+
 // Звуки и музыка: наборы с OpenGameArt под лицензией CC0. Указывать авторов не обязательно, но так честно
 export const SOUND_CREDITS = [
   { work: "RPG Sound Pack", author: "artisticdude" },

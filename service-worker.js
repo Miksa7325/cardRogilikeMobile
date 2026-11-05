@@ -45,6 +45,8 @@ const FILES = [
   "./assets/images/units/hero-warlock.png",
   "./assets/images/units/hero-warrior.png",
   "./assets/images/units/hero-mage.png",
+  "./assets/images/units/hero-alchemist.png",
+  "./assets/images/units/elder.png",
   "./assets/images/textures/card-attack.png",
   "./assets/images/textures/card-power.png",
   "./assets/images/textures/card-skill.png",

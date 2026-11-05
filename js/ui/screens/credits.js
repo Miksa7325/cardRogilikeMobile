@@ -1,5 +1,5 @@
 // Экран авторов: лицензии требуют указать, чьи рисунки использует игра.
-import { ICON_AUTHORS, SOUND_CREDITS } from "../../data/credits.js";
+import { ICON_AUTHORS, MODEL_CREDITS, SOUND_CREDITS } from "../../data/credits.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
@@ -23,6 +23,16 @@ export function renderCreditsScreen(root) {
     el("p", "credits__text", credits.spritesText),
     createLink(credits.spritesLink, "https://github.com/crawl/tiles"),
     createLink(credits.ccZero, "https://creativecommons.org/publicdomain/zero/1.0/"),
+  );
+
+  const models = el("section", "credits__block");
+  models.append(
+    el("h2", "credits__heading", credits.modelsTitle),
+    el("p", "credits__text", credits.modelsText),
+    el("p", "credits__authors", MODEL_CREDITS.map(({ work, author, licence }) => `«${work}» — ${author} (${licence})`).join(", ")),
+    createLink(credits.modelsLink, "https://poly.pizza"),
+    createLink(credits.ccZero, "https://creativecommons.org/publicdomain/zero/1.0/"),
+    createLink(credits.ccBy, "https://creativecommons.org/licenses/by/3.0/"),
   );
 
   const icons = el("section", "credits__block");
@@ -54,6 +64,6 @@ export function renderCreditsScreen(root) {
   back.type = "button";
   back.addEventListener("click", () => showScreen("start"));
 
-  screen.append(sprites, icons, mage, sounds, back);
+  screen.append(models, mage, sprites, icons, sounds, back);
   root.append(screen);
 }

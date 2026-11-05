@@ -2,7 +2,7 @@ import { HEROES } from "../data/heroes.js";
 import { getHeroFilter } from "../engine/town.js";
 import { loadMeta } from "../save.js";
 
-// Как выглядят бойцы. Спрайты лежат в assets/images/units: откуда они взяты, написано на экране «Авторы».
+// Как выглядят бойцы. Спрайты лежат в assets/images/units: это отрисованные 3D-модели, откуда они взяты — на экране «Авторы».
 // Заменить рисунок просто: положи файл с тем же именем. У героя без своего рисунка в HEROES указан чужой (sprite)
 export function heroSprite(heroId) {
   return `assets/images/units/${HEROES[heroId]?.sprite ?? `hero-${heroId}`}.png`;
@@ -69,36 +69,8 @@ function pixelArt(rows, palette) {
   return `<svg viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${pixels.join("")}</svg>`;
 }
 
-// Старейшина города: седой старик в синей мантии с посохом, у него задания
-export const ELDER_ART = pixelArt([
-  "....kkkkkkkk....",
-  "...khhhhhhhhk...",
-  "...khhsssshhk...",
-  "...khsksskshk...",
-  "...khsssssshk..g",
-  "...khwwwwwwhk..t",
-  "..kbbwwwwwwbbk.t",
-  ".kbbbbwwwwbbbbkt",
-  ".kbdbbbwwbbbdbst",
-  ".kbdbbbgbbbbdbkt",
-  "..kdbbbgbbbbdk.t",
-  "..kdbbbgbbbbdk.t",
-  "..kdbbbgbbbbdk.t",
-  "..kddbbgbbbddk.t",
-  "..kddbbgbbbddk.t",
-  ".kdddbbgbbbdddkt",
-  ".kkkkkkkkkkkkkkt",
-  "...............t",
-], {
-  k: "#1a1420",
-  h: "#6a4a2a",
-  s: "#e8b890",
-  w: "#e8e4dc",
-  b: "#3a5a9a",
-  d: "#26406e",
-  g: "#e0b84c",
-  t: "#8a5a2a",
-});
+// Старейшина города: седобородый старик в синей мантии с посохом, у него задания. Отрисованная 3D-модель, как и бойцы
+export const ELDER_ART = `<img src="assets/images/units/elder.png" alt="" draggable="false">`;
 
 // Вход в подземелье: каменная арка с факелами. Рисунок симметричный, поэтому задана левая половина
 const GATE_HALF = [

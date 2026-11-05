@@ -34,7 +34,7 @@ const ROADS = [[243, 283], [388, 428], [532, 572]];
 const BUILDING_WIDTH = 88;
 const BUILDING_HEIGHT = 76;
 const HERO_WIDTH = 30;
-const ELDER_WIDTH = 26;
+const ELDER_WIDTH = 30;
 const GATE_WIDTH = 44;
 const STATUE_WIDTH = 124;
 

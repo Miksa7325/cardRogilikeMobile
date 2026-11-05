@@ -125,8 +125,3 @@
     conic-gradient(from 0deg at 50% 32%, rgba(140, 60, 255, 0.25), transparent 25%, rgba(220, 160, 255, 0.25) 50%, transparent 75%, rgba(140, 60, 255, 0.25));
   mix-blend-mode: screen;
 }
-
-/* Модель Мага нарисована в 3D, а не пикселями: сглаживание ей не мешает */
-img[src$="hero-mage.png"] {
-  image-rendering: auto;
-}
