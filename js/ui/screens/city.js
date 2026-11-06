@@ -6,7 +6,7 @@
 // В городе есть места интереса: колодец желаний, доска объявлений и дом летописца.
 import { CONFIG } from "../../config.js";
 import { BUILDINGS } from "../../data/buildings.js";
-import { DECOR_HOUSES, DECOR_PROPS, FOUNTAIN, POINTS_OF_INTEREST } from "../../data/cityLayout.js";
+import { DECOR_HOUSES, DECOR_PROPS, FOUNTAIN, POINTS_OF_INTEREST, SERVICE_HOUSES } from "../../data/cityLayout.js";
 import { HEROES } from "../../data/heroes.js";
 import { TEXTS } from "../../data/texts.ru.js";
 import {
@@ -73,9 +73,6 @@ const GATE_SPOT = { x: 180, y: 706 }; // где стоит герой у вхо�
 // Статуя лучшего игрока стоит в центре города, на перекрёстке между фонарями; это середина низа постамента
 const STATUE = { x: 180, y: 430 };
 
-// Гильдия и торговец живут в домиках у центральной площади. x и y — левый верхний угол
-const GUILD = { x: 210, y: 320, width: 52, height: 46 };
-const TRADER = { x: 211, y: 464, width: 51, height: 46 };
 
 // Фонтан нарисован на земле: обойти его можно только по краю площади. Остальные препятствия — дома и деревья
 const FOUNTAIN_OBSTACLE = { x: FOUNTAIN.x - FOUNTAIN.radius, y: FOUNTAIN.y - FOUNTAIN.radius, width: FOUNTAIN.radius * 2, height: FOUNTAIN.radius * 2 };
@@ -157,8 +154,8 @@ export function renderCityScreen(root) {
   const { well, board, chronicler } = POINTS_OF_INTEREST;
   const places = [
     ...Object.values(BUILDINGS).map((building) => createBuildingPlace(meta, building)),
-    createServicePlace(inCity(GUILD), "guild", TEXTS.guild.title, openGuild),
-    createServicePlace(inCity(TRADER), "trader", TEXTS.trader.title, openTrader),
+    createServicePlace(SERVICE_HOUSES.guild, "guild", TEXTS.guild.title, openGuild),
+    createServicePlace(SERVICE_HOUSES.trader, "trader", TEXTS.trader.title, openTrader),
     createServicePlace(well, well.sprite, TEXTS.city.well.title, openWell),
     createServicePlace(board, board.sprite, TEXTS.city.board.title, openBoard),
     createServicePlace(chronicler, chronicler.sprite, TEXTS.city.chronicler.title, openChronicler),

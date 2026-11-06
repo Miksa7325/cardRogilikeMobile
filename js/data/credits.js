@@ -20,8 +20,11 @@ export const ICON_AUTHORS = {
 // 3D-модели бойцов, старейшины и города: перекрашены, поставлены в позу и отрисованы в спрайты.
 // Модели CC BY 3.0 требуют указать автора, остальные — общественное достояние (CC0)
 export const MODEL_CREDITS = [
-  { work: "KayKit: Adventurers, Skeletons, Dungeon Remastered, Medieval Hexagon", author: "Kay Lousberg", licence: "CC0" },
+  { work: "KayKit: Adventurers, Skeletons, Dungeon Remastered, Medieval Hexagon (деревья и мелочи города)", author: "Kay Lousberg", licence: "CC0" },
   { work: "Spider, Rat, Wolf, Demon, Ghost, Ghost Skull, Dragon Evolved, Zombie", author: "Quaternius", licence: "CC0" },
+  { work: "Дома города: Fantasy Inn, Fantasy House, Blacksmith, Bell Tower, Barracks, Castle, Mill, Sawmill, Stable, Well и другие", author: "Quaternius", licence: "CC0" },
+  { work: "Cottage", author: "CreativeTrio", licence: "CC0" },
+  { work: "Church, Gate (poly.pizza)", author: "Poly by Google", licence: "CC BY 3.0" },
   { work: "Colossus pre Tilt Brush", author: "Darwin Yamamoto", licence: "CC BY 3.0" },
 ];
 

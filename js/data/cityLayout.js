@@ -1,26 +1,31 @@
 // Как выглядит город: дома для красоты, деревья, мелочи и места интереса. Здания со службами — в data/buildings.js.
 // Координаты — во всём городе: западная слобода 0–260, старый город 260–620, восточная слобода 620–880, высота 780.
 // Дороги: главная — по x 420–460 сверху до входа в подземелье, поперечные — по y 243–283, 388–428 и 532–572.
-// Рисунки — 3D-модели KayKit (assets/images/city/имя.png); земля нарисована в assets/images/city/ground.jpg по этим же данным.
+// Рисунки — 3D-модели (assets/images/city/имя.png, авторы на экране «Авторы»); земля нарисована в assets/images/city/ground.jpg по этим же данным.
 
 // Жилые дома, мельницы и башни: к ним нельзя зайти, но они загораживают проход. x и y — левый верхний угол места 88×76
 export const DECOR_HOUSES = [
-  { sprite: "deco-home-a-red", x: 272, y: 34 },
-  { sprite: "deco-home-b-yellow", x: 520, y: 30 },
-  { sprite: "deco-home-a-green", x: 272, y: 600 },
-  { sprite: "deco-home-b-green", x: 520, y: 600 },
-  { sprite: "deco-windmill", x: 22, y: 30 },
-  { sprite: "deco-home-a-yellow", x: 22, y: 296 },
-  { sprite: "deco-home-b-red", x: 22, y: 440 },
-  { sprite: "deco-lumbermill", x: 40, y: 600 },
-  { sprite: "deco-home-a-red", x: 160, y: 612 },
-  { sprite: "deco-watermill", x: 650, y: 30 },
+  { sprite: "deco-house-1", x: 272, y: 34 },
+  { sprite: "deco-house-2", x: 520, y: 30 },
+  { sprite: "deco-mill", x: 22, y: 30 },
+  { sprite: "deco-house-3", x: 22, y: 296 },
+  { sprite: "deco-house-4", x: 22, y: 440 },
+  { sprite: "deco-sawmill", x: 40, y: 600 },
+  { sprite: "deco-house-5", x: 160, y: 612 },
+  { sprite: "deco-stable", x: 650, y: 30 },
   { sprite: "deco-tower", x: 778, y: 140 },
-  { sprite: "deco-home-a-yellow", x: 772, y: 296 },
-  { sprite: "deco-home-b-green", x: 772, y: 440 },
-  { sprite: "deco-home-b-red", x: 650, y: 600 },
-  { sprite: "deco-home-a-green", x: 770, y: 612 },
+  { sprite: "deco-house-6", x: 772, y: 296 },
+  { sprite: "deco-house-1", x: 772, y: 440 },
+  { sprite: "deco-house-2", x: 650, y: 600 },
+  { sprite: "deco-house-5", x: 770, y: 612 },
 ];
+
+// Гильдия и торговец — дома обычного размера внизу старого города, у входа в подземелье:
+// перед спуском удобно зайти к торговцу. x и y — левый верхний угол места 88×76
+export const SERVICE_HOUSES = {
+  guild: { sprite: "guild", x: 272, y: 600, width: 88, height: 76 },
+  trader: { sprite: "trader", x: 520, y: 600, width: 88, height: 76 },
+};
 
 // Деревья и мелочи: x и y — точка, где предмет стоит на земле; size — ширина рисунка на карте
 export const DECOR_PROPS = [
@@ -56,6 +61,10 @@ export const DECOR_PROPS = [
   { sprite: "prop-target", x: 636, y: 376, size: 22 },
   { sprite: "prop-barrel", x: 120, y: 218, size: 16 },
   { sprite: "prop-crates", x: 610, y: 516, size: 18 },
+  // У центральной площади, где раньше стояли домики гильдии и торговца
+  { sprite: "tree-b", x: 498, y: 368, size: 44 },
+  { sprite: "prop-crates", x: 486, y: 506, size: 20 },
+  { sprite: "prop-barrel", x: 508, y: 500, size: 18 },
 ];
 
 // Места интереса: колодец желаний, доска объявлений и дом летописца. x и y — левый верхний угол, width и height — размер
