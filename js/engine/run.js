@@ -206,14 +206,14 @@ function findKnownPath(run, nodeId) {
   return path;
 }
 
-// Телепорт в пройденную комнату или в начальную (nodeId — null). Стоит золота, которое несёт герой.
-// Возвращает { ok: true } или { ok: false, reason: "..." }
+// Быстрый переход в пройденную комнату или в начальную (nodeId — null). Он бесплатный, но изредка в пути
+// случается встреча (engine/events.js, startTravelEvent). Возвращает { ok: true, event } или { ok: false, reason: "..." }
 export function travelTo(run, nodeId) {
   const path = nodeId === null ? [] : isNodeCleared(run, nodeId) && findKnownPath(run, nodeId);
   if (!path) return { ok: false, reason: "noPath" };
   run.trail = path;
   run.currentNodeId = nodeId;
-  // Переход бесплатный, но в пути может случиться событие. Счётчик переходов — чтобы шанс не зависел от комнаты
+  // Счётчик переходов — чтобы шанс встречи не зависел от комнаты
   run.teleports = (run.teleports ?? 0) + 1;
   const event = nextFloat(nodeRng(run, `teleport:${run.teleports}`)) < CONFIG.teleportEventChance;
   return { ok: true, event };
@@ -374,6 +374,23 @@ const RUN_EFFECT_HANDLERS = {
   },
   gainGold(run, effect) {
     run.gold += effect.amount;
+  },
+  // Отдать золото, которое несёт герой. Больше, чем есть, не отнимут
+  loseGold(run, effect) {
+    const lost = Math.min(run.gold, effect.amount);
+    run.gold -= lost;
+    return [{ kind: "goldLost", amount: lost }];
+  },
+  // Потерять случайное зелье из сумки. Если сумка пуста, платит здоровьем (fallbackHp)
+  losePotion(run, effect, rng) {
+    if (run.potions.length === 0) {
+      const lost = Math.min(run.hp - 1, effect.fallbackHp ?? 0);
+      run.hp -= lost;
+      return [{ kind: "hpLost", amount: lost }];
+    }
+    const index = nextInt(rng, 0, run.potions.length - 1);
+    const [potionId] = run.potions.splice(index, 1);
+    return [{ kind: "potionLost", id: potionId }];
   },
   gainMaxHp(run, effect) {
     run.maxHp += effect.amount;

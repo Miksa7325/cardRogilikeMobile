@@ -23,8 +23,8 @@ const BLOOD = PALETTES.rose;
 const HEX = ["#ffffff", "#e0a8ff", "#9a4aff", "#3a0a7a"];
 
 // Слова в id карты, по которым видно, как она бьёт
-const THROWN = /throw|dart|knife|knives|toss|fan_|caltrop|shuriken/;
-const EXPLOSIVE = /bomb|mixture|elixir_blast|al_spark|immolate|annihilate|apocalypse/;
+const THROWN = /throw|dart|knife|knives|toss|fan_|caltrop|shuriken|caustic/;
+const EXPLOSIVE = /bomb|mixture|elixir_blast|al_spark|volatile|immolate|annihilate|apocalypse/;
 const SMASH = /bash|heavy|hammer|earthquake|shoulder|kick|knee|hilt|punch|bleed|stunning|executioner|decapitate|doom|berserk|reckless_charge|unstoppable|fortress/;
 const MAGIC_THEMES = new Set(["arcane", "frost", "gold"]);
 const RESOURCES = new Set(["rage", "darkness", "combo", "reagents", "surge"]);

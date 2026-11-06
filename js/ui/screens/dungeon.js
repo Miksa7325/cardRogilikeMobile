@@ -3,7 +3,7 @@
 // Карта акта открывается отдельной кнопкой, если её купили у торговца. Банка светлячков освещает неизведанный проход.
 import { CONFIG } from "../../config.js";
 import { TEXTS } from "../../data/texts.ru.js";
-import { startEvent } from "../../engine/events.js";
+import { getEventData, startEvent, startTravelEvent } from "../../engine/events.js";
 import {
   bankLoot, countReadyQuests, getHeroEquipment, getLockedContent, isHeroDead, keepEquipment, mergeSeen, payForActStart, takeSupplies,
 } from "../../engine/meta.js";
@@ -70,8 +70,11 @@ export function continueRun(run) {
   state.run = run;
   state.test.enabled = false;
   resetPlayTimer();
+  // Незаконченное событие продолжается с того же места: закрыв игру, его не пропустить
+  if (run.activeEvent && !getEventData(run.activeEvent)) run.activeEvent = null;
   if (run.pendingReward) showScreen("reward");
   else if (run.savedCombat) resumeCombat();
+  else if (run.activeEvent) showScreen("event");
   else showScreen("dungeon");
 }
 
@@ -342,7 +345,8 @@ function createMapButton(run) {
     const result = travelTo(run, nodeId);
     if (!result.ok) return;
     if (result.event) {
-      startEvent(run);
+      startTravelEvent(run);
+      saveRun(run);
       showScreen("event");
       showTooltip(TEXTS.dungeon.ambushed);
       return;
@@ -398,6 +402,7 @@ function showRoom(run, cleared) {
     showScreen("reward");
   } else if (type === "event") {
     startEvent(run);
+    saveRun(run);
     showScreen("event");
   } else {
     startNodeCombat();

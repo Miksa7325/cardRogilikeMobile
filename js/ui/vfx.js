@@ -13,6 +13,8 @@ export const CARD_VFX = {
   m_mana_shield: "manaShield", m_blizzard: "blizzard", m_chain_lightning: "chainLightning", m_meteor: "meteor",
   m_surge: "surgeBeam", m_overload: "overload", m_frost_aura: "frostAura", m_focus: "focus",
   m_time_warp: "timeWarp", m_inferno: "inferno", m_starfall: "starfall", m_archmage: "archmage", m_mana_storm: "manaStorm",
+  m_ice_shards: "frostbolt", m_scorch: "ignite", m_arcane_veil: "manaShield", m_spark_rain: "starfall", m_thunderclap: "chainLightning",
+  m_mana_tap: "overload", m_spell_echo: "archmage", m_pyroblast: "fireball", m_clear_mind: "focus", m_absolute_zero: "frostNova",
 };
 
 // Цвета стихий

@@ -360,6 +360,18 @@
   font-size: 28px;
 }
 
+/* Встреча в пути: метка над названием, тревожного цвета */
+.event__tag {
+  margin: 0;
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 120, 90, 0.6);
+  border-radius: 999px;
+  background: rgba(90, 20, 20, 0.6);
+  color: #ffb3a0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
 .event__choice {
   width: calc(100% - 32px);
   min-height: 56px;

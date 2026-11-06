@@ -25,6 +25,13 @@ export const MAGE_CARDS = [
   card("m_static", "Статический разряд", "attack", "common", 1, "allEnemies", "Нанести {damage} урона всем. Наложить {vulnerable} Уязвимости всем.",
     [damage(4), allStatus("vulnerable", 1)], { effects: [damage(6), allStatus("vulnerable", 2)] }),
   card("m_ignite", "Поджог", "skill", "common", 1, "enemy", "Наложить {poison} Яда: враг горит.", [status("poison", 6)], { effects: [status("poison", 9)] }),
+  card("m_ice_shards", "Ледяные осколки", "attack", "common", 1, "enemy", "Нанести {damage} урона 2 раза. Наложить {weak} Слабости.",
+    [...hits(3, 2), status("weak", 1)], { effects: [...hits(4, 2), status("weak", 2)] }),
+  card("m_scorch", "Опаление", "attack", "common", 1, "enemy", "Нанести {damage} урона. Наложить {poison} Яда: враг горит.",
+    [damage(5), status("poison", 3)], { effects: [damage(7), status("poison", 4)] }),
+  card("m_arcane_veil", "Чародейский покров", "skill", "common", 1, "self", "Получить {block} блока. Взять {draw} карту.",
+    [block(5), draw(1)], { effects: [block(8), draw(1)] }),
+  card("m_spark_rain", "Дождь искр", "attack", "common", 2, "allEnemies", "Нанести {damage} урона всем 3 раза.", hits(3, 3), { effects: hits(4, 3) }),
   card("m_mana_shield", "Щит маны", "skill", "common", 1, "self", "Получить {block} блока, +2 за каждый Прилив.",
     [grow(block(4), "surge", 2)], { effects: [grow(block(6), "surge", 3)] }),
 
@@ -41,7 +48,17 @@ export const MAGE_CARDS = [
   card("m_time_warp", "Остановка времени", "skill", "uncommon", 2, "allEnemies", "Наложить {weak} Слабости и {vulnerable} Уязвимости всем. Сжечь.",
     [allStatus("weak", 2), allStatus("vulnerable", 2), burn], { cost: 1 }),
 
+  card("m_thunderclap", "Раскат грома", "attack", "uncommon", 2, "allEnemies", "Нанести {damage} урона всем. Наложить {vulnerable} Уязвимости всем.",
+    [damage(7), allStatus("vulnerable", 1)], { effects: [damage(9), allStatus("vulnerable", 2)] }),
+  card("m_mana_tap", "Исток маны", "skill", "uncommon", 1, "self", "Прилив +{surge}. Сжечь.", [gainResource("surge", 1), burn], { cost: 0 }),
+  triggerPower("m_spell_echo", "Эхо заклинаний", "uncommon", 1, "После каждой атаки {block} блока.", "onCardPlayed", [block(2)], [block(3)], "attack"),
+
   // Редкие
+  card("m_pyroblast", "Пиробласт", "attack", "rare", 3, "enemy", "Нанести {damage} урона. Наложить {poison} Яда: враг горит.",
+    [damage(22), status("poison", 5)], { effects: [damage(28), status("poison", 7)] }),
+  cheaperPower("m_clear_mind", "Ясный разум", "rare", 2, "В начале хода взять {draw} карту.", "onTurnStart", [draw(1)], 1),
+  card("m_absolute_zero", "Абсолютный ноль", "skill", "rare", 2, "allEnemies", "Наложить {weak} Слабости всем. Получить {block} блока. Сжечь.",
+    [allStatus("weak", 3), block(14), burn], { effects: [allStatus("weak", 3), block(18), burn] }),
   card("m_inferno", "Инферно", "attack", "rare", 5, "allEnemies", "Нанести {damage} урона всем врагам.", [damage(22)], { effects: [damage(30)] }),
   card("m_starfall", "Звездопад", "attack", "rare", 4, "allEnemies", "Нанести {damage} урона всем 4 раза.", hits(5, 4), { effects: hits(7, 4) }),
   card("m_archmage", "Архимаг", "power", "rare", 3, "self", "Получить {strength} Силы.", [selfStatus("strength", 3)], { cost: 2 }),

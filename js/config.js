@@ -78,7 +78,7 @@ export const CONFIG = {
   restHealShare: 0.3, // какую долю максимального HP лечит отдых
   // Враги глубже в акте: +hpPerFloor к здоровью за этаж и +1 Сила за каждые floorsPerStrength этажей
   depth: { hpPerFloor: 0.025, floorsPerStrength: 6 },
-  teleportEventChance: 0.3, // шанс, что быстрый переход по карте прервёт событие
+  teleportEventChance: 0.07, // шанс, что быстрый переход по карте прервёт встреча в пути (data/events.js, TRAVEL_EVENTS)
   // Плата из казны за возвращение в подземелье через комнату сохранения: base + perAct × номер акта
   returnPrice: { base: 10, perAct: 5 },
 
