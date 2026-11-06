@@ -1,4 +1,5 @@
 /* Эффекты заклинаний на поле боя (js/ui/vfx.js). Слои лежат поверх бойцов, но под числами урона и окнами.
+   Без mix-blend-mode и blur: на весь экран они слишком дороги для слабого телефона, а мягкость дают сами градиенты.
    Нажатия они не ловят: бой можно продолжать, пока эффект доигрывает */
 .vfx-canvas,
 .vfx {
@@ -20,7 +21,6 @@
 
 .vfx-flash {
   inset: 0;
-  mix-blend-mode: screen;
 }
 
 .vfx-ring {
@@ -42,15 +42,12 @@
   background:
     radial-gradient(ellipse 30% 50% at 70% 50%, rgba(255, 245, 190, 0.9), transparent 70%),
     linear-gradient(90deg, transparent 0%, rgba(255, 70, 10, 0.55) 30%, rgba(255, 160, 40, 0.9) 60%, rgba(255, 230, 140, 0.95) 72%, transparent 85%);
-  filter: blur(6px);
-  mix-blend-mode: screen;
 }
 
 /* Кольцо льда: иней по краям экрана */
 .vfx-frost-edge {
   inset: 0;
   background: radial-gradient(ellipse 75% 65% at 50% 45%, transparent 50%, rgba(170, 225, 255, 0.55) 85%, rgba(230, 248, 255, 0.85));
-  mix-blend-mode: screen;
 }
 
 /* Снежная буря: холодный туман, который несёт ветер */
@@ -93,7 +90,6 @@
   background:
     linear-gradient(0deg, rgba(255, 90, 10, 0.75), rgba(255, 140, 30, 0.35) 35%, rgba(255, 60, 0, 0.12) 70%, transparent),
     radial-gradient(ellipse 80% 50% at 50% 100%, rgba(255, 230, 140, 0.6), transparent 70%);
-  mix-blend-mode: screen;
 }
 
 /* Звездопад: комната погружается в ночь */
@@ -112,8 +108,6 @@
 .vfx-pillar {
   width: 110px;
   background: linear-gradient(90deg, transparent, rgba(255, 230, 140, 0.75) 35%, rgba(255, 255, 230, 0.95) 50%, rgba(255, 230, 140, 0.75) 65%, transparent);
-  filter: blur(3px);
-  mix-blend-mode: screen;
   transform-origin: 50% 100%;
 }
 
@@ -123,7 +117,6 @@
   background:
     radial-gradient(ellipse 55% 30% at 50% 32%, rgba(200, 120, 255, 0.45), transparent 70%),
     conic-gradient(from 0deg at 50% 32%, rgba(140, 60, 255, 0.25), transparent 25%, rgba(220, 160, 255, 0.25) 50%, transparent 75%, rgba(140, 60, 255, 0.25));
-  mix-blend-mode: screen;
 }
 
 /* Росчерк клинка (ui/vfxCards.js) */
@@ -137,9 +130,7 @@
   background:
     radial-gradient(ellipse 30% 50% at 70% 50%, var(--wave-1, #e0a8ff), transparent 70%),
     linear-gradient(90deg, transparent 0%, var(--wave-2, #9a4aff) 35%, var(--wave-1, #e0a8ff) 65%, transparent 85%);
-  filter: blur(8px);
   opacity: 0.85;
-  mix-blend-mode: screen;
   -webkit-mask: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
   mask: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
 }
@@ -151,5 +142,4 @@
     radial-gradient(ellipse 40% 25% at 25% 35%, rgba(150, 255, 80, 0.4), transparent 70%),
     radial-gradient(ellipse 45% 25% at 70% 30%, rgba(110, 230, 60, 0.35), transparent 70%),
     linear-gradient(180deg, rgba(60, 140, 30, 0.25), rgba(90, 200, 50, 0.15) 60%, transparent);
-  mix-blend-mode: screen;
 }

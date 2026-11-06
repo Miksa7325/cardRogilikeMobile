@@ -304,9 +304,10 @@
   animation: card-played calc(260ms * var(--anim-speed)) ease-out forwards;
 }
 
+/* Только масштаб и прозрачность: их видеокарта анимирует сама, без перерисовки карты */
 @keyframes card-played {
-  40% { filter: brightness(2.2); opacity: 1; }
-  100% { filter: brightness(3); opacity: 0; scale: 1.25; }
+  40% { opacity: 1; scale: 1.12; }
+  100% { opacity: 0; scale: 1.25; }
 }
 
 /* Большая карта поверх экрана */

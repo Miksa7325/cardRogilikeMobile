@@ -4,6 +4,7 @@ import { TEXTS } from "../data/texts.ru.js";
 import { ATTACK_STYLES } from "./art.js";
 import { playCardSound, playSound } from "./audio.js";
 import { createIcon } from "./icons.js";
+import { setHpFill } from "./components/hpBar.js";
 import { hideTooltip } from "./components/tooltip.js";
 import { el } from "./dom.js";
 import { animationMs, vibrate } from "./settings.js";
@@ -150,9 +151,9 @@ function discardHandView() {
 function castAnimation(enemyId) {
   playSound("enemyCast");
   return animate(portraitOf(enemyId), [
-    { transform: "none", filter: "none" },
-    { transform: "translateY(-8px) scale(1.12)", filter: "brightness(1.8) drop-shadow(0 0 12px #c77dff)", offset: 0.5 },
-    { transform: "none", filter: "none" },
+    { transform: "none" },
+    { transform: "translateY(-8px) scale(1.12)", offset: 0.5 },
+    { transform: "none" },
   ], CAST_MS);
 }
 
@@ -193,9 +194,9 @@ async function strike(event, before) {
 async function castProjectile(portrait, attacker, target, color) {
   playSound("magicCast");
   animate(portrait, [
-    { transform: "none", filter: "none" },
-    { transform: "translateY(4px) scale(1.08)", filter: `brightness(1.7) drop-shadow(0 0 10px ${color})`, offset: 0.4 },
-    { transform: "none", filter: "none" },
+    { transform: "none" },
+    { transform: "translateY(4px) scale(1.08)", offset: 0.4 },
+    { transform: "none" },
   ], PROJECTILE_MS + 80);
 
   const from = centerOf(attacker.portraitRect);
@@ -227,9 +228,9 @@ function showEvent(event, before) {
     showNumber(target.rect, `🛡️+${event.amount}`, "number--block");
     updateUnitView(event, before);
     animate(portraitOf(event.targetId), [
-      { transform: "none", filter: "none" },
-      { transform: "scale(1.1)", filter: "brightness(1.4) drop-shadow(0 0 10px #6db2ff)", offset: 0.4 },
-      { transform: "none", filter: "none" },
+      { transform: "none" },
+      { transform: "scale(1.1)", offset: 0.4 },
+      { transform: "none" },
     ], 300);
     playSound("shield");
   } else if (event.type === "heal") {
@@ -261,10 +262,10 @@ function showHit(event, before, impactKind) {
 
   updateUnitView(event, before);
   animate(portraitOf(event.targetId), [
-    { transform: "none", filter: "none" },
-    { transform: "translateX(-8px) rotate(-7deg)", filter: "brightness(2.4) saturate(0.2)", offset: 0.15 },
-    { transform: "translateX(6px) rotate(4deg)", filter: "brightness(1.3)", offset: 0.45 },
-    { transform: "none", filter: "none" },
+    { transform: "none", opacity: 1 },
+    { transform: "translateX(-8px) rotate(-7deg)", opacity: 0.55, offset: 0.15 },
+    { transform: "translateX(6px) rotate(4deg)", opacity: 1, offset: 0.45 },
+    { transform: "none", opacity: 1 },
   ], 300);
 
   playSound(event.hpLost > 0 ? IMPACT_SOUNDS[impactKind] : "block");
@@ -296,7 +297,7 @@ function updateUnitView(event, before) {
   const element = findUnit(event.targetId);
   if (!element || !target) return;
 
-  element.querySelector(".hp-bar__fill").style.width = `${(event.hp / target.maxHp) * 100}%`;
+  setHpFill(element.querySelector(".hp-bar__fill"), event.hp / target.maxHp);
   const blockText = event.block > 0 ? ` 🛡️${event.block}` : "";
   element.querySelector(".hp-bar__label").textContent = `${event.hp}/${target.maxHp}${blockText}`;
   element.querySelector(".hp-bar").classList.toggle("hp-bar--blocked", event.block > 0);
@@ -335,12 +336,12 @@ function showImpact(rect, kind) {
 function animateHpBar(element, previous) {
   const fill = element.querySelector(".hp-bar__fill");
   if (!fill) return;
-  const target = fill.style.width;
+  const target = fill.style.transform;
   fill.style.transition = "none";
-  fill.style.width = `${(previous.hp / previous.maxHp) * 100}%`;
-  fill.getBoundingClientRect(); // браузер должен применить старую ширину до начала анимации
+  setHpFill(fill, previous.hp / previous.maxHp);
+  fill.getBoundingClientRect(); // браузер должен применить старое значение до начала анимации
   fill.style.transition = "";
-  fill.style.width = target;
+  fill.style.transform = target;
 }
 
 // Убитый враг уже исчез из боя, поэтому на его месте растворяется копия

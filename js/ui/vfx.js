@@ -3,7 +3,7 @@
 // Частицы (снег, искры, угли, звёзды) рисуются на холсте поверх боя, молнии, кольца, лучи и вспышки — элементами
 // с анимацией. Все длительности умножаются на --anim-speed: при ускорении ×2 эффекты тоже вдвое короче.
 import { el } from "./dom.js";
-import { getAnimationSpeed } from "./settings.js";
+import { getAnimationSpeed, isLiteGraphics } from "./settings.js";
 
 // Какой эффект у какой карты
 export const CARD_VFX = {
@@ -71,7 +71,7 @@ export function ensureCanvas() {
 // Частицы мягкие, поэтому холсту хватает полуторной чёткости: на телефоне с плотным экраном это вдвое меньше работы
 function resizeCanvas() {
   if (!canvas) return;
-  const ratio = Math.min(1.5, window.devicePixelRatio || 1);
+  const ratio = isLiteGraphics() ? 1 : Math.min(1.5, window.devicePixelRatio || 1);
   canvas.width = Math.round(window.innerWidth * ratio);
   canvas.height = Math.round(window.innerHeight * ratio);
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -80,6 +80,8 @@ function resizeCanvas() {
 // Частица: позиция, скорость, ускорение, жизнь в мс, размер, цвет и форма
 export function spawn(particle) {
   if (particles.length >= MAX_PARTICLES) return;
+  // Лёгкая графика: каждая вторая частица не появляется, эффект остаётся узнаваемым
+  if (isLiteGraphics() && Math.random() < 0.5) return;
   particles.push({
     vx: 0, vy: 0, ax: 0, ay: 0, drag: 0, size: 4, grow: 0, life: 800, age: 0, shape: "glow", spin: 0, angle: 0, wobble: 0, seed: Math.random() * 6,
     delay: 0, ...particle, life: ms(particle.life ?? 800), delay: ms(particle.delay ?? 0),

@@ -101,8 +101,19 @@ function createButton(text, modifier, onTap) {
 }
 
 // Рисунок из assets/images/city: здания, дома, деревья и мелочи
+// Размер рисунка известен заранее: браузер сразу оставляет под него место и не перестраивает город,
+// когда картинки догружаются одна за другой. Дома — 352×304, колодец, доска и вход — 208×184, мелочи — 128×128
+const SMALL_SPRITES = ["board", "gate", "well"];
+function spriteSize(name) {
+  if (name.startsWith("prop-") || name.startsWith("tree")) return [128, 128];
+  if (SMALL_SPRITES.includes(name)) return [208, 184];
+  return [352, 304];
+}
+
 function createSpriteImage(name, className = "") {
   const image = el("img", className);
+  [image.width, image.height] = spriteSize(name);
+  image.decoding = "async";
   image.src = `assets/images/city/${name}.png`;
   image.alt = "";
   image.draggable = false;

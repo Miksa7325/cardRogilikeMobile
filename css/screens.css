@@ -139,7 +139,8 @@
 
 /* Плавное изменение полоски HP */
 .hp-bar__fill {
-  transition: width calc(300ms * var(--anim-speed));
+  transform-origin: left center;
+  transition: transform calc(300ms * var(--anim-speed));
 }
 
 /* Анимации боя: удары и числа описаны в theme.css */
@@ -153,7 +154,7 @@
 }
 
 @keyframes unit-die {
-  to { opacity: 0; scale: 0.8; translate: 0 12px; filter: brightness(0.3); }
+  to { opacity: 0; scale: 0.8; translate: 0 12px; }
 }
 
 /* Закрывает экран, пока идёт ход врагов или пауза в конце боя */
@@ -763,6 +764,7 @@
 }
 
 .hp-bar__fill {
+  width: 100%;
   height: 100%;
   background: var(--color-hp);
 }

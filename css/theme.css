@@ -1333,6 +1333,7 @@
 .building__sprite {
   display: block;
   width: 100%;
+  height: auto;
 }
 
 .building::before,

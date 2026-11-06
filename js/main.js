@@ -4,7 +4,7 @@ import { HEROES } from "./data/heroes.js";
 import { TEXTS } from "./data/texts.ru.js";
 import { requestPersistentStorage } from "./save.js";
 import { preloadSprites } from "./ui/art.js";
-import { playSound, unlockAudio } from "./ui/audio.js";
+import { playSound, prepareAudio, unlockAudio } from "./ui/audio.js";
 import { enableReliableTaps } from "./ui/reliableTap.js";
 import { registerScreen, showScreen } from "./ui/router.js";
 import { createScene } from "./ui/scene.js";
@@ -59,6 +59,8 @@ requestPersistentStorage();
 
 // Браузер разрешает звук только после нажатия. Каждая кнопка заодно тихо щёлкает
 document.addEventListener("pointerdown", unlockAudio);
+// Звук готовим заранее, пока игрок смотрит на меню, чтобы первое нажатие не подвисало
+(window.requestIdleCallback ?? ((callback) => setTimeout(callback, 1200)))(() => prepareAudio(), { timeout: 3000 });
 document.addEventListener("click", (event) => {
   if (event.target.closest("button")) playSound("click");
 });

@@ -12,7 +12,7 @@ import { createMeta } from "./engine/meta.js";
 
 const SLOT_KEY = "cardRpg.slot"; // номер выбранной ячейки
 const SETTINGS_KEY = "cardRpg.settings";
-const DEFAULT_SETTINGS = { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true };
+const DEFAULT_SETTINGS = { music: 0.5, effects: 0.8, fastAnimations: false, vibration: true, graphics: "auto" };
 
 // Первая ячейка лежит под старыми ключами: так прогресс, сделанный до появления ячеек, оказался в ней
 function runKey(slot) {

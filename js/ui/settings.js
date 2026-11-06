@@ -4,11 +4,27 @@ import { setVolumes } from "./audio.js";
 
 const ANIMATION_MS = 300; // обычная длительность анимации
 let speedFactor = 1;
+let lite = false;
+
+// Слабый телефон: мало ядер или мало памяти. Ему по умолчанию достаётся лёгкая графика
+export function isWeakDevice() {
+  const cores = navigator.hardwareConcurrency ?? 8;
+  const memory = navigator.deviceMemory ?? 8;
+  return cores <= 4 || memory <= 3;
+}
+
+// Лёгкая графика: без постоянных анимаций фона, без лишних теней и с вдвое меньшим числом частиц.
+// Её читают эффекты боя (ui/vfx.js), а CSS — по классу lite на <html>
+export function isLiteGraphics() {
+  return lite;
+}
 
 export function applySettings() {
   const settings = loadSettings();
   setVolumes(settings.music, settings.effects);
   speedFactor = settings.fastAnimations ? 0.5 : 1;
+  lite = settings.graphics === "lite" || (settings.graphics !== "full" && isWeakDevice());
+  document.documentElement.classList.toggle("lite", lite);
   // Системная настройка «уменьшить движение» важнее: почти убираем анимации
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) speedFactor = 0.01;
   // CSS берёт скорость из этой переменной

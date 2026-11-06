@@ -36,12 +36,12 @@ let mood = "menu";
 let music = null; // { mood, source, gain }
 let musicRequest = 0;
 
-// Вызывается на каждом нажатии: первое включает звук, остальные возобновляют его, если браузер его приостановил
-export function unlockAudio() {
-  if (context) {
-    if (context.state !== "running" && !document.hidden) context.resume();
-    return;
-  }
+let started = false;
+
+// Готовит звук заранее, пока игрок смотрит на меню: создать AudioContext на слабом телефоне — это десятки
+// миллисекунд, и в обработчике первого нажатия они ощущались как подвисание. До нажатия контекст молчит
+export function prepareAudio() {
+  if (context) return;
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
   if (!AudioContextClass) return;
 
@@ -51,15 +51,27 @@ export function unlockAudio() {
   musicGain.connect(context.destination);
   effectsGain.connect(context.destination);
   applyVolumes();
-  loadSounds();
-  switchMusic(mood);
 
   // Свернули игру — звук молчит и не тратит батарею. Музыка играет через Web Audio, а не через <audio>:
   // поэтому она не занимает системный проигрыватель телефона и не появляется на экране блокировки
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) context.suspend();
-    else context.resume();
+    else if (started) context.resume();
   });
+}
+
+// Вызывается на каждом нажатии: браузер разрешает звук только после него. Первое нажатие включает звук,
+// остальные возобновляют его, если браузер его приостановил. Загрузка звуков идёт уже после нажатия, не задерживая его
+export function unlockAudio() {
+  prepareAudio();
+  if (!context) return;
+  if (context.state !== "running" && !document.hidden) context.resume();
+  if (started) return;
+  started = true;
+  setTimeout(() => {
+    loadSounds();
+    switchMusic(mood);
+  }, 0);
 }
 
 function applyVolumes() {
@@ -73,19 +85,27 @@ export function setVolumes(musicVolume, effectsVolume) {
   applyVolumes();
 }
 
-// Загружает все короткие звуки. Они маленькие, поэтому хранятся уже раскодированными и играют без задержки
+// Загружает все короткие звуки. Они маленькие, поэтому хранятся уже раскодированными и играют без задержки.
+// Грузим по три файла за раз, а не все полсотни сразу: так слабый телефон не захлёбывается в начале игры
+const SOUND_LOADS_AT_ONCE = 3;
 function loadSounds() {
+  const queue = [];
   for (const [name, count] of Object.entries(SOUND_VARIANTS)) {
     const files = count === 0 ? [`${name}.mp3`] : Array.from({ length: count }, (_, index) => `${name}-${index + 1}.mp3`);
     buffers[name] = [];
-    for (const file of files) {
-      fetch(`assets/sounds/sfx/${file}`)
-        .then((response) => response.arrayBuffer())
-        .then((data) => context.decodeAudioData(data))
-        .then((buffer) => buffers[name].push(buffer))
-        .catch(() => {});
-    }
+    for (const file of files) queue.push({ name, file });
   }
+  const next = async () => {
+    for (let item = queue.shift(); item; item = queue.shift()) {
+      try {
+        const data = await (await fetch(`assets/sounds/sfx/${item.file}`)).arrayBuffer();
+        buffers[item.name].push(await context.decodeAudioData(data));
+      } catch {
+        // Звук не загрузился: игра просто обойдётся без него
+      }
+    }
+  };
+  for (let i = 0; i < SOUND_LOADS_AT_ONCE; i++) next();
 }
 
 export function playSound(name) {
@@ -121,7 +141,7 @@ export function playCardSound(type) {
 export function setMusicMood(newMood) {
   if (newMood === mood) return;
   mood = newMood;
-  if (context) switchMusic(mood);
+  if (started) switchMusic(mood);
 }
 
 // Плавно сменяет музыку. Файл берём через fetch (его кэширует service worker), поэтому музыка работает и без сети
@@ -167,18 +187,20 @@ async function loadMusic(name) {
   return buffer;
 }
 
-// Раскодирует трек сразу в 24 кГц и сводит стерео в моно. Если браузер так не умеет — обычное раскодирование
+// Раскодирует трек сразу в 24 кГц и сводит стерео в моно. Сводит сам браузер в своём звуковом потоке,
+// а не цикл на JavaScript: цикл по миллионам отсчётов подвешивал слабый телефон при каждой смене музыки.
+// Если браузер так не умеет — обычное раскодирование
 async function decodeCompact(data) {
   const Offline = window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
   try {
     const decoded = await new Offline(1, 1, MUSIC_SAMPLE_RATE).decodeAudioData(data.slice(0));
     if (decoded.numberOfChannels === 1) return decoded;
-    const mono = context.createBuffer(1, decoded.length, decoded.sampleRate);
-    const out = mono.getChannelData(0);
-    const left = decoded.getChannelData(0);
-    const right = decoded.getChannelData(1);
-    for (let i = 0; i < out.length; i++) out[i] = (left[i] + right[i]) * 0.5;
-    return mono;
+    const mixer = new Offline(1, decoded.length, decoded.sampleRate);
+    const source = mixer.createBufferSource();
+    source.buffer = decoded;
+    source.connect(mixer.destination);
+    source.start();
+    return await mixer.startRendering();
   } catch {
     return context.decodeAudioData(data);
   }

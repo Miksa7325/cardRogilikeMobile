@@ -43,7 +43,7 @@
 .scene__tint::after {
   content: "";
   position: absolute;
-  inset: -20% -40%;
+  inset: 0 -12%; /* слой чуть шире экрана: огромный слой тумана занимал десятки мегабайт видеопамяти */
   background:
     radial-gradient(ellipse 35% 18% at 30% 70%, var(--act-light), transparent 70%),
     radial-gradient(ellipse 30% 14% at 70% 82%, var(--act-light), transparent 70%),
@@ -681,7 +681,6 @@
 
 .corridor__light {
   background: linear-gradient(180deg, rgba(255, 240, 190, 0.55), rgba(255, 220, 140, 0.15) 70%, transparent);
-  filter: blur(2px);
 }
 
 /* Арки туннелей: тёсаный камень с выпуклой кромкой и мерцающей глубиной */
@@ -936,4 +935,59 @@
 .notice--news {
   border-color: #ffd36a;
   color: #fff0b0;
+}
+
+/* ---------- Лёгкая графика (настройка «Графика», класс lite на <html>, ui/settings.js) ----------
+   Для слабых телефонов: фон и город стоят неподвижно, у картинок одна тень вместо нескольких,
+   модели не «дышат». Игра выглядит так же, но видеокарте почти не приходится рисовать на каждом кадре */
+.lite .scene__ember,
+.lite .scene__tint::after {
+  display: none;
+}
+
+.lite .scene__torchlight,
+.lite .building::before,
+.lite .city-gate::before,
+.lite .tunnel__sign::before,
+.lite .tunnel__sign--revealed::before,
+.lite .hatch__sign--revealed::before,
+.lite .corridor__wall::after,
+.lite .combat__enemies .unit__portrait::after,
+.lite .card--rare .card__art::before,
+.lite .card--large,
+.lite .city-npc__marker,
+.lite .unit__intent {
+  animation: none;
+}
+
+.lite .building::before,
+.lite .city-gate::before {
+  opacity: 0.55;
+  will-change: auto;
+}
+
+.lite .scene__torchlight {
+  will-change: auto;
+}
+
+.lite .unit__portrait img {
+  animation: none;
+  filter: var(--look,) saturate(1.45) drop-shadow(0 6px 4px rgba(0, 0, 0, 0.5));
+}
+
+.lite .card__art svg {
+  filter: drop-shadow(0 0.08em 0 rgba(0, 0, 0, 0.9));
+}
+
+.lite .gi svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85));
+}
+
+.lite .building__sprite,
+.lite .city-gate__art,
+.lite .city-decor__art,
+.lite .city-hero__sprite,
+.lite .city-npc__art,
+.lite .city-statue__art {
+  filter: none;
 }

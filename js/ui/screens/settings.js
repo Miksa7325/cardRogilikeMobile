@@ -5,7 +5,7 @@ import { playSound } from "../audio.js";
 import { showTooltip } from "../components/tooltip.js";
 import { el } from "../dom.js";
 import { showScreen } from "../router.js";
-import { applySettings, isVibrationSupported, vibrate } from "../settings.js";
+import { applySettings, isLiteGraphics, isVibrationSupported, vibrate } from "../settings.js";
 
 function createButton(text, modifier, onTap) {
   const button = el("button", `button ${modifier}`, text);
@@ -36,6 +36,7 @@ export function renderSettingsScreen(root) {
       showScreen("settings");
     }),
     createVibrationControl(settings),
+    createGraphicsControl(settings),
     createButton(TEXTS.settings.replayTutorial, "button--secondary", () => {
       const meta = loadMeta();
       meta.tutorialDone = false;
@@ -69,6 +70,17 @@ function createVibrationControl(settings) {
   return createToggle(settings.vibration ? TEXTS.settings.vibrationOn : TEXTS.settings.vibrationOff, () => {
     changeSettings((s) => { s.vibration = !s.vibration; });
     vibrate(60);
+    showScreen("settings");
+  });
+}
+
+// Графика по кругу: авто → полная → лёгкая. Авто выбирает лёгкую на слабом телефоне
+const GRAPHICS_ORDER = ["auto", "full", "lite"];
+function createGraphicsControl(settings) {
+  const mode = GRAPHICS_ORDER.includes(settings.graphics) ? settings.graphics : "auto";
+  const text = mode === "auto" ? TEXTS.settings.graphics.auto(isLiteGraphics()) : TEXTS.settings.graphics[mode];
+  return createToggle(text, () => {
+    changeSettings((s) => { s.graphics = GRAPHICS_ORDER[(GRAPHICS_ORDER.indexOf(mode) + 1) % GRAPHICS_ORDER.length]; });
     showScreen("settings");
   });
 }
