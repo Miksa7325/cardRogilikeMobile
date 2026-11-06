@@ -107,8 +107,8 @@ export function createRunBar(run, { combat = null, allSaved = false, showItems =
     stats.setAttribute("aria-label", TEXTS.stats.button);
     bar.append(stats);
   }
-  // Ряд предметов растягивается и прижимает кнопку меню вправо; без него это делает пустая распорка
-  if (!combat) bar.append(showItems ? createItemsRow(run.relics, run.potions) : el("span", "run-bar__spacer"));
+  // Ряд предметов растягивается и прижимает кнопку меню вправо; без него (и в бою) это делает пустая распорка
+  bar.append(!combat && showItems ? createItemsRow(run.relics, run.potions) : el("span", "run-bar__spacer"));
   bar.append(
     createMenuButton({ needsConfirm: !allSaved, confirmText: combat ? TEXTS.menuConfirmCombat : TEXTS.menuConfirm }),
   );

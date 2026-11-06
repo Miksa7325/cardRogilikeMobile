@@ -17,6 +17,11 @@ export function applyHeroLook(image, heroId, meta = loadMeta()) {
   image.style.filter = getHeroFilter(meta, heroId);
 }
 
+// В бою у модели свой фильтр (тень и контур, css/vivid.css), поэтому окраску отдаём ему переменной --look
+export function setHeroLookVariable(image, heroId, meta = loadMeta()) {
+  image.style.setProperty("--look", getHeroFilter(meta, heroId));
+}
+
 // Загружает все спрайты заранее: иначе модель могла бы мигнуть, когда экран рисуется заново
 const preloaded = [];
 export function preloadSprites(enemyIds, heroIds) {

@@ -169,7 +169,9 @@ export function renderCityScreen(root) {
   const hero = createHero(loadRun()?.heroId ?? meta.selectedHero, meta);
   const map = el("div", "city__map");
   // Карта шире экрана, когда выросли слободы: её ширина — доля от ширины старого города
-  map.style.width = `calc(min(100vw, calc(100dvh * 9 / 16)) * ${layout.width / CENTER_WIDTH})`;
+  // dvh понимают не все браузеры: на старом телефоне без него карта схлопнулась бы, поэтому там берём vh
+  const screenHeight = window.CSS?.supports?.("height", "1dvh") ? "100dvh" : "100vh";
+  map.style.width = `calc(min(100vw, calc(${screenHeight} * 9 / 16)) * ${layout.width / CENTER_WIDTH})`;
   map.style.aspectRatio = `${layout.width} / ${MAP_HEIGHT}`;
   const decor = createDecor();
   map.append(...createGround(), ...decor.map((item) => item.element), ...places.map((place) => place.element), hero);
@@ -311,7 +313,8 @@ function createStatuePlace() {
   image.src = "assets/images/city/statue.png";
   image.alt = "";
   image.draggable = false;
-  statue.append(image, el("span", "building__label", TEXTS.city.statue.label));
+  // Нажимается только сама фигура и табличка: прозрачные края картинки не должны перекрывать гильдию рядом
+  statue.append(image, el("span", "city-statue__hit"), el("span", "building__label", TEXTS.city.statue.label));
   return {
     element: statue,
     action: TEXTS.city.statue.look,
@@ -641,6 +644,23 @@ function findPath(from, to, freeCells, isFree) {
   return straightenPath(from, points, isFree);
 }
 
+// Проверка «свободна ли точка» по корзинам: каждая точка сверяется только с препятствиями своего квадрата карты,
+// а не со всеми домами и деревьями. Поиск пути проверяет тысячи точек — на телефоне это заметно
+const BUCKET = 32;
+function createFreeCheck(obstacles) {
+  const columns = Math.ceil(layout.width / BUCKET);
+  const rows = Math.ceil(MAP_HEIGHT / BUCKET);
+  const buckets = Array.from({ length: columns * rows }, () => []);
+  const column = (x) => clamp(Math.floor(x / BUCKET), 0, columns - 1);
+  const row = (y) => clamp(Math.floor(y / BUCKET), 0, rows - 1);
+  for (const rect of obstacles) {
+    for (let r = row(rect.y); r <= row(rect.y + rect.height); r++) {
+      for (let c = column(rect.x); c <= column(rect.x + rect.width); c++) buckets[r * columns + c].push(rect);
+    }
+  }
+  return (point) => !buckets[row(point.y) * columns + column(point.x)].some((rect) => isInside(point, rect));
+}
+
 function canWalkStraight(from, to, isFree) {
   const steps = Math.ceil(distance(from, to) / LINE_STEP);
   for (let step = 1; step <= steps; step++) {
@@ -650,17 +670,23 @@ function canWalkStraight(from, to, isFree) {
   return true;
 }
 
-// Из каждой точки идём сразу к самой дальней, до которой видно по прямой: так герой не петляет по клеткам
+// Из каждой точки идём сразу к дальней, до которой видно по прямой: так герой не петляет по клеткам.
+// Смотрим вперёд по пути, пока прямая свободна, и ещё немного после первой помехи — за углом путь часто снова виден.
+// Перебирать все пары точек нельзя: на длинном пути это миллионы проверок и подтормаживание при каждом касании
+const LOOK_PAST_BLOCK = 6;
 function straightenPath(from, points, isFree) {
   const result = [];
   let current = from;
   let index = 0;
   while (index < points.length) {
     let farthest = index;
-    for (let candidate = points.length - 1; candidate > index; candidate--) {
+    let misses = 0;
+    for (let candidate = index + 1; candidate < points.length && misses <= LOOK_PAST_BLOCK; candidate++) {
       if (canWalkStraight(current, points[candidate], isFree)) {
         farthest = candidate;
-        break;
+        misses = 0;
+      } else {
+        misses += 1;
       }
     }
     result.push(points[farthest]);
@@ -675,7 +701,7 @@ function straightenPath(from, points, isFree) {
 // На компьютере можно ходить стрелками или WASD, а Enter, пробел или E — войти
 function startWalking({ screen, map, hero, header, actions, places, decor }) {
   const obstacles = [FOUNTAIN_OBSTACLE, ...decor.map((item) => item.obstacle), ...places.map((place) => place.obstacle)];
-  const isFree = (point) => !obstacles.some((rect) => isInside(point, rect));
+  const isFree = createFreeCheck(obstacles);
   // Герой не выходит за край карты: ноги не ниже нижнего края, голова не выше верхнего
   const keepOnMap = (point) => ({
     x: clamp(point.x, HERO_WIDTH / 2, layout.width - HERO_WIDTH / 2),
@@ -696,7 +722,24 @@ function startWalking({ screen, map, hero, header, actions, places, decor }) {
   let nearest = null; // к чему герой стоит вплотную: для него показываем кнопку
   let cameraX = null;
   let cameraY = null;
+  let wasWalking = false;
+  const drawn = { x: NaN, y: NaN }; // где герой нарисован сейчас
   let lastTime = performance.now();
+  // Кадры идут, только пока что-то движется: герой, камера или нажатая клавиша. Пока всё стоит, цикл спит —
+  // иначе браузер на каждом кадре пересчитывал бы стили всех анимаций города, и слабый телефон грелся бы впустую
+  let frameRequested = false;
+  const wake = () => {
+    if (frameRequested || !screen.isConnected) return;
+    frameRequested = true;
+    lastTime = performance.now();
+    requestAnimationFrame(frame);
+  };
+  // Экран сменился: перестаём слушать клавиши и окно, иначе герой ходил бы на чужом экране
+  const stopListening = () => {
+    document.removeEventListener("keydown", onKeyDown);
+    document.removeEventListener("keyup", onKeyUp);
+    window.removeEventListener("resize", onResize);
+  };
 
   const toMapPoint = (event) => {
     const rect = map.getBoundingClientRect();
@@ -715,11 +758,13 @@ function startWalking({ screen, map, hero, header, actions, places, decor }) {
     dragging = true;
     goal = null;
     walkToPoint(toMapPoint(event));
+    wake();
   });
   screen.addEventListener("pointermove", (event) => {
     if (!dragging) return;
     const point = toMapPoint(event);
     if (cellOf(point) !== dragCell) walkToPoint(point);
+    wake();
   });
   for (const type of ["pointerup", "pointercancel", "pointerleave"]) {
     screen.addEventListener(type, () => {
@@ -728,12 +773,17 @@ function startWalking({ screen, map, hero, header, actions, places, decor }) {
   }
 
   const onKeyDown = (event) => {
+    if (!screen.isConnected) {
+      stopListening();
+      return;
+    }
     if (isDialogOpen()) return;
     if (MOVE_KEYS[event.code]) {
       event.preventDefault();
       keys.add(event.code);
       path = [];
       goal = null;
+      wake();
     } else if (ACTION_KEYS.includes(event.code) && nearest) {
       event.preventDefault();
       nearest.open();
@@ -793,32 +843,57 @@ function startWalking({ screen, map, hero, header, actions, places, decor }) {
     promptButton?.remove();
     promptButton = place ? createButton(place.action, "button--attention city__prompt", () => place.open()) : null;
     if (promptButton) actions.prepend(promptButton);
+    view = null; // кнопка могла поменять высоту нижнего ряда
   };
 
   // Камера держит героя посередине между шапкой и кнопками, а по ширине — посередине экрана.
   // За край карты она не уходит; если карта уже экрана, карта стоит посередине
   const follow = (current, wanted, seconds) => (current === null ? wanted : current + (wanted - current) * Math.min(1, seconds * CAMERA_SPEED));
+  // Края свободной части экрана и размеры карты меряем только при смене размера окна и кнопок, а не на каждом кадре:
+  // любое чтение размеров заставляет браузер пересчитать стили всех идущих анимаций (сияние домов, искры)
+  let view = null;
+  const measure = () => {
+    view = {
+      top: header.getBoundingClientRect().bottom,
+      bottom: actions.getBoundingClientRect().top,
+      mapWidth: map.offsetWidth,
+      mapHeight: map.offsetHeight,
+      screenWidth: screen.clientWidth,
+    };
+  };
+  function onResize() {
+    if (!screen.isConnected) {
+      stopListening();
+      return;
+    }
+    view = null;
+    wake();
+  }
+  window.addEventListener("resize", onResize);
   const updateCamera = (seconds) => {
-    const top = header.getBoundingClientRect().bottom;
-    const bottom = actions.getBoundingClientRect().top;
-    const scale = map.offsetWidth / layout.width;
-    const lowest = bottom - map.offsetHeight;
+    if (!view) measure();
+    const { top, bottom, mapWidth, mapHeight, screenWidth } = view;
+    const scale = mapWidth / layout.width;
+    const lowest = bottom - mapHeight;
     let wantedY = (top + bottom) / 2 - position.y * scale;
     wantedY = lowest > top ? (lowest + top) / 2 : clamp(wantedY, lowest, top);
-    const viewWidth = screen.clientWidth;
-    const leftmost = viewWidth - map.offsetWidth;
-    let wantedX = viewWidth / 2 - position.x * scale;
+    const leftmost = screenWidth - mapWidth;
+    let wantedX = screenWidth / 2 - position.x * scale;
     wantedX = leftmost > 0 ? leftmost / 2 : clamp(wantedX, leftmost, 0);
-    cameraX = follow(cameraX, wantedX, seconds);
-    cameraY = follow(cameraY, wantedY, seconds);
-    map.style.transform = `translate(${cameraX}px, ${cameraY}px)`;
+    const nextX = follow(cameraX, wantedX, seconds);
+    const nextY = follow(cameraY, wantedY, seconds);
+    // Камера стоит — стиль не трогаем, иначе браузер перерисовывал бы карту каждый кадр
+    if (cameraX !== null && Math.abs(nextX - cameraX) < 0.05 && Math.abs(nextY - cameraY) < 0.05) return false;
+    cameraX = nextX;
+    cameraY = nextY;
+    map.style.transform = `translate3d(${cameraX.toFixed(1)}px, ${cameraY.toFixed(1)}px, 0)`;
+    return true;
   };
 
-  const frame = (now) => {
-    // Экран сменился: перестаём слушать клавиши, иначе герой ходил бы на чужом экране
+  function frame(now) {
+    frameRequested = false;
     if (!screen.isConnected) {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("keyup", onKeyUp);
+      stopListening();
       return;
     }
     const seconds = Math.min((now - lastTime) / 1000, MAX_FRAME_S);
@@ -837,14 +912,26 @@ function startWalking({ screen, map, hero, header, actions, places, decor }) {
       }
     }
 
-    hero.classList.toggle("city-hero--walking", walking);
-    hero.style.left = percent(position.x, layout.width);
-    hero.style.top = percent(position.y, MAP_HEIGHT);
-    hero.style.zIndex = Math.round(position.y);
+    if (walking !== wasWalking) {
+      hero.classList.toggle("city-hero--walking", walking);
+      wasWalking = walking;
+    }
+    // Положение героя пишем, только если он сдвинулся: иначе стоящий герой заставлял бы пересчитывать раскладку
+    if (position.x !== drawn.x || position.y !== drawn.y) {
+      hero.style.left = percent(position.x, layout.width);
+      hero.style.top = percent(position.y, MAP_HEIGHT);
+      hero.style.zIndex = Math.round(position.y);
+      drawn.x = position.x;
+      drawn.y = position.y;
+    }
     showPrompt(places.find((place) => distance(position, place.spot) <= TALK_DISTANCE) ?? null);
-    updateCamera(seconds);
-    requestAnimationFrame(frame);
-  };
+    const cameraMoved = updateCamera(seconds);
+    const busy = !isDialogOpen() && (walking || keys.size > 0 || dragging || path.length > 0);
+    if (busy || cameraMoved) {
+      frameRequested = true;
+      requestAnimationFrame(frame);
+    }
+  }
   frame(lastTime);
 
   return {
@@ -853,6 +940,7 @@ function startWalking({ screen, map, hero, header, actions, places, decor }) {
       keys.clear();
       walkToPoint(place.spot);
       goal = place;
+      wake();
     },
   };
 }

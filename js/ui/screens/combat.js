@@ -11,7 +11,7 @@ import { saveRun } from "../../save.js";
 import { state } from "../../state.js";
 import { captureCombatView, flyCardAway, playCombatFeedback, playEnemyTurn, showDrawnCards } from "../animations.js";
 import { playCardEffect } from "../vfxCards.js";
-import { applyHeroLook, enemySprite, heroSprite, IDLE_STYLES } from "../art.js";
+import { enemySprite, heroSprite, IDLE_STYLES, setHeroLookVariable } from "../art.js";
 import { enableCardDrag } from "../cardDrag.js";
 import { createCardElement, shakeCard } from "../components/card.js";
 import { openCardList } from "../components/cardList.js";
@@ -127,7 +127,7 @@ function createTopBar(combat) {
     state.test.pickerOpen = true;
     showScreen("combat");
   });
-  bar.append(testButton, createMenuButton());
+  bar.append(el("span", "run-bar__spacer"), testButton, createMenuButton());
   return bar;
 }
 
@@ -137,7 +137,7 @@ function createPortrait(sprite, idle = "breathe", heroId = null) {
   const portrait = el("div", `unit__portrait idle--${idle}`);
   const image = el("img", "");
   image.src = sprite;
-  if (heroId) applyHeroLook(image, heroId);
+  if (heroId) setHeroLookVariable(image, heroId);
   image.alt = "";
   image.decoding = "sync"; // экран рисуется заново после каждого действия: рисунок не должен мигать
   image.draggable = false;

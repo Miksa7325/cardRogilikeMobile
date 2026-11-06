@@ -5,6 +5,7 @@
   align-items: center;
   justify-content: center;
   gap: 24px;
+  min-height: 100vh; /* для старых браузеров без dvh */
   min-height: 100dvh;
   padding:
     calc(16px + env(safe-area-inset-top))
@@ -369,6 +370,7 @@
 .dungeon {
   display: flex;
   flex-direction: column;
+  height: 100vh; /* для старых браузеров без dvh */
   height: 100dvh;
   padding:
     env(safe-area-inset-top)
@@ -521,6 +523,7 @@
 .map {
   display: flex;
   flex-direction: column;
+  height: 100vh; /* для старых браузеров без dvh */
   height: 100dvh;
   padding:
     env(safe-area-inset-top)
@@ -620,6 +623,7 @@
 .combat {
   display: flex;
   flex-direction: column;
+  height: 100vh; /* для старых браузеров без dvh */
   height: 100dvh;
   overflow: hidden;
   padding:

@@ -27,17 +27,19 @@ const CROSSFADE_SECONDS = 1.2;
 const buffers = {}; // имя звука → массив AudioBuffer
 const lastVariant = {};
 const lastPlayedAt = {};
-const musicUrls = {}; // настроение → blob: URL сжатого файла
+// Раскодированная музыка: настроение → AudioBuffer. Держим только последние треки, остальные грузим заново
+const musicBuffers = new Map();
+const MUSIC_CACHE_SIZE = 2;
+// Музыку храним моно и с частотой 24 кГц: так трек занимает в памяти вчетверо меньше, чем стерео 48 кГц
+const MUSIC_SAMPLE_RATE = 24000;
 let mood = "menu";
-let music = null; // { mood, element, gain }
+let music = null; // { mood, source, gain }
 let musicRequest = 0;
 
 // Вызывается на каждом нажатии: первое включает звук, остальные возобновляют его, если браузер его приостановил
 export function unlockAudio() {
   if (context) {
-    if (context.state !== "running") context.resume();
-    // Если браузер не дал запустить музыку без нажатия, запускаем её сейчас
-    if (music?.element.paused && !document.hidden) music.element.play().catch(() => {});
+    if (context.state !== "running" && !document.hidden) context.resume();
     return;
   }
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext;
@@ -52,15 +54,11 @@ export function unlockAudio() {
   loadSounds();
   switchMusic(mood);
 
-  // Свернули игру — звук молчит и не тратит батарею
+  // Свернули игру — звук молчит и не тратит батарею. Музыка играет через Web Audio, а не через <audio>:
+  // поэтому она не занимает системный проигрыватель телефона и не появляется на экране блокировки
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      context.suspend();
-      music?.element.pause();
-    } else {
-      context.resume();
-      music?.element.play().catch(() => {});
-    }
+    if (document.hidden) context.suspend();
+    else context.resume();
   });
 }
 
@@ -126,43 +124,74 @@ export function setMusicMood(newMood) {
   if (context) switchMusic(mood);
 }
 
-// Плавно сменяет музыку. Файл берём целиком через fetch (его кэширует service worker) и играем из памяти:
-// так музыка работает и без сети, а в памяти лежит только сжатый файл
+// Плавно сменяет музыку. Файл берём через fetch (его кэширует service worker), поэтому музыка работает и без сети
 async function switchMusic(newMood) {
   if (music?.mood === newMood) return;
   const request = ++musicRequest;
   fadeOutMusic();
   if (!MUSIC_MOODS.includes(newMood)) return;
 
+  let buffer;
   try {
-    musicUrls[newMood] ??= URL.createObjectURL(await (await fetch(`assets/sounds/music/${newMood}.mp3`)).blob());
+    buffer = await loadMusic(newMood);
   } catch {
     return;
   }
   // Пока файл грузился, игрок мог уйти на другой экран
   if (request !== musicRequest) return;
 
-  const element = new Audio(musicUrls[newMood]);
-  element.loop = true;
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
   const gain = context.createGain();
-  gain.gain.value = 0.0001;
-  context.createMediaElementSource(element).connect(gain);
-  gain.connect(musicGain);
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
   gain.gain.exponentialRampToValueAtTime(1, context.currentTime + CROSSFADE_SECONDS);
-  music = { mood: newMood, element, gain };
-  if (!document.hidden) element.play().catch(() => {});
+  source.connect(gain);
+  gain.connect(musicGain);
+  source.start();
+  music = { mood: newMood, source, gain };
+}
+
+async function loadMusic(name) {
+  if (musicBuffers.has(name)) {
+    // Свежий трек переносим в конец очереди: из памяти уходит самый давний
+    const cached = musicBuffers.get(name);
+    musicBuffers.delete(name);
+    musicBuffers.set(name, cached);
+    return cached;
+  }
+  const data = await (await fetch(`assets/sounds/music/${name}.mp3`)).arrayBuffer();
+  const buffer = await decodeCompact(data);
+  musicBuffers.set(name, buffer);
+  while (musicBuffers.size > MUSIC_CACHE_SIZE) musicBuffers.delete(musicBuffers.keys().next().value);
+  return buffer;
+}
+
+// Раскодирует трек сразу в 24 кГц и сводит стерео в моно. Если браузер так не умеет — обычное раскодирование
+async function decodeCompact(data) {
+  const Offline = window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
+  try {
+    const decoded = await new Offline(1, 1, MUSIC_SAMPLE_RATE).decodeAudioData(data.slice(0));
+    if (decoded.numberOfChannels === 1) return decoded;
+    const mono = context.createBuffer(1, decoded.length, decoded.sampleRate);
+    const out = mono.getChannelData(0);
+    const left = decoded.getChannelData(0);
+    const right = decoded.getChannelData(1);
+    for (let i = 0; i < out.length; i++) out[i] = (left[i] + right[i]) * 0.5;
+    return mono;
+  } catch {
+    return context.decodeAudioData(data);
+  }
 }
 
 function fadeOutMusic() {
   if (!music) return;
-  const { element, gain } = music;
+  const { source, gain } = music;
   music = null;
   const now = context.currentTime;
   gain.gain.cancelScheduledValues(now);
   gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + CROSSFADE_SECONDS);
-  setTimeout(() => {
-    element.pause();
-    gain.disconnect();
-  }, CROSSFADE_SECONDS * 1000 + 100);
+  source.onended = () => gain.disconnect();
+  source.stop(now + CROSSFADE_SECONDS + 0.05);
 }

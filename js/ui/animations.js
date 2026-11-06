@@ -34,6 +34,14 @@ function animate(element, frames, ms, easing = "ease-in-out") {
   return animation.finished.catch(() => {});
 }
 
+// Временный элемент (число, след удара, тающий враг) убирается после своей анимации.
+// Если анимация не закончилась — игру свернули или анимации отключены — убираем по таймеру, иначе такие элементы копятся
+function removeWhenDone(element, fallbackMs = 2500) {
+  const remove = () => element.remove();
+  element.addEventListener("animationend", remove, { once: true });
+  setTimeout(remove, fallbackMs);
+}
+
 function allUnits(combat) {
   return [
     { id: "hero", unit: combat.hero },
@@ -308,7 +316,7 @@ function showNumber(rect, text, className, value = 0, icon = null) {
   label.style.top = `${rect.top + rect.height * 0.3}px`;
   label.style.setProperty("--fly-x", `${(Math.random() - 0.5) * 70}px`);
   if (value > 0) label.style.fontSize = `${Math.min(46, 24 + value * 0.8)}px`;
-  label.addEventListener("animationend", () => label.remove());
+  removeWhenDone(label);
   document.body.append(label);
 }
 
@@ -319,7 +327,7 @@ function showImpact(rect, kind) {
   impact.style.left = `${x}px`;
   impact.style.top = `${y}px`;
   impact.style.rotate = `${-55 + Math.random() * 40}deg`;
-  impact.addEventListener("animationend", () => impact.remove());
+  removeWhenDone(impact);
   document.body.append(impact);
 }
 
@@ -346,7 +354,7 @@ function showDyingEnemy(previous) {
   ghost.style.left = `${previous.rect.left}px`;
   ghost.style.top = `${previous.rect.top}px`;
   ghost.style.width = `${previous.rect.width}px`;
-  ghost.addEventListener("animationend", () => ghost.remove());
+  removeWhenDone(ghost, 4000);
   document.body.append(ghost);
 }
 

@@ -94,27 +94,18 @@
     rgba(10, 8, 14, 0.62);
 }
 
-/* Свет и пламя нарисованы внутри картинки: при любом размере экрана они остаются на факелах */
-.scene__glow,
-.scene__flame {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
+/* Свет и пламя нарисованы внутри своей картинки: при любом размере экрана они остаются на факелах.
+   Мерцает вся картинка целиком и только прозрачностью — это не перерисовывает фон */
+.scene__torchlight {
+  will-change: opacity;
   animation: torch-flicker 3s infinite;
 }
 
-.scene__glow {
-  transform-origin: center;
-}
-
-.scene__glow--late {
-  animation-delay: -1.2s;
-}
-
 @keyframes torch-flicker {
-  0%, 100% { opacity: 0.85; transform: scale(1); }
-  20% { opacity: 1; transform: scale(1.07); }
-  45% { opacity: 0.7; transform: scale(0.95); }
-  70% { opacity: 0.95; transform: scale(1.03); }
+  0%, 100% { opacity: 0.85; }
+  20% { opacity: 1; }
+  45% { opacity: 0.7; }
+  70% { opacity: 0.95; }
 }
 
 .scene__ember {
@@ -136,8 +127,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene__glow,
-  .scene__flame,
+  .scene__torchlight,
   .scene__ember,
   .unit__portrait img {
     animation: none !important;
@@ -155,7 +145,7 @@
 .button {
   border: 1px solid #b4453f;
   background: linear-gradient(180deg, #a83a36, #6d1f1f);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 6px rgba(0, 0, 0, 0.5);
   text-shadow: 0 1px 1px #000;
   transition: transform 80ms, filter 80ms;
 }
@@ -636,13 +626,26 @@
   backface-visibility: hidden;
 }
 
-/* Кладка — верхняя часть текстуры акта: растягиваем картинку так, чтобы она заняла всю высоту стены */
+/* Кладка — верхняя часть текстуры акта: растягиваем картинку так, чтобы она заняла всю высоту стены.
+   Текстура с фильтром лежит отдельным слоем (::before): мерцающий свет и знаки поверх неё не заставляют
+   браузер пересчитывать фильтр всей стены на каждом кадре */
 .corridor__wall {
   top: 0;
   width: var(--depth);
   height: 100%;
+}
+
+.corridor__wall::before,
+.corridor__end::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: var(--wall) 0 0 / auto 170% repeat-x;
   filter: brightness(0.75) var(--tint);
+}
+
+.corridor__end::before {
+  filter: brightness(0.6) var(--tint);
 }
 
 .corridor__wall--left {
@@ -706,8 +709,6 @@
 .corridor__end {
   inset: 0;
   transform: translateZ(calc(var(--depth) * -1));
-  background: var(--wall) 0 0 / auto 170% repeat-x;
-  filter: brightness(0.6) var(--tint);
 }
 
 /* Темнота по краям, а при шаге в туннель — затемнение всего коридора */
@@ -753,7 +754,6 @@
   box-shadow: inset 0 0 22px #000, 0 0 0 2px #1a1420;
   transform: translateX(-50%);
   cursor: pointer;
-  filter: brightness(1.6);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -775,11 +775,25 @@
   font-size: 30px;
   line-height: 1.2;
   transform: translate(-50%, -8px);
-  animation: tunnel-sign 1.6s ease-in-out infinite alternate;
 }
 
-@keyframes tunnel-sign {
-  to { box-shadow: 0 0 14px 2px rgba(255, 200, 80, 0.7); }
+/* Знак мягко мерцает: светится его ореол (::before), и меняется только прозрачность ореола */
+.tunnel__sign::before,
+.tunnel__sign--revealed::before,
+.hatch__sign--revealed::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 12px 2px rgba(255, 200, 80, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  animation: sign-glow 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes sign-glow {
+  to { opacity: 1; }
 }
 
 /* Шаг в туннель: мир надвигается на камеру и сдвигается к выбранному входу, всё темнеет */
@@ -877,12 +891,13 @@
 .tunnel__sign--revealed,
 .hatch__sign--revealed {
   border-color: #c8f08a;
-  box-shadow: 0 0 12px rgba(200, 240, 138, 0.8);
-  animation: fireflies-glow 1.4s ease-in-out infinite alternate;
+  box-shadow: 0 0 10px rgba(200, 240, 138, 0.6);
 }
 
-@keyframes fireflies-glow {
-  to { box-shadow: 0 0 18px rgba(230, 255, 160, 1); }
+.tunnel__sign--revealed::before,
+.hatch__sign--revealed::before {
+  box-shadow: 0 0 16px 2px rgba(230, 255, 160, 0.75);
+  animation-duration: 1.4s;
 }
 
 /* Банка светлячков открыта: проходы ждут, какой из них осветить */
@@ -939,7 +954,7 @@
   border: 2px solid #5a3d1e;
   border-radius: 3px 9px 4px 10px;
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255, 250, 230, 0.55), transparent 60%),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 250, 230, 0.3), transparent 60%),
     radial-gradient(ellipse at 80% 90%, rgba(120, 80, 30, 0.35), transparent 55%),
     #d9bf86;
   box-shadow: inset 0 0 6px rgba(90, 61, 30, 0.6), 0 3px 8px rgba(0, 0, 0, 0.7);
@@ -1000,7 +1015,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .corridor__wall::after,
-  .tunnel__sign,
+  .tunnel__sign::before,
+  .tunnel__sign--revealed::before,
+  .hatch__sign--revealed::before,
   .corridor--walking,
   .corridor--descending {
     animation: none;
@@ -1267,7 +1284,6 @@
   display: block;
   width: 100%;
   height: auto;
-  animation: building-glow 2.2s ease-in-out infinite;
 }
 
 .city-gate .building__label {
@@ -1297,13 +1313,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .city-hero--walking .city-hero__sprite,
-  .city-npc__marker,
-  .city-gate__art {
+  .city-npc__marker {
     animation: none;
   }
 }
 
-/* Дом на карте: подсветка повторяет его контур и мягко пульсирует, поэтому его видно среди декора */
+/* Дом на карте: под ним мягко пульсирует тёплое сияние, поэтому его видно среди декора.
+   Пульсирует только прозрачность сияния: анимировать filter у больших картинок на телефоне дорого */
 .building {
   position: absolute;
   padding: 0;
@@ -1317,22 +1333,38 @@
 .building__sprite {
   display: block;
   width: 100%;
-  animation: building-glow 2.2s ease-in-out infinite;
+}
+
+.building::before,
+.city-gate::before {
+  content: "";
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: 18%;
+  bottom: -4%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 210, 90, 0.42), rgba(255, 200, 80, 0.12) 60%, transparent);
+  opacity: 0.35;
+  pointer-events: none;
+  will-change: opacity;
+  animation: building-aura 2.2s ease-in-out infinite;
+}
+
+@keyframes building-aura {
+  50% { opacity: 0.85; }
 }
 
 .building:active .building__sprite {
   transform: translateY(1px) scale(0.97);
 }
 
-@keyframes building-glow {
-  0%, 100% { filter: drop-shadow(0 0 2px #ffe08a) drop-shadow(0 0 6px rgba(255, 200, 80, 0.7)); }
-  50% { filter: drop-shadow(0 0 3px #fff0b8) drop-shadow(0 0 12px rgba(255, 200, 80, 1)); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .building__sprite {
+  .building::before,
+  .city-gate::before {
     animation: none;
-    filter: drop-shadow(0 0 2px #ffe08a) drop-shadow(0 0 6px rgba(255, 200, 80, 0.8));
+    opacity: 0.6;
   }
 }
 

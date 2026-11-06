@@ -1,6 +1,7 @@
 // Service worker: хранит файлы игры, чтобы она работала без интернета.
 // Сначала пробуем свежий файл из сети, а если сети нет — берём сохранённую копию.
 // Поэтому обновления доходят до игрока сами, версию кэша при каждой правке менять не нужно.
+// Медленная сеть не должна держать запуск: если есть сохранённая копия, а сеть молчит дольше NETWORK_WAIT_MS, берём копию
 const CACHE_NAME = "card-rpg-v1";
 
 // Новый файл игры добавляй и сюда: так он будет доступен офлайн сразу после первого запуска
@@ -258,22 +259,34 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+const NETWORK_WAIT_MS = 3000;
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
-  event.respondWith(networkFirst(event.request));
+  event.respondWith(networkFirst(event));
 });
 
-async function networkFirst(request) {
+async function networkFirst(event) {
+  const { request } = event;
   const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (response.ok) await cache.put(request, response.clone());
+  // Свежий ответ кладём в кэш в фоне: игроку его отдаём сразу. Частичные ответы (206) кэш не принимает
+  const network = fetch(request).then((response) => {
+    if (response.status === 200) event.waitUntil(cache.put(request, response.clone()).catch(() => {}));
     return response;
-  } catch (error) {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    if (request.mode === "navigate") return cache.match("./index.html");
-    throw error;
+  });
+  const cached = await cache.match(request);
+  if (!cached) {
+    try {
+      return await network;
+    } catch (error) {
+      if (request.mode === "navigate") {
+        const page = await cache.match("./index.html");
+        if (page) return page;
+      }
+      throw error;
+    }
   }
+  const late = new Promise((resolve) => setTimeout(() => resolve(cached), NETWORK_WAIT_MS));
+  return Promise.race([network.catch(() => cached), late]);
 }

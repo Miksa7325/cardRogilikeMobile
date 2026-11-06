@@ -15,6 +15,11 @@ export function applySettings() {
   document.documentElement.style.setProperty("--anim-speed", speedFactor);
 }
 
+// Множитель скорости анимаций: 1 — обычно, 0.5 — ускорено. Его читают эффекты, чтобы не спрашивать CSS на каждой частице
+export function getAnimationSpeed() {
+  return speedFactor;
+}
+
 // Длительность с учётом ускорения: для пауз в коде, а не в CSS
 export function animationMs(multiplier = 1) {
   return ANIMATION_MS * multiplier * speedFactor;

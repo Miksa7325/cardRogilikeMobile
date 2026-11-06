@@ -31,5 +31,5 @@ export const ALCHEMIST_CARDS = [
   // Редкие
   triggerPower("al_philosopher", "Философский камень", "rare", 2, "Каждое выпитое зелье даёт ещё {reagents} Реагент.", "onPotionUsed", [gainResource("reagents", 1)], [gainResource("reagents", 2)]),
   card("al_grand_brew", "Великая варка", "skill", "rare", 3, "self", "Сварить 3 зелья. Сжечь.", [brew(3), burn], { cost: 2 }),
-  card("al_elixir_blast", "Взрыв эликсира", "attack", "rare", 2, "enemy", "Нанести {damage} урона, +3 за каждый Реагент.", [grow(damage(8), "reagents", 3)], { effects: [grow(damage(12), "reagents", 3)] }),
+  card("al_elixir_blast", "Взрыв эликсира", "attack", "rare", 3, "enemy", "Нанести {damage} урона, +3 за каждый Реагент.", [grow(damage(8), "reagents", 3)], { effects: [grow(damage(12), "reagents", 3)] }),
 ];

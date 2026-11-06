@@ -3,6 +3,7 @@
 // Частицы (снег, искры, угли, звёзды) рисуются на холсте поверх боя, молнии, кольца, лучи и вспышки — элементами
 // с анимацией. Все длительности умножаются на --anim-speed: при ускорении ×2 эффекты тоже вдвое короче.
 import { el } from "./dom.js";
+import { getAnimationSpeed } from "./settings.js";
 
 // Какой эффект у какой карты
 export const CARD_VFX = {
@@ -26,13 +27,16 @@ let context = null;
 let particles = [];
 let running = false;
 let lastTime = 0;
+let listening = false;
 
-function speed() {
-  return Number(getComputedStyle(document.documentElement).getPropertyValue("--anim-speed")) || 1;
-}
+// Больше частиц слабый телефон не потянет: лишние просто не появляются, эффект остаётся узнаваемым
+const MAX_PARTICLES = 320;
+// Светящиеся частицы рисуются готовой картинкой, а не новым градиентом на каждом кадре
+const glowSprites = new Map();
+const GLOW_SPRITE_SIZE = 64;
 
 export function ms(value) {
-  return value * speed();
+  return value * getAnimationSpeed();
 }
 
 export const random = (min, max) => min + Math.random() * (max - min);
@@ -56,11 +60,16 @@ export function ensureCanvas() {
   document.body.append(canvas);
   context = canvas.getContext("2d");
   resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
+  if (!listening) {
+    listening = true;
+    window.addEventListener("resize", resizeCanvas);
+  }
 }
 
+// Частицы мягкие, поэтому холсту хватает полуторной чёткости: на телефоне с плотным экраном это вдвое меньше работы
 function resizeCanvas() {
-  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  if (!canvas) return;
+  const ratio = Math.min(1.5, window.devicePixelRatio || 1);
   canvas.width = Math.round(window.innerWidth * ratio);
   canvas.height = Math.round(window.innerHeight * ratio);
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -68,6 +77,7 @@ function resizeCanvas() {
 
 // Частица: позиция, скорость, ускорение, жизнь в мс, размер, цвет и форма
 export function spawn(particle) {
+  if (particles.length >= MAX_PARTICLES) return;
   particles.push({
     vx: 0, vy: 0, ax: 0, ay: 0, drag: 0, size: 4, grow: 0, life: 800, age: 0, shape: "glow", spin: 0, angle: 0, wobble: 0, seed: Math.random() * 6,
     delay: 0, ...particle, life: ms(particle.life ?? 800), delay: ms(particle.delay ?? 0),
@@ -80,6 +90,21 @@ export function spawn(particle) {
 }
 
 function tick(now) {
+  try {
+    drawFrame(now);
+  } catch {
+    // Ошибка рисования не должна навсегда остановить эффекты: сбрасываем частицы этого кадра
+    particles = [];
+  }
+  if (particles.length > 0) {
+    requestAnimationFrame(tick);
+  } else {
+    running = false;
+    context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  }
+}
+
+function drawFrame(now) {
   const dt = Math.min(50, now - lastTime);
   lastTime = now;
   context.clearRect(0, 0, window.innerWidth, window.innerHeight);
@@ -104,12 +129,6 @@ function tick(now) {
     drawParticle(p, 1 - p.age / p.life);
     return true;
   });
-  if (particles.length > 0) {
-    requestAnimationFrame(tick);
-  } else {
-    running = false;
-    context.clearRect(0, 0, window.innerWidth, window.innerHeight);
-  }
 }
 
 function drawParticle(p, left) {
@@ -117,14 +136,7 @@ function drawParticle(p, left) {
   const alpha = Math.min(1, left * 1.6) * (p.alpha ?? 1);
   context.globalAlpha = alpha;
   if (p.shape === "glow") {
-    const gradient = context.createRadialGradient(p.x, p.y, 0, p.x, p.y, size);
-    gradient.addColorStop(0, p.core ?? "#ffffff");
-    gradient.addColorStop(0.35, p.color);
-    gradient.addColorStop(1, "rgba(0,0,0,0)");
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.arc(p.x, p.y, size, 0, Math.PI * 2);
-    context.fill();
+    context.drawImage(glowSprite(p.color, p.core ?? "#ffffff"), p.x - size, p.y - size, size * 2, size * 2);
   } else if (p.shape === "flake") {
     context.strokeStyle = p.color;
     context.lineWidth = Math.max(1, size / 4);
@@ -182,7 +194,9 @@ function drawParticle(p, left) {
     context.strokeStyle = p.color;
     context.lineWidth = 2;
     context.beginPath();
-    context.roundRect(-size * 0.7, -size, size * 1.4, size * 2, size * 0.25);
+    // roundRect есть не во всех браузерах: в старых карта будет с прямыми углами
+    if (context.roundRect) context.roundRect(-size * 0.7, -size, size * 1.4, size * 2, size * 0.25);
+    else context.rect(-size * 0.7, -size, size * 1.4, size * 2);
     context.fill();
     context.stroke();
     context.restore();
@@ -202,6 +216,26 @@ function drawParticle(p, left) {
     context.restore();
   }
   context.globalAlpha = 1;
+}
+
+// Круглое свечение одного цвета: рисуется один раз и дальше только масштабируется
+function glowSprite(color, core) {
+  const key = color + core;
+  let sprite = glowSprites.get(key);
+  if (sprite) return sprite;
+  sprite = document.createElement("canvas");
+  sprite.width = GLOW_SPRITE_SIZE;
+  sprite.height = GLOW_SPRITE_SIZE;
+  const g = sprite.getContext("2d");
+  const r = GLOW_SPRITE_SIZE / 2;
+  const gradient = g.createRadialGradient(r, r, 0, r, r, r);
+  gradient.addColorStop(0, core);
+  gradient.addColorStop(0.35, color);
+  gradient.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = gradient;
+  g.fillRect(0, 0, GLOW_SPRITE_SIZE, GLOW_SPRITE_SIZE);
+  glowSprites.set(key, sprite);
+  return sprite;
 }
 
 // ---------- Общие приёмы ----------
